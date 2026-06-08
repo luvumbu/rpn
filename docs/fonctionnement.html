@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Guide de fonctionnement</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+    :root{
+        --bg:#14110f; --panel:#1b1714; --line:rgba(244,193,75,.22);
+        --text:#f6f1e7; --muted:#b7afa1; --accent:#f4c14b; --ink:#14110f;
+        --rouge:#e63946; --vert:#2a9d4a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:
+        radial-gradient(circle at 12% 0%,rgba(230,57,70,.18),transparent 42%),
+        radial-gradient(circle at 88% 100%,rgba(42,157,74,.18),transparent 44%),var(--bg);
+        color:var(--text);line-height:1.65;padding:0 0 60px}
+    .bar{height:6px;background:linear-gradient(90deg,var(--rouge) 0 33%,var(--bg) 33% 66%,var(--vert) 66% 100%)}
+    header.top{max-width:980px;margin:0 auto;padding:40px 22px 10px}
+    header.top h1{font-size:30px;font-weight:800}
+    header.top h1 span{color:var(--accent)}
+    header.top p{color:var(--muted);margin-top:8px;font-size:15px}
+    .wrap{max-width:980px;margin:0 auto;padding:0 22px;display:grid;grid-template-columns:230px 1fr;gap:28px;align-items:start}
+    @media(max-width:760px){.wrap{grid-template-columns:1fr}.toc{position:static!important}}
+    .toc{position:sticky;top:20px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 16px}
+    .toc h2{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
+    .toc a{display:block;color:var(--text);text-decoration:none;font-size:14px;padding:7px 10px;border-radius:9px}
+    .toc a:hover{background:rgba(244,193,75,.12);color:var(--accent)}
+    section.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin-bottom:20px;scroll-margin-top:18px}
+    section.card h2{font-size:22px;color:var(--accent);margin-bottom:6px}
+    section.card h3{font-size:16px;margin:18px 0 6px}
+    section.card p{color:#e9e2d4;margin:8px 0}
+    ul,ol{margin:8px 0 8px 22px}
+    li{margin:5px 0;color:#e9e2d4}
+    .lead{color:var(--muted)!important;font-size:15px}
+    .tag{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(244,193,75,.14);
+        color:var(--accent);border:1px solid var(--line);margin-right:6px}
+    .tag.green{color:#7ddc9a;background:rgba(42,157,74,.16);border-color:rgba(42,157,74,.4)}
+    .tag.red{color:#ff8a93;background:rgba(230,57,70,.16);border-color:rgba(230,57,70,.4)}
+    .note{border-left:3px solid var(--accent);background:rgba(244,193,75,.06);padding:10px 14px;border-radius:0 10px 10px 0;margin:12px 0;font-size:14px}
+    .steps{counter-reset:s;list-style:none;margin-left:0}
+    .steps li{counter-increment:s;position:relative;padding-left:38px;margin:10px 0}
+    .steps li::before{content:counter(s);position:absolute;left:0;top:-2px;width:26px;height:26px;border-radius:50%;
+        background:var(--accent);color:var(--ink);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px}
+    footer{max-width:980px;margin:30px auto 0;padding:0 22px;color:var(--muted);font-size:13px}
+    code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header class="top">
+    <h1>📘 Guide de fonctionnement — <span>RPN</span></h1>
+    <p>Comment utiliser le site : connexion, articles, agenda de rendez-vous, avis, apparence et administration.</p>
+</header>
+
+<div class="wrap">
+    <nav class="toc">
+        <h2>Sommaire</h2>
+        <a href="#connexion">1. Connexion</a>
+        <a href="#dashboard">2. Tableau de bord</a>
+        <a href="#articles">3. Articles</a>
+        <a href="#avis">4. Avis & discussion</a>
+        <a href="#agenda">5. Agenda & rendez-vous</a>
+        <a href="#proximite">6. Recherche par proximité</a>
+        <a href="#apparence">7. Apparence</a>
+        <a href="#admin">8. Administration</a>
+        <a href="#roles">9. Qui peut quoi ?</a>
+    </nav>
+
+    <main>
+        <section class="card" id="connexion">
+            <h2>1. Connexion</h2>
+            <p class="lead">Deux types de comptes : <b>membre</b> et <b>administrateur</b>.</p>
+            <ul>
+                <li><span class="tag">Membre</span> Connexion via <b>« Se connecter avec Google »</b> depuis la page d'accueil. Le compte est créé automatiquement à la première connexion.</li>
+                <li><span class="tag red">Admin</span> Accès via <code>/admin/login</code> avec identifiant + mot de passe. Certains emails sont promus admin automatiquement.</li>
+            </ul>
+            <div class="note">La liste des articles publiés est <b>publique</b> : un visiteur non connecté peut lire les articles, mais doit se connecter pour écrire, réserver, noter ou commenter.</div>
+        </section>
+
+        <section class="card" id="dashboard">
+            <h2>2. Tableau de bord</h2>
+            <p>Après connexion, le tableau de bord affiche ton profil, des statistiques et des <b>accès rapides</b> :</p>
+            <ul>
+                <li>📰 <b>Articles</b> — lire et écrire.</li>
+                <li>✍️ <b>Écrire un article</b>.</li>
+                <li>📅 <b>Agenda &amp; rendez-vous</b> — proposer des créneaux, réserver.</li>
+                <li>⚙️ <b>Espace administrateur</b> (admins uniquement).</li>
+            </ul>
+        </section>
+
+        <section class="card" id="articles">
+            <h2>3. Articles</h2>
+            <h3>Lire</h3>
+            <p>La page <b>Articles</b> liste les publications (avec leur note moyenne ★). Clique sur une carte pour ouvrir l'article : couverture, contenu, galerie photo, documents joints, avis et discussion.</p>
+
+            <h3>Écrire / modifier</h3>
+            <ol class="steps">
+                <li>Clique sur <b>＋ Nouvel article</b>.</li>
+                <li>Saisis le <b>titre</b> et choisis une <b>mise en page</b> (16 styles classés par catégorie).</li>
+                <li>Rédige le contenu dans l'<b>éditeur</b> (gras, titres, listes, liens, citations…).</li>
+                <li>Ajoute des <b>photos</b> : clique l'<b>étoile ⭐</b> sur celle qui sera la <b>principale</b> (couverture) ; les autres forment la galerie.</li>
+                <li>Ajoute des <b>documents</b> (PDF, Word, Excel…). Les PDF auront un bouton <b>« 👁 Voir »</b> pour les ouvrir dans la page.</li>
+                <li>Coche <b>Publier</b> (sinon l'article reste un <b>brouillon</b> privé), puis enregistre.</li>
+            </ol>
+            <div class="note"><b>Aperçu en direct</b> : un panneau en bas montre le rendu réel de l'article au fur et à mesure (titre, contenu, modèle, couverture, galerie, documents).</div>
+            <p>Depuis un article que tu as créé, tu peux le <b>Publier / Mettre en brouillon</b>, le <b>Modifier</b> ou le <b>Supprimer</b>. <span class="tag red">Important</span> seuls le <b>créateur</b> et un <b>admin</b> peuvent modifier ou supprimer un article.</p>
+        </section>
+
+        <section class="card" id="avis">
+            <h2>4. Avis &amp; discussion</h2>
+            <h3>Donner un avis ★</h3>
+            <p>En bas d'un article, laisse une <b>note de 1 à 5 étoiles</b> + un commentaire. Un seul avis par membre (modifiable), il compte dans la moyenne. L'auteur ne note pas son propre article.</p>
+            <h3>Participer à la discussion 💬</h3>
+            <ul>
+                <li>Écris autant de <b>messages</b> que tu veux dans le fil de discussion.</li>
+                <li><b>Signaler ⚐</b> un message problématique (le créateur de l'article et les admins voient les messages signalés).</li>
+                <li>Un message peut être <b>supprimé</b> par son auteur, par le créateur de l'article ou par un admin.</li>
+            </ul>
+        </section>
+
+        <section class="card" id="agenda">
+            <h2>5. Agenda &amp; rendez-vous</h2>
+            <p class="lead">Chaque membre peut proposer des créneaux <i>et</i> réserver chez les autres — pas de rôle prof/élève. Quatre onglets : <b>Trouver</b>, <b>Mes réservations</b>, <b>Mes créneaux</b>, <b>Proposer</b>.</p>
+
+            <h3>Proposer un créneau</h3>
+            <ol class="steps">
+                <li>Onglet <b>Proposer</b> : titre, date, heure, durée, <b>nombre de places</b>.</li>
+                <li>Type : <b>📍 Présentiel</b> (adresse, avec <b>autocomplétion</b> et carte) ou <b>🔗 En ligne</b> (lien visio).</li>
+                <li>Visibilité : <b>🌐 Public</b> (visible par tous) ou <b>🔒 Privé</b> (caché, accessible par <b>code</b>).</li>
+            </ol>
+
+            <h3>Gérer mes créneaux</h3>
+            <ul>
+                <li>Modifier les <b>places</b> en direct avec <b>− / +</b>.</li>
+                <li>Modifier le <b>lieu</b> (chaque changement est <b>historisé</b> : « Modifié le … : ancien → nouveau »).</li>
+                <li><b>＋ Ajouter un membre</b> inscrit — même si le créneau est complet (l'hôte passe outre la limite).</li>
+                <li>Voir qui a réservé, et <b>supprimer</b> le créneau.</li>
+                <li>Si le créneau est <b>privé</b>, partage son <b>code</b> (2 lettres + 3 chiffres, ex. <code>AB123</code>).</li>
+            </ul>
+
+            <h3>Réserver</h3>
+            <ul>
+                <li>Dans <b>Trouver</b>, parcours les créneaux publics (paginés par 5) et clique <b>Réserver une place</b>.</li>
+                <li>Pour un créneau <b>privé</b>, entre son <b>code</b> dans la barre de recherche dédiée.</li>
+                <li>Retrouve tout dans <b>Mes réservations</b> ; tu peux <b>annuler</b> à tout moment.</li>
+                <li><b>Noter l'hôte ★</b> chez qui tu as réservé — la note s'affiche aux futurs participants.</li>
+            </ul>
+        </section>
+
+        <section class="card" id="proximite">
+            <h2>6. Recherche par proximité</h2>
+            <ol class="steps">
+                <li>Onglet <b>Trouver</b> → section « Cours publics à proximité ».</li>
+                <li>Saisis une <b>ville/adresse</b> (autocomplétion) ou clique <b>📍 Autour de moi</b> (géolocalisation).</li>
+                <li>Choisis un <b>rayon</b> : 5 / 10 / 20 / 50 / 100 km.</li>
+                <li>Les résultats s'affichent <b>triés par distance</b>, avec une <b>carte</b> : ta zone (point rouge) et chaque cours.</li>
+                <li>Clique un <b>marqueur</b> de la carte → la page défile jusqu'à la fiche du créneau.</li>
+            </ol>
+            <div class="note">S'il n'y a rien dans le rayon, le site affiche <b>« Aucun résultat »</b> et suggère d'élargir la recherche.</div>
+        </section>
+
+        <section class="card" id="apparence">
+            <h2>7. Apparence</h2>
+            <p>Dans <b>Admin → Apparence</b>, choisis un <b>thème</b> parmi 10 (Panafricain, Sombre, Clair, Océan, Forêt, Coucher de soleil, Violet, Menthe…) ou <b>🎨 Personnalisé</b> :</p>
+            <ul>
+                <li>Règle chaque couleur avec un <b>sélecteur</b> ; les nuances (cartes, bordures, halos) s'adaptent automatiquement.</li>
+                <li><b>Aperçu en direct</b> : la page se recolore instantanément avant d'enregistrer.</li>
+            </ul>
+            <p>Le thème s'applique à <b>tout le site</b> : accueil, articles, agenda, administration.</p>
+        </section>
+
+        <section class="card" id="admin">
+            <h2>8. Administration</h2>
+            <p class="lead">Réservé aux administrateurs.</p>
+            <ul>
+                <li><b>Membres</b> : promouvoir / rétrograder, bloquer / débloquer, supprimer.</li>
+                <li><b>Articles (modération)</b> : vue d'ensemble de tous les articles ; <b>style global</b> (taille du texte, police).</li>
+                <li><b>Sécurité</b> : voir et débloquer les adresses IP bloquées (protection anti-bruteforce des connexions admin).</li>
+                <li><b>Réglages</b> : thème &amp; couleurs, textes d'accueil, clés Google, paramètres de sécurité.</li>
+            </ul>
+        </section>
+
+        <section class="card" id="roles">
+            <h2>9. Qui peut quoi ?</h2>
+            <ul>
+                <li><span class="tag">Visiteur</span> Lire les articles publiés et les avis/discussions.</li>
+                <li><span class="tag green">Membre</span> Tout ce qui précède + écrire des articles, gérer les siens, réserver/proposer des rendez-vous, noter, commenter, signaler.</li>
+                <li><span class="tag red">Admin</span> Tout, partout : modération des membres et des articles, sécurité, réglages, suppression de n'importe quel contenu.</li>
+            </ul>
+            <div class="note"><b>Règle clé :</b> un article ne peut être <b>modifié ou supprimé</b> que par son <b>créateur</b> ou un <b>admin</b>.</div>
+        </section>
+    </main>
+</div>
+
+<footer>
+    RPN — Guide de fonctionnement. Pour les détails techniques (architecture, base de données, API), voir <code>docs/TECHNIQUE.md</code>.
+</footer>
+</body>
+</html>

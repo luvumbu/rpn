@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Connexion Google (OAuth) : guide complet</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+    :root { --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#fff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280; --code:#0f172a; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html { scroll-behavior:smooth; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); position:sticky; top:0; z-index:20; }
+    header { background:var(--noir); color:#fff; padding:44px 24px; text-align:center;
+        background-image:radial-gradient(circle at 15% 0%,rgba(230,57,70,.30),transparent 45%),radial-gradient(circle at 85% 120%,rgba(42,157,74,.30),transparent 48%); }
+    header h1 { font-size:30px; } header h1 b { color:var(--or); }
+    header p { color:rgba(255,255,255,.72); margin-top:10px; font-size:15px; max-width:640px; margin-inline:auto; }
+    .layout { display:flex; max-width:1080px; margin:0 auto; gap:30px; padding:30px 24px; align-items:flex-start; }
+    nav.toc { position:sticky; top:40px; min-width:230px; font-size:14px; }
+    nav.toc a { display:block; color:var(--muted); text-decoration:none; padding:6px 10px; border-radius:7px; }
+    nav.toc a:hover { background:#f0f0f5; color:var(--noir); }
+    nav.toc .grp { font-weight:700; color:var(--noir); margin:14px 0 4px; font-size:12.5px; text-transform:uppercase; letter-spacing:.5px; }
+    main { flex:1; min-width:0; }
+    section { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:26px 28px; margin-bottom:22px; scroll-margin-top:30px; }
+    section > h2 { font-size:21px; color:var(--noir); margin-bottom:14px; padding-bottom:10px; border-bottom:2px solid var(--or); }
+    h3 { font-size:16px; margin:18px 0 8px; color:var(--noir); }
+    p { margin-bottom:10px; } ul,ol { margin:8px 0 12px 22px; } li { margin-bottom:6px; }
+    code { background:#f1f1f6; color:#b3243a; padding:2px 6px; border-radius:5px; font-family:Consolas,Monaco,monospace; font-size:13px; }
+    pre { background:var(--code); color:#e5e7eb; padding:14px 16px; border-radius:10px; overflow-x:auto; margin:12px 0; font-size:13px; line-height:1.5; }
+    pre code { background:none; color:inherit; padding:0; }
+    table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+    th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--noir); background:#fcf7e9; }
+    .note { background:#fff8e6; border-left:4px solid var(--or); padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; font-size:14px; }
+    .warn { background:#fde8ea; border-left:4px solid var(--rouge); padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; font-size:14px; }
+    .ok { background:#e9f7ee; border-left:4px solid var(--vert); padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; font-size:14px; }
+    .flow { counter-reset:step; list-style:none; margin-left:0; }
+    .flow li { counter-increment:step; position:relative; padding-left:40px; margin-bottom:12px; }
+    .flow li::before { content:counter(step); position:absolute; left:0; top:0; width:28px; height:28px; background:var(--or); color:var(--noir); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; }
+    .copy { position:relative; }
+    footer { text-align:center; padding:30px; color:var(--muted); font-size:13px; }
+    @media(max-width:820px){ .layout{flex-direction:column;} nav.toc{position:static;min-width:0;} }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header>
+    <h1>RPN — <b>Connexion Google (OAuth)</b></h1>
+    <p>Tout pour configurer, comprendre et dépanner la connexion « Se connecter avec Google » des membres — y compris après le passage du dossier <code>rpm</code> à <code>rpn</code>.</p>
+</header>
+
+<div class="layout">
+<nav class="toc">
+    <div class="grp">Comprendre</div>
+    <a href="#quoi">C'est quoi ?</a>
+    <a href="#flux">Comment ça marche</a>
+    <div class="grp">Configurer</div>
+    <a href="#console">La page Google</a>
+    <a href="#uris">Les URL à mettre</a>
+    <a href="#projet">Les clés dans le projet</a>
+    <div class="grp">Maintenance</div>
+    <a href="#rpn">Changement rpm → rpn</a>
+    <a href="#depannage">Dépannage</a>
+    <a href="#secu">Sécurité</a>
+</nav>
+
+<main>
+
+<section id="quoi">
+    <h2>🔑 C'est quoi la connexion Google ?</h2>
+    <p>Les <b>membres</b> de RPN se connectent avec leur compte Google (bouton « Se connecter avec Google »), via le protocole <b>OAuth 2.0</b>. Aucun mot de passe n'est stocké : Google authentifie l'utilisateur et renvoie son profil (nom, e-mail, photo), que RPN enregistre en base.</p>
+    <p>Pour que Google accepte de rediriger vers ton site, il faut <b>déclarer ton site</b> dans la <b>Google Cloud Console</b> (l'URL exacte de retour, dite « URI de redirection »).</p>
+    <div class="note">La connexion <b>administrateur</b> (identifiants MySQL) n'utilise PAS Google : elle fonctionne indépendamment, même si Google n'est pas configuré.</div>
+</section>
+
+<section id="flux">
+    <h2>⚙️ Comment ça marche (le flux)</h2>
+    <ol class="flow">
+        <li>L'utilisateur clique <b>« Se connecter avec Google »</b> sur l'accueil <code>/rpn/</code>.</li>
+        <li>Il est envoyé sur <b>Google</b> (avec un paramètre <code>state</code> anti-CSRF).</li>
+        <li>Après accord, Google le renvoie vers l'<b>URI de redirection</b> : <code>…/rpn/google-callback.php</code>.</li>
+        <li>RPN échange le <b>code</b> reçu contre un <b>token</b>, récupère le <b>profil</b> (nom, e-mail, photo).</li>
+        <li>Le membre est créé/mis à jour en base, puis redirigé vers son <b>tableau de bord</b>.</li>
+    </ol>
+    <h3>Fichiers concernés</h3>
+    <table>
+        <tr><th>Fichier</th><th>Rôle</th></tr>
+        <tr><td><code>app/core/GoogleClient.php</code></td><td>URL d'authentification, échange du code, récupération du profil</td></tr>
+        <tr><td><code>app/controllers/AuthController.php</code></td><td><code>showLogin</code>, <code>callback</code> (retour Google → upsert), <code>logout</code></td></tr>
+        <tr><td><code>google-callback.php</code></td><td>Cible de redirection enregistrée chez Google (relaie vers le routeur)</td></tr>
+        <tr><td><code>config/config.php</code></td><td>Clés Google + URI de redirection (auto http/https)</td></tr>
+    </table>
+</section>
+
+<section id="console">
+    <h2>🌐 La page Google (où configurer)</h2>
+    <p>Tout se passe dans la <b>Google Cloud Console</b>, section <b>Identifiants</b> :</p>
+    <pre><code>https://console.cloud.google.com/apis/credentials</code></pre>
+    <ol class="flow">
+        <li>Connecte-toi avec le <b>compte Google propriétaire</b> de l'app (<code>fjs.troubadourstory@gmail.com</code>).</li>
+        <li>Vérifie le <b>bon projet</b> sélectionné en haut (menu déroulant à côté de « Google Cloud »).</li>
+        <li>Va dans <b>API et services → Identifiants</b> (ou le lien ci-dessus).</li>
+        <li>Sous <b>« ID clients OAuth 2.0 »</b>, clique sur le tien (type <b>Application Web</b>).</li>
+        <li>Modifie les <b>URI de redirection</b> et <b>origines JavaScript</b> (section suivante), puis <b>Enregistre</b>.</li>
+    </ol>
+    <div class="note">Si le lien direct n'ouvre pas la bonne page : <code>console.cloud.google.com</code> → menu ☰ → <b>API et services</b> → <b>Identifiants</b>.</div>
+</section>
+
+<section id="uris">
+    <h2>📋 Les URL à mettre</h2>
+    <h3>URI de redirection autorisés</h3>
+    <pre><code>http://localhost/rpn/google-callback.php
+https://bokonzi.com/rpn/google-callback.php</code></pre>
+    <h3>Origines JavaScript autorisées</h3>
+    <pre><code>http://localhost
+https://bokonzi.com</code></pre>
+    <div class="note">Pendant la transition, tu peux <b>garder aussi</b> les anciennes URL en <code>/rpm/</code> : les deux versions fonctionneront en parallèle.</div>
+    <div class="warn">⚠️ L'URI de redirection doit être <b>strictement identique</b> à celle qu'envoie le site (protocole, domaine, casse, chemin). La moindre différence ⇒ erreur <code>redirect_uri_mismatch</code>.</div>
+</section>
+
+<section id="projet">
+    <h2>🗝️ Les clés dans le projet</h2>
+    <p>Dans <code>config/config.php</code> :</p>
+    <pre><code>define('GOOGLE_CLIENT_ID',     '…apps.googleusercontent.com');
+define('GOOGLE_CLIENT_SECRET', 'VOTRE_SECRET_GOOGLE');
+// URI de redirection : construite AUTOMATIQUEMENT (http/https + domaine)
+define('GOOGLE_REDIRECT_URI', $__scheme . '://' . $__host . '/rpn/google-callback.php');</code></pre>
+    <ul>
+        <li><b>Client ID / Secret</b> : fournis par Google Cloud Console (à ne jamais publier).</li>
+        <li><b>Redirect URI</b> : le code détecte tout seul <code>http</code>/<code>https</code> et le domaine ; seul le chemin <code>/rpn/google-callback.php</code> est fixe.</li>
+        <li>Les clés sont aussi modifiables depuis <b>Admin → Paramètres</b> (elles surchargent le fichier).</li>
+    </ul>
+    <div class="warn">⚠️ Ne publie jamais <code>config/config.php</code> (il contient le <code>CLIENT_SECRET</code>).</div>
+</section>
+
+<section id="rpn">
+    <h2>🔁 Changement de dossier : rpm → rpn</h2>
+    <p>L'application a été déplacée du dossier <code>rpm</code> vers <code>rpn</code>. La connexion Google dépend du <b>chemin</b> de l'URI de redirection : il faut donc <b>ajouter les nouvelles URL</b> <code>/rpn/</code> côté Google (section « URL à mettre »).</p>
+    <table>
+        <tr><th>Élément</th><th>Avant</th><th>Maintenant</th></tr>
+        <tr><td>Dossier / URL</td><td><code>…/rpm/</code></td><td><code>…/rpn/</code></td></tr>
+        <tr><td>URI de redirection</td><td><code>…/rpm/google-callback.php</code></td><td><code>…/rpn/google-callback.php</code></td></tr>
+        <tr><td><code>.htaccess</code></td><td><code>RewriteBase /rpm/</code></td><td><code>RewriteBase /rpn/</code></td></tr>
+    </table>
+    <div class="ok">✅ La connexion <b>admin</b> (MySQL) marche déjà sur <code>/rpn/</code> sans rien configurer. Seule la connexion <b>Google</b> nécessite d'ajouter les URI <code>/rpn/</code>.</div>
+</section>
+
+<section id="depannage">
+    <h2>🩺 Dépannage</h2>
+    <table>
+        <tr><th>Message / symptôme</th><th>Cause & solution</th></tr>
+        <tr><td><code>redirect_uri_mismatch</code></td><td>L'URI de redirection envoyée n'est pas (exactement) dans la liste autorisée. Vérifie protocole (http/https), domaine et chemin <code>/rpn/google-callback.php</code>. Ajoute-la, enregistre, réessaie.</td></tr>
+        <tr><td>« Accès bloqué : cette appli n'a pas terminé… »</td><td>L'app est en mode test : ajoute ton e-mail dans <b>Écran de consentement OAuth → Utilisateurs tests</b>, ou publie l'app.</td></tr>
+        <tr><td>Rien ne se passe / page blanche au retour</td><td>Vérifie que <code>google-callback.php</code> existe à la racine du dossier et que <code>CLIENT_ID/SECRET</code> sont corrects.</td></tr>
+        <tr><td>Modif non prise en compte</td><td>La propagation côté Google prend parfois quelques minutes ; vide le cache / réessaie en navigation privée.</td></tr>
+        <tr><td>Marche en local, pas en ligne</td><td>Tu as ajouté <code>localhost</code> mais pas <code>https://bokonzi.com/rpn/google-callback.php</code> (ou inversement).</td></tr>
+    </table>
+</section>
+
+<section id="secu">
+    <h2>🛡️ Sécurité</h2>
+    <ul>
+        <li><b>Anti-CSRF</b> : un paramètre <code>state</code> aléatoire est généré puis vérifié au retour.</li>
+        <li><b>Secret protégé</b> : le <code>CLIENT_SECRET</code> reste côté serveur, jamais exposé au navigateur, jamais publié.</li>
+        <li><b>Pas de mot de passe stocké</b> : RPN ne conserve que le profil renvoyé par Google.</li>
+        <li><b>Admins automatiques</b> : les e-mails listés dans <code>ADMIN_EMAILS</code> (config) deviennent admin à la connexion.</li>
+    </ul>
+</section>
+
+</main>
+</div>
+<footer>RPN — Guide connexion Google (OAuth) · Voir aussi <a href="application.html">application.html</a> · <a href="fonctionnalites.html">fonctionnalites.html</a></footer>
+</body>
+</html>

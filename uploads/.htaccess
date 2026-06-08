@@ -1,0 +1,15 @@
+# Dossier d'images publiques.
+# Les images sont servies normalement, MAIS aucun script ne doit pouvoir
+# s'exécuter ici (sécurité, au cas où un fichier malveillant serait déposé).
+<FilesMatch "\.(php|phtml|phar|php3|php4|php5|php7|pht|cgi|pl|py|asp|aspx|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Pas de listing du contenu
+Options -Indexes

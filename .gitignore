@@ -1,0 +1,25 @@
+# === Secrets & configuration locale (NE JAMAIS publier) ===
+config/config.php
+config/db.php
+storage/db.php
+
+# === Données / état (propres à chaque environnement) ===
+storage/*.json
+uploads/articles/*
+uploads/quizzes/*
+uploads/avatars/*
+uploads/articles/files/*
+!uploads/**/.htaccess
+
+# === Documents sources lourds ===
+pdf/
+
+# === Archives de déploiement ===
+deploy.zip
+*.zip
+
+# === Divers ===
+*.log
+.DS_Store
+Thumbs.db
+_*.php

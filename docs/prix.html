@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Tarifs & coûts 2026 (hébergement, maintenance, fabrication)</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+    :root { --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#fff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); }
+    header { background:var(--noir); color:#fff; padding:52px 24px; text-align:center;
+        background-image:radial-gradient(circle at 15% 0%,rgba(230,57,70,.30),transparent 45%),radial-gradient(circle at 85% 120%,rgba(42,157,74,.30),transparent 48%); }
+    header h1 { font-size:30px; } header h1 b { color:var(--or); }
+    header p { color:rgba(255,255,255,.78); margin-top:12px; font-size:15px; max-width:680px; margin-inline:auto; }
+    .wrap { max-width:980px; margin:0 auto; padding:34px 22px 60px; }
+    .back { display:inline-block; margin-bottom:18px; font-size:13px; color:var(--rouge); text-decoration:none; font-weight:700; }
+    h2 { font-size:22px; color:var(--noir); margin:34px 0 6px; } h2 .e { margin-right:8px; }
+    h3 { font-size:16px; color:var(--noir); margin:18px 0 6px; }
+    .lead { color:var(--muted); margin-bottom:14px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; border-left:5px solid var(--or); }
+    table { width:100%; border-collapse:collapse; margin:10px 0; font-size:14px; }
+    th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { background:#faf7ef; color:var(--noir); font-size:12.5px; text-transform:uppercase; letter-spacing:.4px; }
+    td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    tr:last-child td { border-bottom:none; }
+    .total td { font-weight:800; background:#fffaf0; border-top:2px solid var(--or); }
+    .pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:700; }
+    .pill.s { background:rgba(42,157,74,.14); color:#1d7a37; }
+    .pill.r { background:rgba(230,57,70,.12); color:#c32030; }
+    .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin:8px 0 4px; }
+    .box { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+    .box .big { font-size:23px; font-weight:800; color:var(--noir); }
+    .box .lbl { font-size:12.5px; color:var(--muted); }
+    .src a { color:var(--rouge); }
+    .src li { margin-bottom:6px; }
+    .disclaimer { background:#fff8e6; border:1px solid #f0dca0; border-radius:12px; padding:14px 16px; font-size:13px; color:#6b5b16; margin-top:24px; }
+    footer { text-align:center; padding:26px; color:var(--muted); font-size:13px; }
+    .note { font-size:13px; color:var(--muted); margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header>
+    <h1>RPN — <b>Tarifs & coûts</b> (2026)</h1>
+    <p>Combien coûte une plateforme comme RPN ? Trois volets : <strong>hébergement</strong> et <strong>maintenance</strong> (récurrents), <strong>fabrication</strong> (ponctuel). Prix du marché 2026, sources en bas de page.</p>
+</header>
+
+<div class="wrap">
+    <a class="back" href="index.html">← Retour au centre d'aide</a>
+
+    <!-- HÉBERGEMENT -->
+    <h2><span class="e">🖥️</span>1. Hébergement <span class="pill s">récurrent</span></h2>
+    <p class="lead">Trois formules selon le besoin. RPN tourne très bien en <strong>mutualisé</strong>.</p>
+    <div class="card">
+        <table>
+            <thead><tr><th>Formule</th><th>Pour qui</th><th class="num">Prix indicatif</th></tr></thead>
+            <tbody>
+                <tr><td><b>Mutualisé</b> (recommandé)</td><td>Communauté, trafic normal. Sans administration.</td><td class="num">5 – 8 €/mois</td></tr>
+                <tr><td>· Hostinger Premium</td><td>promo 48 mois → renouvellement</td><td class="num">2,69 € → 9,99 €/mois</td></tr>
+                <tr><td>· Hostinger Business</td><td>plus de ressources</td><td class="num">3,59 € → 16,99 €/mois</td></tr>
+                <tr><td><b>VPS</b></td><td>Forte charge, ressources garanties, accès root (un peu d'admin).</td><td class="num">3 – 50 €/mois</td></tr>
+                <tr><td><b>Cloud / serverless</b></td><td>Très gros pics de trafic (souvent superflu ici).</td><td class="num">à l'usage</td></tr>
+            </tbody>
+        </table>
+        <h3>Frais annexes</h3>
+        <table>
+            <tbody>
+                <tr><td>Nom de domaine (.com / .org)</td><td class="num">10 – 15 €/an</td></tr>
+                <tr><td>Certificat SSL (HTTPS)</td><td class="num">gratuit</td></tr>
+                <tr><td>E-mails pro (optionnel)</td><td class="num">1 – 3 €/mois</td></tr>
+                <tr><td>Sauvegardes auto</td><td class="num">souvent incluses</td></tr>
+            </tbody>
+        </table>
+        <div class="grid2">
+            <div class="box"><div class="big">≈ 50 – 210 € / an</div><div class="lbl">Hébergement RPN (mutualisé, tout compris)</div></div>
+            <div class="box"><div class="big">≈ 5 – 18 € / mois</div><div class="lbl">soit, par mois</div></div>
+        </div>
+    </div>
+
+    <!-- MAINTENANCE -->
+    <h2><span class="e">🔧</span>2. Maintenance <span class="pill s">récurrent</span></h2>
+    <p class="lead">Sauvegardes, mises à jour de sécurité, surveillance, corrections, petites évolutions.</p>
+    <div class="card">
+        <table>
+            <thead><tr><th>Niveau</th><th>Contenu</th><th class="num">Coût</th></tr></thead>
+            <tbody>
+                <tr><td>Autogestion</td><td>Tu fais les mises à jour toi-même</td><td class="num">≈ 0 €</td></tr>
+                <tr><td>Basique / Standard</td><td>Sauvegardes + sécurité + corrections</td><td class="num">60 – 300 €/mois</td></tr>
+                <tr><td>Complète (prestataire)</td><td>Convention : 15–20 % du coût de développement / an</td><td class="num">≈ 2 400 – 8 400 €/an</td></tr>
+            </tbody>
+        </table>
+        <p class="note">💡 Pour RPN : <b>0 €</b> en autogestion (il ne reste que l'hébergement), ou <b>2 400 – 8 400 €/an</b> en suivi professionnel complet.</p>
+    </div>
+
+    <!-- FABRICATION -->
+    <h2><span class="e">🏗️</span>3. Fabrication (développement) <span class="pill r">ponctuel</span></h2>
+    <p class="lead">Coût unique de création. Marché 2026 : de <strong>5 000 €</strong> (cadré) à <strong>100 000 €+</strong> (complexe) ; freelance ≈ 350–600 €/jour. Détail estimé pour RPN :</p>
+    <div class="card">
+        <table>
+            <thead><tr><th>Module</th><th class="num">Estimation</th></tr></thead>
+            <tbody>
+                <tr><td>Architecture MVC maison (routeur, cœur)</td><td class="num">1 000 – 3 000 €</td></tr>
+                <tr><td>Authentification (Google + e-mail / mot de passe)</td><td class="num">800 – 2 000 €</td></tr>
+                <tr><td>Espace membre (profil, photo, niveaux, recherche, pays/adresse)</td><td class="num">1 500 – 3 500 €</td></tr>
+                <tr><td>Espace administrateur complet</td><td class="num">2 000 – 5 000 €</td></tr>
+                <tr><td>Articles (galerie, fichiers, sous-articles, mot de passe, signalement, avis, équations)</td><td class="num">3 000 – 7 000 €</td></tr>
+                <tr><td>Questionnaires (QCM, score, tentatives, association)</td><td class="num">1 500 – 4 000 €</td></tr>
+                <tr><td>Agenda &amp; réservations (Google Agenda, géolocalisation, proximité)</td><td class="num">2 000 – 5 000 €</td></tr>
+                <tr><td>Messagerie privée temps réel</td><td class="num">1 000 – 2 500 €</td></tr>
+                <tr><td>Carte de la diaspora + assistant (algorithme)</td><td class="num">800 – 2 000 €</td></tr>
+                <tr><td>Sécurité (anti-bruteforce, CSRF, PDO, uploads cloisonnés)</td><td class="num">1 500 – 4 000 €</td></tr>
+                <tr><td>Export/import, thèmes, API, redimensionnement d'images</td><td class="num">1 200 – 3 000 €</td></tr>
+                <tr><td>Documentation &amp; déploiement</td><td class="num">800 – 2 000 €</td></tr>
+                <tr class="total"><td>Total fabrication (≈ 255 – 560 h)</td><td class="num">≈ 17 000 – 43 000 €</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TCO -->
+    <h2><span class="e">📊</span>4. Coût total sur 3 ans</h2>
+    <div class="card">
+        <table>
+            <thead><tr><th>Scénario</th><th>Récurrent (3 ans)</th><th class="num">+ Fabrication</th></tr></thead>
+            <tbody>
+                <tr><td><b>Autogestion</b></td><td>Hébergement ≈ 3 × 120 € = 360 € + domaine</td><td class="num">déjà réalisée</td></tr>
+                <tr><td><b>Maintenance pro</b></td><td>+ ≈ 3 × 5 000 € = 15 000 €</td><td class="num">déjà réalisée</td></tr>
+            </tbody>
+        </table>
+        <div class="grid2" style="margin-top:12px">
+            <div class="box"><div class="big">≈ 50 – 210 €/an</div><div class="lbl">🖥️ Hébergement</div></div>
+            <div class="box"><div class="big">0 → 8 400 €/an</div><div class="lbl">🔧 Maintenance (selon le niveau)</div></div>
+            <div class="box"><div class="big">≈ 17 000 – 43 000 €</div><div class="lbl">🏗️ Fabrication (une fois)</div></div>
+        </div>
+    </div>
+
+    <!-- SOURCES -->
+    <h2><span class="e">🔗</span>Sources</h2>
+    <div class="card src">
+        <ul>
+            <li>Hostinger — <a href="https://www.hostinger.com/fr/tutoriels/prix-hebergement-site-internet" target="_blank" rel="noopener">prix d'hébergement 2026</a> · <a href="https://www.hostinger.com/pricing" target="_blank" rel="noopener">grille tarifaire</a></li>
+            <li>VPS &amp; comparatifs — <a href="https://tool-advisor.fr/blog/hebergeur-vps/" target="_blank" rel="noopener">Tool Advisor (VPS 2026)</a> · <a href="https://odyssix.fr/blog/hebergement/hebergement-mutualise-dedie-vps-comparatif-entreprise/" target="_blank" rel="noopener">Odyssix (mutualisé vs VPS vs dédié)</a></li>
+            <li>Application web sur mesure — <a href="https://www.aquilapp.fr/ressources/developpement-sur-mesure/cout-application-web-sur-mesure" target="_blank" rel="noopener">Aquilapp</a> · <a href="https://www.realitim.com/cout-application-web" target="_blank" rel="noopener">REALITIM</a></li>
+            <li>Maintenance de site web — <a href="https://ellebay-digital.com/blog/cout-maintenance-site-web-2026" target="_blank" rel="noopener">Ellebay Digital (2026)</a></li>
+        </ul>
+    </div>
+
+    <div class="disclaimer">⚠️ Montants <strong>indicatifs</strong> (marché 2026). Les coûts de fabrication reflètent la valeur du développement (agence/freelance) ; ils varient selon le prestataire, le pays et les exigences. L'hébergement et la maintenance dépendent du trafic, du stockage et du niveau de service.</div>
+
+    <footer>RPN — Institut Sankofa · Tarifs &amp; coûts · 2026</footer>
+</div>
+</body>
+</html>

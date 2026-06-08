@@ -1,0 +1,460 @@
+<?php
+/**
+ * CONTRÔLEUR Quiz (questionnaires interactifs)
+ * Lecture ET écriture des questionnaires, pour tout membre connecté.
+ *  - n'importe quel membre peut créer un questionnaire ;
+ *  - il peut modifier / supprimer LES SIENS ; un admin peut tout gérer ;
+ *  - tout membre connecté peut répondre à un questionnaire publié.
+ *
+ * Chaque question est notée : mode « unique » (1 bonne réponse) ou « multiple »
+ * (plusieurs bonnes réponses). Après avoir répondu, le membre voit son score et
+ * ce qui était juste / faux.
+ */
+class QuizController
+{
+    /** Bloque l'accès aux visiteurs non connectés → page de connexion. */
+    private function guard(): void
+    {
+        if (!Session::has('user')) {
+            redirect('');
+        }
+    }
+
+    /** Peut modifier/supprimer ce questionnaire ? (son auteur, ou un admin) */
+    private function canManage(array $quiz): bool
+    {
+        if (Session::isAdmin()) {
+            return true;
+        }
+        $u = Session::user();
+        return (int) ($quiz['author_id'] ?? -1) === (int) ($u['id'] ?? -2);
+    }
+
+    /**
+     * Liste des questionnaires : /rpn/quiz
+     * Un membre voit tous les questionnaires PUBLIÉS + ses propres brouillons ;
+     * un admin voit tout.
+     */
+    public function index(): void
+    {
+        $this->guard();
+        $quizzes = Quiz::all();
+
+        if (!Session::isAdmin()) {
+            $uid = (int) (Session::user()['id'] ?? 0);
+            $quizzes = array_values(array_filter($quizzes, function ($q) use ($uid) {
+                return (int) $q['active'] === 1 || ($uid && (int) $q['author_id'] === $uid);
+            }));
+        }
+
+        // Méta pour chaque carte : nb de questions, nb de participants, ma participation.
+        $uid  = (int) (Session::user()['id'] ?? 0);
+        $meta = [];
+        foreach ($quizzes as $q) {
+            $qid = (int) $q['id'];
+            $meta[$qid] = [
+                'questions'    => Quiz::questionCount($qid),
+                'participants' => Quiz::responseCount($qid),
+                'myResponse'   => Quiz::responseFor($qid, $uid),
+            ];
+        }
+
+        view('quiz/index', [
+            'user'    => Session::user(),
+            'quizzes' => $quizzes,
+            'meta'    => $meta,
+            'isAdmin' => Session::isAdmin(),
+            'notice'  => Session::get('quiz_notice'),
+        ]);
+        Session::remove('quiz_notice');
+    }
+
+    /** Formulaire de création. */
+    public function create(): void
+    {
+        $this->guard();
+        view('quiz/form', [
+            'user'           => Session::user(),
+            'quiz'           => null,
+            'questions'      => [],
+            'error'          => Session::get('quiz_error'),
+            'action'         => url('quiz/save'),
+            'active'         => 1,
+            'isAdmin'        => Session::isAdmin(),
+            'isUrgent'       => 0,
+            'isRequired'     => 0,
+            'isPassRequired' => 0,
+            'maxAttempts'    => 0,
+        ]);
+        Session::remove('quiz_error');
+    }
+
+    /** Formulaire de modification (auteur ou admin uniquement). */
+    public function edit(): void
+    {
+        $this->guard();
+        $id   = (int) ($_GET['id'] ?? 0);
+        $quiz = $id ? Quiz::find($id) : null;
+        if (!$quiz || !$this->canManage($quiz)) {
+            redirect('quiz');
+        }
+        view('quiz/form', [
+            'user'           => Session::user(),
+            'quiz'           => $quiz,
+            'questions'      => Quiz::questions($id),
+            'error'          => Session::get('quiz_error'),
+            'action'         => url('quiz/save'),
+            'active'         => (int) ($quiz['active'] ?? 1),
+            'isAdmin'        => Session::isAdmin(),
+            'isUrgent'       => (int) ($quiz['urgent'] ?? 0),
+            'isRequired'     => (int) ($quiz['required'] ?? 0),
+            'isPassRequired' => (int) ($quiz['pass_required'] ?? 0),
+            'maxAttempts'    => (int) ($quiz['max_attempts'] ?? 0),
+        ]);
+        Session::remove('quiz_error');
+    }
+
+    /**
+     * Enregistre un questionnaire (création ou modification).
+     * Le formulaire envoie les questions sous forme de tableau imbriqué :
+     *   q[IDX][body], q[IDX][type] = single|multiple,
+     *   q[IDX][opt][OPTIDX][label], q[IDX][opt][OPTIDX][correct] = 1 si bonne réponse.
+     * À chaque enregistrement on recrée intégralement les questions/options.
+     */
+    public function store(): void
+    {
+        $this->guard();
+
+        $id          = (int) ($_POST['id'] ?? 0);
+        $title       = trim((string) ($_POST['title'] ?? ''));
+        $description = trim((string) ($_POST['description'] ?? ''));
+        $active      = isset($_POST['active']) ? 1 : 0;
+
+        // Droits vérifiés AVANT toute écriture (en édition : auteur ou admin).
+        $existing = $id ? Quiz::find($id) : null;
+        if ($id && (!$existing || !$this->canManage($existing))) {
+            redirect('quiz');
+        }
+
+        // Validation : titre + au moins une question valide.
+        $rawQuestions = is_array($_POST['q'] ?? null) ? $_POST['q'] : [];
+        $clean        = $this->normalizeQuestions($rawQuestions);
+
+        if ($title === '' || empty($clean)) {
+            Session::set('quiz_error', $title === ''
+                ? 'Donne un titre à ton questionnaire.'
+                : 'Ajoute au moins une question avec 2 réponses et 1 bonne réponse cochée.');
+            // Conserve la saisie pour ne pas tout reperdre.
+            Session::set('quiz_old', ['title' => $title, 'description' => $description, 'q' => $rawQuestions, 'active' => $active]);
+            redirect($id ? 'quiz/edit?id=' . $id : 'quiz/new');
+        }
+        Session::remove('quiz_old');
+
+        // Image de couverture (facultative) : envoi + suppression éventuelle.
+        $newImage = null;
+        $imgError = null;
+        try { $newImage = Upload::image('image', 'quizzes'); } catch (\RuntimeException $e) { $imgError = $e->getMessage(); }
+        $removeImage = !empty($_POST['remove_image']);
+
+        // Nombre max de tentatives (0 = illimité) — défini par le créateur.
+        $maxAttempts = max(0, min(50, (int) ($_POST['max_attempts'] ?? 0)));
+
+        // Crée ou met à jour le cartouche.
+        if ($id) {
+            $data = ['title' => $title, 'description' => $description, 'active' => $active, 'max_attempts' => $maxAttempts];
+            if ($newImage !== null) {
+                if (!empty($existing['image'])) { Upload::delete($existing['image'], 'quizzes'); }
+                $data['image'] = $newImage;
+            } elseif ($removeImage) {
+                if (!empty($existing['image'])) { Upload::delete($existing['image'], 'quizzes'); }
+                $data['image'] = null;
+            }
+            Quiz::update($id, $data);
+            Quiz::deleteQuestions($id); // on recrée tout proprement
+        } else {
+            $me = Session::user();
+            $id = Quiz::create([
+                'title'        => $title,
+                'description'  => $description,
+                'image'        => $newImage,
+                'active'       => $active,
+                'max_attempts' => $maxAttempts,
+                'author_id'    => (int) ($me['id'] ?? 0),
+                'author_name'  => $me['name'] ?: ($me['email'] ?? ''),
+            ]);
+        }
+
+        // (Re)crée les questions et leurs options.
+        $qpos = 0;
+        foreach ($clean as $q) {
+            $qid = Quiz::addQuestion($id, $q['body'], $q['type'], $qpos++);
+            $opos = 0;
+            foreach ($q['options'] as $opt) {
+                Quiz::addOption($qid, $opt['label'], $opt['correct'], $opos++);
+            }
+        }
+
+        // « URGENT » (alerte sur le tableau de bord de tout le monde) : ouvert à TOUS.
+        Quiz::setUrgent($id, !empty($_POST['urgent']));
+
+        // « Obligatoire » + « il faut réussir pour continuer » : ADMIN uniquement
+        // (ça peut bloquer toute l'application pour les membres).
+        if (Session::isAdmin()) {
+            Quiz::setRequired($id, !empty($_POST['required']), !empty($_POST['pass_required']));
+        }
+
+        $wasActive = $existing ? ((int) ($existing['active'] ?? 0) === 1) : false;
+        if ($active === 1 && !$wasActive) {
+            $this->notifyPublished($id, $title);
+        } else {
+            Session::set('quiz_notice', $active === 1 ? '✅ Questionnaire mis à jour.' : '📝 Brouillon enregistré.');
+        }
+        // Si l'image a été refusée, on le DIT (au lieu de l'ignorer en silence).
+        if ($imgError !== null) {
+            Session::set('quiz_error', '⚠️ Le questionnaire est enregistré, mais l\'image n\'a pas pu être ajoutée : ' . $imgError);
+        }
+
+        redirect('quiz/show?id=' . $id);
+    }
+
+    /**
+     * Nettoie/valide les questions reçues du formulaire.
+     * Ne garde que les questions ayant un énoncé, ≥ 2 réponses non vides et
+     * ≥ 1 bonne réponse cochée. Pour le mode « single », on ne garde qu'UNE
+     * bonne réponse (la première cochée).
+     * @return array<int, array{body:string,type:string,options:array<int,array{label:string,correct:bool}>}>
+     */
+    private function normalizeQuestions(array $raw): array
+    {
+        $out = [];
+        foreach ($raw as $q) {
+            if (!is_array($q)) {
+                continue;
+            }
+            $body = trim((string) ($q['body'] ?? ''));
+            $type = ($q['type'] ?? 'single') === 'multiple' ? 'multiple' : 'single';
+            $rawOpts = is_array($q['opt'] ?? null) ? $q['opt'] : [];
+
+            $options    = [];
+            $correctSeen = false;
+            foreach ($rawOpts as $opt) {
+                if (!is_array($opt)) {
+                    continue;
+                }
+                $label = trim((string) ($opt['label'] ?? ''));
+                if ($label === '') {
+                    continue; // option vide ignorée
+                }
+                $correct = !empty($opt['correct']);
+                // Mode « unique » : une seule bonne réponse autorisée.
+                if ($correct && $type === 'single' && $correctSeen) {
+                    $correct = false;
+                }
+                if ($correct) {
+                    $correctSeen = true;
+                }
+                $options[] = ['label' => $label, 'correct' => $correct];
+            }
+
+            // Une question valide : énoncé + ≥ 2 réponses + ≥ 1 bonne réponse.
+            if ($body === '' || count($options) < 2 || !$correctSeen) {
+                continue;
+            }
+            $out[] = ['body' => $body, 'type' => $type, 'options' => $options];
+        }
+        return $out;
+    }
+
+    /**
+     * Affiche un questionnaire : /rpn/quiz/show?id=5
+     *  - si le membre a déjà répondu → résultats (son score + corrigé) ;
+     *  - sinon → formulaire pour répondre.
+     */
+    public function show(): void
+    {
+        $this->guard();
+        $id   = (int) ($_GET['id'] ?? 0);
+        $quiz = $id ? Quiz::find($id) : null;
+
+        // Introuvable, ou brouillon consulté par quelqu'un sans droit → 404.
+        if (!$quiz || ((int) $quiz['active'] !== 1 && !$this->canManage($quiz))) {
+            http_response_code(404);
+            view('errors/404');
+            return;
+        }
+
+        $uid       = (int) (Session::user()['id'] ?? 0);
+        $questions = Quiz::questions($id);
+        $response  = Quiz::responseFor($id, $uid);
+        $myAnswers = $response ? Quiz::answersFor((int) $response['id']) : [];
+
+        // Ce questionnaire bloque-t-il l'accès pour ce membre (obligatoire non terminé) ?
+        $mustComplete = !Session::isAdmin()
+            && (int) ($quiz['required'] ?? 0) === 1
+            && (int) ($quiz['active'] ?? 0) === 1
+            && !empty($questions)
+            && !Quiz::isCompletedBy($quiz, $uid);
+
+        view('quiz/show', [
+            'user'         => Session::user(),
+            'quiz'         => $quiz,
+            'questions'    => $questions,
+            'canManage'    => $this->canManage($quiz),
+            'participants' => Quiz::responseCount($id),
+            'response'     => $response,   // null si pas encore répondu
+            'myAnswers'    => $myAnswers,  // [question_id => [option_id…]]
+            'mustComplete' => $mustComplete,
+            'maxAttempts'  => (int) ($quiz['max_attempts'] ?? 0),
+            'attemptsUsed' => $response ? (int) $response['attempts'] : 0,
+            'canRetry'     => Quiz::canAttempt($quiz, $uid),
+            'error'        => Session::get('quiz_error'),
+            'notice'       => Session::get('quiz_notice'),
+        ]);
+        Session::remove('quiz_error');
+        Session::remove('quiz_notice');
+    }
+
+    /**
+     * Enregistre les réponses d'un membre et calcule son score.
+     * Le formulaire envoie answer[question_id] (single, valeur = option_id)
+     * ou answer[question_id][] (multiple, valeurs = option_id cochés).
+     */
+    public function submit(): void
+    {
+        $this->guard();
+        $id   = (int) ($_POST['id'] ?? 0);
+        $quiz = $id ? Quiz::find($id) : null;
+        if (!$quiz || ((int) $quiz['active'] !== 1 && !$this->canManage($quiz))) {
+            redirect('quiz');
+        }
+
+        $questions = Quiz::questions($id);
+        if (empty($questions)) {
+            Session::set('quiz_error', 'Ce questionnaire ne contient aucune question.');
+            redirect('quiz/show?id=' . $id);
+        }
+
+        // Limite de tentatives (sauf questionnaire obligatoire, jamais bloqué).
+        $uid = (int) (Session::user()['id'] ?? 0);
+        if (!Quiz::canAttempt($quiz, $uid)) {
+            Session::set('quiz_error', 'Tu as atteint le nombre maximum de tentatives autorisées pour ce questionnaire.');
+            redirect('quiz/show?id=' . $id . '#resultats');
+        }
+
+        $given = is_array($_POST['answer'] ?? null) ? $_POST['answer'] : [];
+        $picks = [];
+        $score = 0;
+
+        foreach ($questions as $q) {
+            $qid       = (int) $q['id'];
+            $optIds    = array_map(fn ($o) => (int) $o['id'], $q['options']);
+            $correctSet = [];
+            foreach ($q['options'] as $o) {
+                if ((int) $o['is_correct'] === 1) {
+                    $correctSet[] = (int) $o['id'];
+                }
+            }
+
+            // Récupère les options cochées par le membre pour cette question.
+            $raw = $given[$qid] ?? [];
+            $chosen = [];
+            foreach ((array) $raw as $v) {
+                $v = (int) $v;
+                if (in_array($v, $optIds, true)) { // on n'accepte que des options réelles
+                    $chosen[] = $v;
+                }
+            }
+            $chosen = array_values(array_unique($chosen));
+            $picks[$qid] = $chosen;
+
+            // Bonne question = exactement le bon ensemble d'options (ni plus, ni moins).
+            sort($chosen);
+            sort($correctSet);
+            if ($chosen === $correctSet && !empty($correctSet)) {
+                $score++;
+            }
+        }
+
+        $me = Session::user();
+        Quiz::saveResponse(
+            $id,
+            (int) ($me['id'] ?? 0),
+            $me['name'] ?: ($me['email'] ?? ''),
+            $picks,
+            $score,
+            count($questions)
+        );
+
+        // Cas d'un questionnaire OBLIGATOIRE pour un membre (hors admin) : on
+        // vérifie s'il vient de le « terminer » (répondre, ou tout réussir selon
+        // le réglage) pour le laisser sortir vers l'application.
+        if (!Session::isAdmin() && (int) ($quiz['required'] ?? 0) === 1 && (int) ($quiz['active'] ?? 0) === 1) {
+            $done = Quiz::isCompletedBy($quiz, (int) ($me['id'] ?? 0));
+            if ($done) {
+                Session::set('quiz_notice', '✅ Questionnaire obligatoire terminé : ' . $score . ' / ' . count($questions) . '. Bon retour sur l\'application !');
+                redirect('dashboard');
+            }
+            // Échoué alors qu'il faut tout réussir → on le renvoie le refaire.
+            Session::set('quiz_error', 'Il faut TOUTES les bonnes réponses pour continuer. Ton score : '
+                . $score . ' / ' . count($questions) . '. Réessaie pour accéder à l\'application.');
+            redirect('quiz/show?id=' . $id . '&forced=1');
+        }
+
+        Session::set('quiz_notice', '✅ Réponses enregistrées : ' . $score . ' / ' . count($questions) . '.');
+        redirect('quiz/show?id=' . $id . '#resultats');
+    }
+
+    /** Bascule rapide publié ⇄ brouillon (auteur ou admin). */
+    public function toggle(): void
+    {
+        $this->guard();
+        $id   = (int) ($_POST['id'] ?? 0);
+        $quiz = $id ? Quiz::find($id) : null;
+        if ($quiz && $this->canManage($quiz)) {
+            $wasActive = (int) $quiz['active'] === 1;
+            Quiz::setActive($id, $wasActive ? 0 : 1);
+            if (!$wasActive) {
+                $this->notifyPublished($id, $quiz['title']);
+            } else {
+                Session::set('quiz_notice', '📝 Questionnaire repassé en brouillon.');
+            }
+        }
+        redirect('quiz/show?id=' . $id);
+    }
+
+    /** Supprime un questionnaire (auteur ou admin) + tout ce qui en dépend. */
+    public function delete(): void
+    {
+        $this->guard();
+        $id   = (int) ($_POST['id'] ?? 0);
+        $quiz = $id ? Quiz::find($id) : null;
+        if ($quiz && $this->canManage($quiz)) {
+            Quiz::delete($id);
+            Session::set('quiz_notice', '🗑️ Questionnaire supprimé.');
+        }
+        redirect('quiz');
+    }
+
+    /** Prévient tous les membres (sauf l'auteur) qu'un questionnaire est publié. */
+    private function notifyPublished(int $id, string $title): void
+    {
+        $me         = Session::user();
+        $authorId   = (int) ($me['id'] ?? 0);
+        $authorName = ($me['name'] ?? '') ?: ($me['email'] ?? 'Un membre');
+        $n = 0;
+        foreach (User::all() as $member) {
+            $mid = (int) $member['id'];
+            if ($mid <= 0 || $mid === $authorId) {
+                continue;
+            }
+            Notification::add(
+                $mid,
+                $authorName . ' a publié un questionnaire : « ' . $title . ' ».',
+                '❓', 'quiz/show?id=' . $id
+            );
+            $n++;
+        }
+        Session::set('quiz_notice', '✅ Questionnaire publié.'
+            . ($n > 0 ? ' ' . $n . ' membre' . ($n > 1 ? 's' : '') . ' prévenu' . ($n > 1 ? 's' : '') . '.' : ''));
+    }
+}

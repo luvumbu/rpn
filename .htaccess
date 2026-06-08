@@ -1,0 +1,19 @@
+# ============================================================
+#  Front controller — tout passe par index.php (URLs propres)
+# ============================================================
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /rpn/
+
+    # Les fichiers et dossiers réels sont servis directement
+    # (index.php, google-callback.php, images, css…)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Tout le reste est aiguillé vers le front controller
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Pas de listing des dossiers
+Options -Indexes

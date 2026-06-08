@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Toutes les fonctionnalités</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+    :root {
+        --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#ffffff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html { scroll-behavior:smooth; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); position:sticky; top:0; z-index:20; }
+    header { background:var(--noir); color:#fff; padding:46px 24px; text-align:center;
+        background-image:radial-gradient(circle at 15% 0%,rgba(230,57,70,.30),transparent 45%),
+                         radial-gradient(circle at 85% 120%,rgba(42,157,74,.30),transparent 48%); }
+    header h1 { font-size:32px; letter-spacing:1px; }
+    header h1 b { color:var(--or); }
+    header p { color:rgba(255,255,255,.72); margin-top:10px; font-size:15px; max-width:620px; margin-inline:auto; }
+    header .pills { margin-top:18px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+    header .pills span { background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18); color:#fff;
+        font-size:12.5px; padding:5px 12px; border-radius:999px; }
+
+    .layout { display:flex; max-width:1140px; margin:0 auto; gap:30px; padding:30px 24px; align-items:flex-start; }
+    nav.toc { position:sticky; top:40px; align-self:flex-start; min-width:230px; font-size:14px; }
+    nav.toc a { display:block; color:var(--muted); text-decoration:none; padding:6px 10px; border-radius:7px; }
+    nav.toc a:hover { background:#f0f0f5; color:var(--noir); }
+    nav.toc .grp { font-weight:700; color:var(--noir); margin:16px 0 4px; font-size:12.5px; text-transform:uppercase; letter-spacing:.6px; }
+    main { flex:1; min-width:0; }
+
+    section.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:26px 28px; margin-bottom:22px; scroll-margin-top:30px; }
+    section.card > h2 { font-size:22px; color:var(--noir); margin-bottom:6px; display:flex; align-items:center; gap:10px; }
+    section.card > .lead { color:var(--muted); font-size:14.5px; margin-bottom:16px; padding-bottom:14px; border-bottom:2px solid var(--or); }
+    h3 { font-size:16px; margin:18px 0 8px; color:var(--noir); }
+    p { margin-bottom:10px; }
+    ul { margin:8px 0 12px 4px; list-style:none; }
+    li { margin-bottom:7px; padding-left:24px; position:relative; }
+    li::before { content:"✓"; position:absolute; left:0; top:0; color:var(--vert); font-weight:800; }
+    code { background:#f1f1f6; color:#b3243a; padding:2px 6px; border-radius:5px; font-family:Consolas,Monaco,monospace; font-size:13px; }
+
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; margin-top:6px; }
+    .feat { border:1px solid var(--line); border-radius:13px; padding:16px 16px; background:#fcfcfe; transition:transform .15s ease, box-shadow .15s ease; }
+    .feat:hover { transform:translateY(-3px); box-shadow:0 10px 26px rgba(20,17,15,.08); }
+    .feat .ico { font-size:22px; }
+    .feat h4 { font-size:15px; margin:8px 0 5px; color:var(--noir); }
+    .feat p { font-size:13.5px; color:var(--muted); margin:0; }
+
+    table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+    th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--noir); background:#fcf7e9; }
+    .tag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+    .tag.get { background:#e0f2fe; color:#0369a1; }
+    .tag.post { background:#dcfce7; color:#15803d; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+    .chips span { background:#f3f0fa; border:1px solid var(--line); color:#3a3550; font-size:13px; padding:5px 12px; border-radius:999px; }
+    .note { background:#fff8e6; border-left:4px solid var(--or); padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; font-size:14px; }
+    .new { display:inline-block; background:var(--rouge); color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; vertical-align:middle; letter-spacing:.4px; }
+    footer { text-align:center; padding:34px 20px; color:var(--muted); font-size:13px; }
+    footer a { color:var(--rouge); text-decoration:none; }
+    @media (max-width:820px){ .layout{flex-direction:column;} nav.toc{position:static;min-width:0;width:100%;} }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header>
+    <h1>RPN — <b>Toutes les fonctionnalités</b></h1>
+    <p>Plateforme communautaire PHP / MySQL : connexion Google, articles riches, agenda de rendez-vous entre membres, avis &amp; discussions, thèmes personnalisables et espace d'administration complet.</p>
+    <div class="pills">
+        <span>🔐 Connexion Google</span>
+        <span>📝 Articles</span>
+        <span>📅 Agenda</span>
+        <span>⭐ Avis &amp; notes</span>
+        <span>🎨 Thèmes</span>
+        <span>🛠️ Administration</span>
+    </div>
+</header>
+
+<div class="layout">
+<nav class="toc">
+    <div class="grp">Général</div>
+    <a href="#apercu">Vue d'ensemble</a>
+    <a href="#acces">Accès &amp; rôles</a>
+    <div class="grp">Membres</div>
+    <a href="#auth">Authentification</a>
+    <a href="#articles">Articles</a>
+    <a href="#effets">Mises en page &amp; effets</a>
+    <a href="#avis">Avis &amp; discussions</a>
+    <a href="#agenda">Agenda &amp; rendez-vous</a>
+    <a href="#notifs">Notifications</a>
+    <div class="grp">Apparence</div>
+    <a href="#themes">Thèmes &amp; personnalisation</a>
+    <div class="grp">Administration</div>
+    <a href="#admin">Espace admin</a>
+    <a href="#securite">Sécurité</a>
+    <div class="grp">Annexes</div>
+    <a href="#routes">Carte des routes</a>
+    <a href="#tech">Aspects techniques</a>
+</nav>
+
+<main>
+
+<!-- ============================== VUE D'ENSEMBLE ============================== -->
+<section class="card" id="apercu">
+    <h2>🌍 Vue d'ensemble</h2>
+    <p class="lead">Cinq grands domaines fonctionnels, accessibles depuis une interface unique au thème personnalisable.</p>
+    <div class="grid">
+        <div class="feat"><div class="ico">🔐</div><h4>Authentification</h4><p>Connexion membre par Google OAuth, admin par identifiants MySQL, rôles et protection anti-bruteforce.</p></div>
+        <div class="feat"><div class="ico">📝</div><h4>Articles</h4><p>Rédaction riche, 16 mises en page, images, pièces jointes, aperçu en direct, brouillon ou public.</p></div>
+        <div class="feat"><div class="ico">📅</div><h4>Agenda</h4><p>Créneaux de rendez-vous entre membres : présentiel ou en ligne, public ou privé, réservation et proximité.</p></div>
+        <div class="feat"><div class="ico">⭐</div><h4>Avis &amp; discussions</h4><p>Notes en étoiles, commentaires, fil de discussion avec signalement, notation des hôtes.</p></div>
+        <div class="feat"><div class="ico">🎨</div><h4>Apparence</h4><p>10 thèmes prédéfinis + thème personnalisé, favicon, aperçu en direct, polish UX global.</p></div>
+        <div class="feat"><div class="ico">🛠️</div><h4>Administration</h4><p>Modération des membres et des articles, sécurité, réglages, export / import d'articles.</p></div>
+    </div>
+</section>
+
+<!-- ============================== ACCÈS & RÔLES ============================== -->
+<section class="card" id="acces">
+    <h2>👥 Accès &amp; rôles</h2>
+    <p class="lead">Qui peut faire quoi, selon son statut.</p>
+    <table>
+        <tr><th>Rôle</th><th>Comment l'obtenir</th><th>Peut faire</th></tr>
+        <tr><td><b>Visiteur</b></td><td>Aucune connexion</td><td>Lire la liste et le détail des articles publiés.</td></tr>
+        <tr><td><b>Membre</b></td><td>Connexion « Se connecter avec Google »</td><td>Tout le visiteur + écrire des articles, donner un avis, discuter, créer/réserver des créneaux d'agenda, noter les hôtes, recevoir des notifications.</td></tr>
+        <tr><td><b>Admin</b></td><td>Promu par un super-admin, ou e-mail listé dans <code>ADMIN_EMAILS</code></td><td>Tout le membre + modération des membres et articles, accès aux réglages et à la sécurité.</td></tr>
+        <tr><td><b>Super-admin</b></td><td>Connexion par identifiants MySQL réels</td><td>Tous les droits : promouvoir/rétrograder, supprimer, modifier les autres admins.</td></tr>
+    </table>
+    <div class="note">Toutes les permissions sont vérifiées <b>côté serveur</b> sur chaque action (jamais seulement masquées dans l'interface).</div>
+</section>
+
+<!-- ============================== AUTHENTIFICATION ============================== -->
+<section class="card" id="auth">
+    <h2>🔐 Authentification</h2>
+    <p class="lead">Trois portes : membres via Google ou e-mail/mot de passe, administrateurs via MySQL.</p>
+    <ul>
+        <li><b>Connexion membre Google (OAuth 2.0)</b> : bouton « Se connecter avec Google » → échange du code → récupération du profil (nom, e-mail, photo) → enregistrement automatique en base.</li>
+        <li><span class="new">NOUVEAU</span> <b>Inscription / connexion par e-mail</b> : pour les personnes sans compte Google — nom, e-mail et mot de passe (chiffré). Toujours créé en compte <b>membre</b> (jamais admin, par sécurité).</li>
+        <li><span class="new">NOUVEAU</span> <b>Photo de profil</b> : chaque membre peut ajouter / changer / retirer sa photo depuis le tableau de bord (utile pour les comptes e-mail) ; sinon, avatar à initiales.</li>
+        <li><b>Protection CSRF</b> sur le flux Google (paramètre <code>state</code>).</li>
+        <li><b>Tableau de bord membre</b> : profil, statistiques <b>cliquables</b>, code membre, alertes urgentes et accès rapides à toutes les fonctions.</li>
+        <li><b>Connexion administrateur</b> : identifiants MySQL réels (comme phpMyAdmin) — aucun mot de passe admin n'est stocké.</li>
+        <li><b>Déconnexion</b> propre (destruction de session).</li>
+    </ul>
+</section>
+
+<!-- ============================== ARTICLES ============================== -->
+<section class="card" id="articles">
+    <h2>📝 Articles</h2>
+    <p class="lead">Un module de publication riche, du brouillon à l'article public, avec médias et aperçu fidèle.</p>
+    <div class="grid">
+        <div class="feat"><div class="ico">✍️</div><h4>Éditeur riche</h4><p>Zone <code>contenteditable</code> avec barre d'outils (gras, titres, listes, alignement…) ; repli <code>&lt;textarea&gt;</code> sans JS. Contenu nettoyé côté serveur (anti-XSS).</p></div>
+        <div class="feat"><div class="ico">🖼️</div><h4>Photos</h4><p>Liste unifiée ; une photo <b>principale ⭐</b> (couverture), les autres en galerie. Ajout cumulé, suppression, redimensionnement automatique.</p></div>
+        <div class="feat"><div class="ico">📎</div><h4>Pièces jointes</h4><p>PDF, Word, Excel… Les <b>PDF</b> disposent d'une <b>visionneuse intégrée</b> (chargée au clic).</p></div>
+        <div class="feat"><div class="ico">👁️</div><h4>Aperçu en direct</h4><p>Le formulaire affiche le <b>vrai gabarit</b> dans une iframe (mêmes styles), images injectées côté client en temps réel.</p></div>
+        <div class="feat"><div class="ico">🗂️</div><h4>Brouillon / public</h4><p>Bascule publier ⇄ brouillon en un clic (réservé à l'auteur ou à un admin).</p></div>
+        <div class="feat"><div class="ico">🌳</div><h4>Sous-articles</h4><p>Un article peut en contenir d'autres (sélecteur « article parent »). Les sous-articles s'affichent en <b>petites vignettes-photo</b> sur la carte du parent et n'apparaissent jamais seuls dans la liste.</p></div>
+        <div class="feat"><div class="ico">🚩</div><h4><span class="new">NOUVEAU</span> Signalement</h4><p>Tout membre peut signaler un article. À <b>3 signalements</b> distincts, il est <b>masqué au public</b> (sauf protégé/annonce) ; l'admin voit un panneau dédié et peut réinitialiser.</p></div>
+        <div class="feat"><div class="ico">📝</div><h4><span class="new">NOUVEAU</span> Questionnaires associés</h4><p>On rattache un ou plusieurs QCM à un article ; ils sont proposés <b>en fin de lecture</b> (voir section dédiée).</p></div>
+        <div class="feat"><div class="ico">🟥</div><h4>Alerte URGENT</h4><p>Une case met l'article en avant comme <b>alerte rouge</b> sur le tableau de bord de tous les membres (avec sa vignette).</p></div>
+    </div>
+</section>
+
+<!-- ============================== MISES EN PAGE & EFFETS ============================== -->
+<section class="card" id="effets">
+    <h2>✨ Mises en page &amp; effets visuels</h2>
+    <p class="lead">16 mises en page réparties en familles, plus des effets d'animation cohérents partout.</p>
+    <h3>Familles de mises en page</h3>
+    <div class="chips">
+        <span>Simple</span><span>Couverture en vedette</span><span>Panoramique / large</span>
+        <span>Image à côté du texte</span><span>Lecture / presse</span><span>Animé / interactif</span>
+    </div>
+    <p style="font-size:13.5px;color:var(--muted);margin-top:4px;">La famille <b>Animé / interactif</b> regroupe le <i>Carrousel</i>, le <i>Diaporama</i> et la <i>Galerie animée</i>.</p>
+    <h3>Effets &amp; animations</h3>
+    <ul>
+        <li><b>Carrousel de couverture</b> : pour les modèles « diaporama / carrousel », les images défilent en diapositives (fondu ou glissement) avec flèches, points de navigation et lecture automatique.</li>
+        <li><span class="new">NOUVEAU</span> <b>Galerie en carrousel automatique</b> : les vignettes de la galerie défilent horizontalement <b>en boucle continue</b>, avec <b>pause au survol</b>, fondu sur les bords et zoom léger sur l'image survolée. La boucle est « sans couture » (jeu d'images dupliqué, défilement de −50 %) et sa vitesse s'adapte au nombre de photos.</li>
+        <li><b>Galerie zoom</b> : variante aux vignettes plus grandes et au zoom plus marqué (saturation accentuée au survol).</li>
+        <li><b>Accessibilité</b> : si le système demande de réduire les animations (<code>prefers-reduced-motion</code>), le défilement automatique est désactivé au profit d'un défilement manuel.</li>
+        <li><b>Polish UX global</b> : focus clavier visible, défilement fluide, scrollbars stylées, anti double-soumission des formulaires — injectés sur toutes les pages.</li>
+    </ul>
+    <div class="note">Les effets ne se chevauchent jamais : un modèle « carrousel de couverture » intègre déjà les photos, donc la galerie défilante n'est pas affichée en double dessous.</div>
+</section>
+
+<!-- ============================== AVIS & DISCUSSIONS ============================== -->
+<section class="card" id="avis">
+    <h2>⭐ Avis &amp; discussions</h2>
+    <p class="lead">Deux espaces distincts sous chaque article : une note unique par membre, et un fil de discussion ouvert.</p>
+    <ul>
+        <li><b>Avis</b> : une note ★ (1 à 5) + un commentaire par membre ; la moyenne est affichée. L'auteur ne note pas son propre article.</li>
+        <li><b>Discussion</b> : fil de messages (plusieurs par membre).</li>
+        <li><b>Modération du fil</b> : suppression par l'auteur du message, l'auteur de l'article ou un admin.</li>
+        <li><b>Signalement</b> : un signalement par membre et par message ; badge « ⚠ Signalé (n) » visible par l'auteur de l'article et les admins.</li>
+    </ul>
+</section>
+
+<!-- ============================== QUESTIONNAIRES ============================== -->
+<section class="card" id="quiz">
+    <h2>❓ Questionnaires interactifs (QCM) <span class="new">NOUVEAU</span></h2>
+    <p class="lead">Crée des quiz notés, associe-les à des articles et propose-les en fin de lecture.</p>
+    <div class="grid">
+        <div class="feat"><div class="ico">✍️</div><h4>Création</h4><p>Titre, description, <b>image de couverture</b>, et autant de questions que voulu. Ouvert à tout membre.</p></div>
+        <div class="feat"><div class="ico">🔘</div><h4>Deux modes</h4><p>Par question : <b>une seule bonne réponse</b> (choix unique) ou <b>plusieurs bonnes réponses</b> (choix multiple).</p></div>
+        <div class="feat"><div class="ico">🎯</div><h4>Score &amp; pourcentage</h4><p>Le membre voit son score, son <b>% de réussite</b> (barre de progression) et le <b>corrigé</b> détaillé (juste / faux / à cocher).</p></div>
+        <div class="feat"><div class="ico">🔁</div><h4>Tentatives</h4><p>Le créateur fixe un <b>nombre de tentatives</b> (0 = illimité) ; au-delà, « Refaire » se verrouille.</p></div>
+        <div class="feat"><div class="ico">🔗</div><h4>Associé aux articles</h4><p>Encadré « Teste tes connaissances » en bas de l'article, avec image, nombre de questions et reprise du score.</p></div>
+        <div class="feat"><div class="ico">⛔</div><h4>Obligatoire (admin)</h4><p>Peut <b>bloquer l'app</b> tant que le membre n'a pas répondu — option « il faut réussir pour continuer ». Les admins ne sont jamais bloqués.</p></div>
+        <div class="feat"><div class="ico">🟥</div><h4>Urgent</h4><p>Un quiz peut aussi être marqué URGENT pour apparaître sur le tableau de bord de tous.</p></div>
+        <div class="feat"><div class="ico">🔔</div><h4>Notification</h4><p>La publication d'un questionnaire prévient les autres membres.</p></div>
+    </div>
+</section>
+
+<!-- ============================== AGENDA ============================== -->
+<section class="card" id="agenda">
+    <h2>📅 Agenda &amp; rendez-vous entre membres</h2>
+    <p class="lead">Chaque membre peut proposer des créneaux et réserver ceux des autres, en présentiel ou en ligne.</p>
+    <div class="grid">
+        <div class="feat"><div class="ico">🗓️</div><h4>Créneaux</h4><p>Titre, description, date/heure, durée et nombre de places ajustable (− / +).</p></div>
+        <div class="feat"><div class="ico">🔒</div><h4>Public / privé</h4><p>Un créneau privé est masqué et accessible par un <b>code</b> (2 lettres + 3 chiffres) via la barre de recherche.</p></div>
+        <div class="feat"><div class="ico">📍</div><h4>Lieu</h4><p>En ligne (lien visio) ou présentiel (adresse + <b>carte</b> embarquée + itinéraire), avec autocomplétion d'adresses.</p></div>
+        <div class="feat"><div class="ico">🧭</div><h4>Proximité</h4><p>Recherche par rayon (5 à 100 km), résultats triés par distance, <b>carte multi-marqueurs</b> et bouton « Autour de moi ».</p></div>
+        <div class="feat"><div class="ico">🎟️</div><h4>Réservation</h4><p>Réserver / annuler une place avec contrôle de capacité ; l'hôte peut ajouter un inscrit hors limite.</p></div>
+        <div class="feat"><div class="ico">🕓</div><h4>Historique &amp; délais</h4><p>Historique des changements de lieu, délai minimal de réservation, marquage de présence après l'événement.</p></div>
+        <div class="feat"><div class="ico">⭐</div><h4>Notation des hôtes</h4><p>Les membres ayant réservé chez un hôte peuvent le noter (1 à 5 étoiles).</p></div>
+        <div class="feat"><div class="ico">📖</div><h4>Vues &amp; pagination</h4><p>Mon agenda, vue d'ensemble de tous les rendez-vous (stats cliquables, accès direct à la fiche), liste publique paginée et ville par défaut.</p></div>
+        <div class="feat"><div class="ico">📅</div><h4><span class="new">NOUVEAU</span> Ajouter à Google Agenda</h4><p>Bouton (cartes + fiche) qui ouvre Google Agenda <b>pré-rempli</b> (titre, date/heure fuseau Paris, lieu) ; fichier <b>.ics</b> universel pour Apple/Outlook. Ajout en 1 clic.</p></div>
+        <div class="feat"><div class="ico">🕒</div><h4>Heure exacte</h4><p>La fiche affiche le jour, l'<b>horaire de début → fin</b> et le compte à rebours en direct.</p></div>
+    </div>
+</section>
+
+<!-- ============================== NOTIFICATIONS ============================== -->
+<section class="card" id="notifs">
+    <h2>🔔 Notifications</h2>
+    <p class="lead">Un centre de notifications in-app pour suivre l'activité qui vous concerne.</p>
+    <ul>
+        <li>Liste des notifications, marquées comme lues à l'ouverture.</li>
+        <li>Possibilité de vider la liste.</li>
+    </ul>
+</section>
+
+<!-- ============================== THÈMES ============================== -->
+<section class="card" id="themes">
+    <h2>🎨 Thèmes &amp; personnalisation</h2>
+    <p class="lead">L'apparence s'applique à toutes les pages et se prévisualise en direct.</p>
+    <h3>10 thèmes prédéfinis + thème personnalisé</h3>
+    <div class="chips">
+        <span>Panafricain (défaut)</span><span>Classique</span><span>Sombre</span><span>Clair</span>
+        <span>Simpson</span><span>Océan</span><span>Forêt</span><span>Coucher de soleil</span>
+        <span>Violet</span><span>Menthe</span><span>Personnalisé (7 couleurs)</span>
+    </div>
+    <ul>
+        <li><b>Aperçu en direct</b> : la page change dès la sélection, avant d'enregistrer.</li>
+        <li><b>Thème personnalisé</b> : 7 sélecteurs de couleur, nuances dérivées automatiquement.</li>
+        <li><b>Textes personnalisables</b> : titre principal, message d'accueil, bas de page.</li>
+        <li><span class="new">NOUVEAU</span> <b>Générateur de favicon</b> (admin) : crée l'icône du site à partir d'un <b>texte</b> (lettres + couleurs + coins arrondis, aperçu en direct) ou d'une <b>image</b> ; appliquée partout instantanément.</li>
+        <li><b>Style global des articles</b> (taille du texte, police) et style global du site (police, arrondis, ombres, animations).</li>
+    </ul>
+</section>
+
+<!-- ============================== ADMIN ============================== -->
+<section class="card" id="admin">
+    <h2>🛠️ Espace administrateur</h2>
+    <p class="lead">Tableau de bord, modération et réglages réservés aux administrateurs.</p>
+    <div class="grid">
+        <div class="feat"><div class="ico">📊</div><h4>Tableau de bord</h4><p>Statistiques : nombre de membres, d'admins, d'articles.</p></div>
+        <div class="feat"><div class="ico">👥</div><h4>Membres</h4><p>Lister, bloquer/débloquer, promouvoir/rétrograder, supprimer (selon la hiérarchie).</p></div>
+        <div class="feat"><div class="ico">📰</div><h4>Modération des articles</h4><p>Vue d'ensemble de tous les articles, attribution à un membre, protection, annonce, et panneau <b>« 🚩 Articles signalés »</b> avec réinitialisation.</p></div>
+        <div class="feat"><div class="ico">❓</div><h4><span class="new">NOUVEAU</span> Questionnaires</h4><p>Créer, modifier, supprimer tous les quiz ; rendre obligatoire / urgent. Accès direct depuis le tableau de bord admin.</p></div>
+        <div class="feat"><div class="ico">📦</div><h4>Export / import complet</h4><p>Télécharger <b>tout le projet</b> en <code>.zip</code> — articles (médias inclus) <b>et</b> questionnaires + associations — et tout recréer à l'import.</p></div>
+        <div class="feat"><div class="ico">🎨</div><h4><span class="new">NOUVEAU</span> Générateur de favicon</h4><p>Change l'icône du site à tout moment (texte + couleurs ou image), appliquée partout.</p></div>
+        <div class="feat"><div class="ico">🛡️</div><h4>Sécurité</h4><p>Voir et débloquer les adresses IP bloquées ; zone de danger (tout effacer) confirmée par mot de passe BDD.</p></div>
+        <div class="feat"><div class="ico">⚙️</div><h4>Réglages</h4><p>Clés Google, durée de blocage, thème, textes, style global et style des articles.</p></div>
+    </div>
+</section>
+
+<!-- ============================== SÉCURITÉ ============================== -->
+<section class="card" id="securite">
+    <h2>🛡️ Sécurité</h2>
+    <p class="lead">Plusieurs couches de protection, côté serveur.</p>
+    <ul>
+        <li><b>Anti-XSS</b> : tout le HTML d'article passe par un nettoyage à liste blanche ; le reste est échappé à l'affichage.</li>
+        <li><b>Anti-injection SQL</b> : requêtes préparées (PDO) partout.</li>
+        <li><b>Anti-bruteforce</b> : blocage d'IP après N essais ratés, durée réglable.</li>
+        <li><b>Page secrète de déblocage</b> : <code>/unlock?key=…</code> protégée par clé (faux 404 sinon).</li>
+        <li><b>Uploads sécurisés</b> : type MIME vérifié, extensions en liste blanche, noms aléatoires, exécution de scripts bloquée, taille plafonnée, images recompressées.</li>
+        <li><b>Dossiers protégés</b> : <code>config/</code>, <code>storage/</code>, <code>app/</code> inaccessibles directement.</li>
+        <li><b>Secrets hors dépôt</b> : configuration et identifiants de base jamais publiés.</li>
+    </ul>
+</section>
+
+<!-- ============================== ROUTES ============================== -->
+<section class="card" id="routes">
+    <h2>🧭 Carte des routes (principales)</h2>
+    <p class="lead">Toutes les URLs propres passent par le front controller unique.</p>
+    <table>
+        <tr><th>Méthode</th><th>URL</th><th>Fonction</th></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/</code></td><td>Accueil / connexion</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/dashboard</code></td><td>Tableau de bord membre</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/articles</code> · <code>/article?id=</code></td><td>Liste &amp; détail des articles</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/articles/new</code> · <code>/edit</code></td><td>Création / édition d'article</td></tr>
+        <tr><td><span class="tag post">POST</span></td><td><code>/rpm/articles/preview</code></td><td>Aperçu en direct (AJAX)</td></tr>
+        <tr><td><span class="tag post">POST</span></td><td><code>/rpm/articles/save · toggle · review · comment · delete</code></td><td>Actions sur un article</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/agenda</code> · <code>/agenda/global</code></td><td>Mon agenda &amp; vue d'ensemble</td></tr>
+        <tr><td><span class="tag post">POST</span></td><td><code>/rpm/agenda/create · book · cancel · rate …</code></td><td>Actions sur les créneaux</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/notifications</code></td><td>Centre de notifications</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/admin/*</code></td><td>Espace administrateur</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/rpm/unlock?key=…</code></td><td>Déblocage d'IP (page secrète)</td></tr>
+    </table>
+</section>
+
+<!-- ============================== TECHNIQUE ============================== -->
+<section class="card" id="tech">
+    <h2>⚙️ Aspects techniques</h2>
+    <p class="lead">Pour les développeurs.</p>
+    <ul>
+        <li><b>Langage</b> : PHP 8+ natif (aucun framework, aucun Composer).</li>
+        <li><b>Base de données</b> : MySQL / MariaDB via PDO, tables auto-créées au premier accès + migrations légères.</li>
+        <li><b>Architecture</b> : MVC maison avec front controller unique (<code>index.php</code>) et routeur.</li>
+        <li><b>Front-end</b> : HTML / CSS / JS natif, variables CSS pour le thème, aucun build.</li>
+        <li><b>Dépendances réseau</b> : Google Fonts, Google OAuth, carte Google (embed), Leaflet + OpenStreetMap, Nominatim (géocodage).</li>
+        <li><b>Stockage</b> : fichiers dans <code>uploads/</code>, réglages dans <code>storage/settings.json</code>.</li>
+    </ul>
+    <div class="note">Documentation complémentaire : <code>docs/TECHNIQUE.md</code> (détails techniques), <code>docs/documentation.html</code> (référence) et <code>docs/fonctionnement.html</code> (guide d'utilisation).</div>
+</section>
+
+</main>
+</div>
+
+<footer>
+    RPN — Plateforme communautaire · Document des fonctionnalités · Voir aussi
+    <a href="documentation.html">documentation.html</a> et <a href="fonctionnement.html">fonctionnement.html</a>.
+</footer>
+</body>
+</html>

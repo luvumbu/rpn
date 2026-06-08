@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Hors connexion</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+    :root { --noir:#14110f; --or:#f4c14b; --rouge:#e63946; --vert:#2a9d4a; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+        font-family:'Segoe UI',system-ui,Arial,sans-serif; color:#fff; text-align:center; padding:24px;
+        background:
+            radial-gradient(circle at 15% 0%, rgba(230,57,70,.30), transparent 45%),
+            radial-gradient(circle at 85% 120%, rgba(42,157,74,.30), transparent 48%), var(--noir); }
+    .bar { position:fixed; top:0; left:0; right:0; height:6px;
+        background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); }
+    .star { font-size:56px; color:var(--or); margin-bottom:10px; }
+    h1 { font-size:24px; margin-bottom:10px; }
+    p { color:rgba(255,255,255,.72); max-width:420px; margin-bottom:22px; line-height:1.6; }
+    button { font:inherit; font-weight:700; cursor:pointer; border:none; border-radius:12px;
+        padding:12px 22px; background:var(--or); color:var(--noir); }
+    button:active { transform:translateY(1px); }
+</style>
+</head>
+<body>
+    <div class="bar"></div>
+    <div class="star">★</div>
+    <h1>Pas de connexion</h1>
+    <p>Tu es hors ligne. RPN a besoin d'Internet pour charger les articles et l'agenda. Vérifie ta connexion puis réessaie.</p>
+    <button onclick="location.reload()">↻ Réessayer</button>
+    <script>
+        // Recharge automatiquement dès que la connexion revient.
+        window.addEventListener('online', function () { location.reload(); });
+    </script>
+</body>
+</html>

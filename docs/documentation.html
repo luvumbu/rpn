@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Documentation technique</title>
+<style>
+    :root {
+        --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#ffffff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280; --code:#0f172a;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    /* bande panafricaine */
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); position:sticky; top:0; z-index:10; }
+    header { background:var(--noir); color:#fff; padding:40px 24px; text-align:center; }
+    header h1 { font-size:30px; letter-spacing:1px; }
+    header h1 b { color:var(--or); }
+    header p { color:rgba(255,255,255,.7); margin-top:8px; font-size:15px; }
+    .layout { display:flex; max-width:1100px; margin:0 auto; gap:30px; padding:30px 24px; }
+    nav.toc { position:sticky; top:36px; align-self:flex-start; min-width:220px; font-size:14px; }
+    nav.toc a { display:block; color:var(--muted); text-decoration:none; padding:6px 10px; border-radius:7px; }
+    nav.toc a:hover { background:#f0f0f5; color:var(--noir); }
+    nav.toc .grp { font-weight:700; color:var(--noir); margin:14px 0 4px; font-size:13px; text-transform:uppercase; letter-spacing:.5px; }
+    main { flex:1; min-width:0; }
+    section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px 28px; margin-bottom:22px; }
+    section > h2 { font-size:21px; color:var(--noir); margin-bottom:14px; padding-bottom:10px; border-bottom:2px solid var(--or); }
+    section h3 { font-size:16px; margin:18px 0 8px; color:var(--noir); }
+    p { margin-bottom:10px; }
+    ul { margin:8px 0 12px 22px; }
+    li { margin-bottom:5px; }
+    code { background:#f1f1f6; color:#b3243a; padding:2px 6px; border-radius:5px; font-family:Consolas,Monaco,monospace; font-size:13px; }
+    pre { background:var(--code); color:#e5e7eb; padding:16px 18px; border-radius:10px; overflow-x:auto; margin:12px 0; font-size:13px; line-height:1.5; }
+    pre code { background:none; color:inherit; padding:0; }
+    table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+    th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); }
+    th { color:var(--noir); background:#fcf7e9; }
+    .tag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+    .tag.get { background:#e0f2fe; color:#0369a1; }
+    .tag.post { background:#dcfce7; color:#15803d; }
+    .note { background:#fff8e6; border-left:4px solid var(--or); padding:12px 16px; border-radius:0 8px 8px 0; margin:12px 0; font-size:14px; }
+    .warn { background:#fde8ea; border-left:4px solid var(--rouge); padding:12px 16px; border-radius:0 8px 8px 0; margin:12px 0; font-size:14px; }
+    .flow { counter-reset:step; list-style:none; margin-left:0; }
+    .flow li { counter-increment:step; position:relative; padding-left:38px; margin-bottom:10px; }
+    .flow li::before { content:counter(step); position:absolute; left:0; top:0; width:26px; height:26px; background:var(--or); color:var(--noir); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+    footer { text-align:center; padding:30px; color:var(--muted); font-size:13px; }
+    @media(max-width:820px){ .layout{flex-direction:column;} nav.toc{position:static;min-width:0;} }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header>
+    <h1>RPN — <b>Documentation technique</b></h1>
+    <p>Application PHP / MySQL · Architecture MVC · OAuth Google · Espace administrateur</p>
+</header>
+
+<div class="layout">
+<nav class="toc">
+    <div class="grp">Général</div>
+    <a href="#apercu">Aperçu</a>
+    <a href="#stack">Stack &amp; prérequis</a>
+    <a href="#arbo">Arborescence</a>
+    <div class="grp">Fonctionnement</div>
+    <a href="#bootstrap">Bootstrap &amp; routage</a>
+    <a href="#oauth">Flux OAuth Google</a>
+    <a href="#bdd">Base de données</a>
+    <div class="grp">Classes</div>
+    <a href="#core">Classes core</a>
+    <a href="#model">Modèle User</a>
+    <a href="#controllers">Contrôleurs</a>
+    <div class="grp">Admin &amp; sécurité</div>
+    <a href="#admin">Espace admin</a>
+    <a href="#hierarchie">Hiérarchie</a>
+    <a href="#securite">Sécurité</a>
+    <a href="#routes">Routes admin</a>
+    <div class="grp">Apparence</div>
+    <a href="#themes">Thèmes</a>
+    <a href="#config">Configuration</a>
+</nav>
+
+<main>
+
+<section id="apercu">
+    <h2>Aperçu</h2>
+    <p>RPN est une plateforme communautaire : les <b>membres</b> se connectent via Google, les <b>administrateurs</b> via les identifiants MySQL. Le code suit une architecture <b>MVC</b> légère, sans framework, avec un <b>autoloader</b> maison.</p>
+    <ul>
+        <li>Connexion membre : <b>Google OAuth 2.0</b></li>
+        <li>Connexion admin : <b>identifiants MySQL réels</b> (vérifiés par connexion)</li>
+        <li>Gestion des membres, rôles, blocages d'IP, paramètres, thèmes</li>
+    </ul>
+</section>
+
+<section id="stack">
+    <h2>Stack &amp; prérequis</h2>
+    <table>
+        <tr><th>Élément</th><th>Détail</th></tr>
+        <tr><td>Langage</td><td>PHP 8.2+ (testé sur 8.2)</td></tr>
+        <tr><td>Base de données</td><td>MySQL / MariaDB (PDO)</td></tr>
+        <tr><td>Serveur</td><td>Apache (XAMPP en local, Hostinger en ligne)</td></tr>
+        <tr><td>Dépendances</td><td>Aucune (pas de Composer) — cURL natif pour OAuth</td></tr>
+        <tr><td>Front</td><td>HTML/CSS pur + un peu de JS (aperçu de thème)</td></tr>
+    </table>
+</section>
+
+<section id="arbo">
+    <h2>Arborescence</h2>
+<pre><code>rpm/
+├── index.php  google-callback.php  dashboard.php  logout.php
+├── admin.php           routeur admin (?action=...)
+├── unlock.php          page secrète de déblocage IP
+├── bootstrap.php       config + autoload + session
+├── config/   config.php · db.php (généré) · .htaccess
+├── storage/  settings.json · login_attempts.json · .htaccess
+└── app/
+    ├── core/        Database, Session, GoogleClient, LoginGuard, Settings, Theme, helpers
+    ├── controllers/ Auth, Dashboard, Admin
+    ├── models/      User
+    └── views/       login, dashboard + admin/(login,dashboard,members,security,settings)</code></pre>
+</section>
+
+<section id="bootstrap">
+    <h2>Bootstrap &amp; routage</h2>
+    <p>Chaque point d'entrée charge <code>bootstrap.php</code> qui :</p>
+    <ul>
+        <li>charge <code>config/config.php</code> et <code>helpers.php</code></li>
+        <li>enregistre un <b>autoload</b> (cherche dans <code>core/</code>, <code>controllers/</code>, <code>models/</code>)</li>
+        <li>démarre la session</li>
+    </ul>
+    <p>Le routage est simple : un fichier = une route. <code>admin.php</code> utilise un mini-routeur :</p>
+<pre><code>$action = $_GET['action'] ?? 'login';
+switch ($action) {
+    case 'dashboard': $admin->dashboard(); break;
+    case 'members':   $admin->members();   break;
+    case 'security':  $admin->security();  break;
+    case 'promote':   $admin->promote();   break;
+    // ...
+}</code></pre>
+</section>
+
+<section id="oauth">
+    <h2>Flux OAuth Google</h2>
+    <ol class="flow">
+        <li><code>index.php</code> génère un <code>state</code> (anti-CSRF) et le lien Google.</li>
+        <li>L'utilisateur s'authentifie chez Google et accepte.</li>
+        <li>Google redirige vers <code>google-callback.php</code> avec un <code>code</code>.</li>
+        <li><code>GoogleClient::fetchToken()</code> échange le code contre un <code>access_token</code>.</li>
+        <li><code>GoogleClient::fetchUserInfo()</code> récupère nom / email / photo.</li>
+        <li><code>User::upsertFromGoogle()</code> enregistre/maj le membre en base.</li>
+        <li>L'utilisateur est mis en session → redirection vers <code>dashboard.php</code>.</li>
+    </ol>
+    <div class="note">L'<code>URI de redirection</code> est calculée automatiquement (schéma + hôte) → fonctionne en local et en ligne sans modification.</div>
+</section>
+
+<section id="bdd">
+    <h2>Base de données</h2>
+    <p>Une seule table <code>users</code> :</p>
+<pre><code>id          INT PK AI
+username    VARCHAR(50)   -- identifiant admin éventuel
+google_id   VARCHAR(64)
+name        VARCHAR(150)
+email       VARCHAR(190)  UNIQUE
+picture     TEXT
+role        ENUM('membre','admin') DEFAULT 'membre'
+password    VARCHAR(255)  -- (réservé, non utilisé par l'admin MySQL)
+blocked     TINYINT(1)    DEFAULT 0
+created_at  TIMESTAMP
+last_login  TIMESTAMP</code></pre>
+    <p><b>Création automatique</b> : à la première connexion, si la base n'existe pas elle est créée (en local), et la table est garantie via <code>CREATE TABLE IF NOT EXISTS</code>.</p>
+</section>
+
+<section id="core">
+    <h2>Classes core</h2>
+
+    <h3>Database</h3>
+    <ul>
+        <li><code>pdo()</code> — connexion PDO partagée (singleton), auto-création de la base/table.</li>
+        <li><code>tryConnect($host,$name,$user,$pass)</code> — teste des identifiants (login admin).</li>
+        <li><code>persist($db)</code> — enregistre les identifiants (storage/ ou config/) pour tout le site.</li>
+        <li>Identifiants effectifs : session (admin) en priorité, sinon config.</li>
+    </ul>
+
+    <h3>GoogleClient</h3>
+    <ul>
+        <li><code>getAuthUrl($state)</code>, <code>fetchToken($code)</code>, <code>fetchUserInfo($token)</code></li>
+        <li>cURL centralisé dans <code>request()</code> (une seule fonction réutilisée)</li>
+        <li>Clés lues via <code>Settings</code> (modifiables dans l'admin)</li>
+    </ul>
+
+    <h3>LoginGuard</h3>
+    <ul>
+        <li>Anti-bruteforce basé sur un fichier (<code>storage/login_attempts.json</code>)</li>
+        <li><code>recordFailure()</code>, <code>isBlocked()</code>, <code>attemptsLeft()</code>, <code>reset()</code>, <code>resetAll()</code>, <code>blockedList()</code></li>
+        <li>Seuil &amp; durée lus via <code>Settings</code></li>
+    </ul>
+
+    <h3>Settings</h3>
+    <ul>
+        <li><code>get($cle,$defaut)</code> / <code>save($valeurs)</code> → <code>storage/settings.json</code></li>
+        <li>Stocke : clés Google, seuil/durée de blocage, thème, message principal</li>
+    </ul>
+
+    <h3>Theme</h3>
+    <ul>
+        <li><code>all()</code> (4 thèmes), <code>key()</code> (thème actif), <code>css()</code> (variables CSS)</li>
+        <li>Injecté dans le <code>&lt;head&gt;</code> de chaque vue</li>
+    </ul>
+
+    <h3>Session &amp; helpers</h3>
+    <ul>
+        <li><code>Session</code> : <code>set/get/has/user/isAdmin/destroy</code></li>
+        <li><code>helpers.php</code> : <code>redirect($url)</code>, <code>view($nom,$data)</code></li>
+    </ul>
+</section>
+
+<section id="model">
+    <h2>Modèle User</h2>
+    <table>
+        <tr><th>Méthode</th><th>Rôle</th></tr>
+        <tr><td><code>findByEmail / findById</code></td><td>Recherche</td></tr>
+        <tr><td><code>all() / count() / countByRole()</code></td><td>Liste &amp; statistiques</td></tr>
+        <tr><td><code>upsertFromGoogle($g,$isAdmin)</code></td><td>Crée/maj un membre Google</td></tr>
+        <tr><td><code>setRole($id,$role)</code></td><td>Promouvoir / rétrograder</td></tr>
+        <tr><td><code>setBlocked($id,$bool)</code></td><td>Bloquer / débloquer</td></tr>
+        <tr><td><code>delete($id)</code></td><td>Supprimer</td></tr>
+    </table>
+</section>
+
+<section id="controllers">
+    <h2>Contrôleurs</h2>
+    <ul>
+        <li><b>AuthController</b> : <code>showLogin()</code>, <code>callback()</code>, <code>logout()</code></li>
+        <li><b>DashboardController</b> : <code>index()</code> (page membre protégée)</li>
+        <li><b>AdminController</b> : login, dashboard, members, security, settings + actions (promote, demote, block, unblock, delete, ip_unblock…)</li>
+    </ul>
+</section>
+
+<section id="admin">
+    <h2>Espace admin</h2>
+    <p>Connexion via <b>identifiants MySQL</b> : <code>tryConnect()</code> tente une vraie connexion. Si elle réussit → accès accordé. Les identifiants sont gardés en session (et persistés en ligne pour les membres).</p>
+    <div class="note">En local, l'utilisateur MySQL est <code>root</code> ; en ligne (Hostinger), l'utilisateur = le nom de la base.</div>
+</section>
+
+<section id="hierarchie">
+    <h2>Hiérarchie</h2>
+    <table>
+        <tr><th>Action</th><th>Super-admin</th><th>Admin normal</th></tr>
+        <tr><td>Voir les membres</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Bloquer un simple membre</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Rendre / retirer admin</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Supprimer un membre</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Modifier un admin</td><td>✅</td><td>❌</td></tr>
+        <tr><td>Toucher au super-admin</td><td>❌</td><td>❌</td></tr>
+    </table>
+    <p><b>Super-admin</b> = connexion MySQL (id 0) ou email dans <code>ADMIN_EMAILS</code>. Protections appliquées <b>côté serveur</b>.</p>
+</section>
+
+<section id="securite">
+    <h2>Sécurité</h2>
+    <ul>
+        <li><b>Anti-bruteforce</b> : N essais → blocage IP H heures (réglable). Bouton désactivé si bloqué.</li>
+        <li><b>CSRF</b> : paramètre <code>state</code> vérifié au retour Google.</li>
+        <li><b>PDO préparé</b> : protection contre l'injection SQL.</li>
+        <li><b>Dossiers protégés</b> : <code>config/</code>, <code>storage/</code>, <code>app/</code> via <code>.htaccess</code>.</li>
+        <li><b>URL secrète</b> : <code>unlock.php?key=…</code> (faux 404 sans la clé).</li>
+    </ul>
+    <div class="warn">Ne jamais publier <code>SECRET_KEY</code>, <code>config/db.php</code> ni le Client Secret Google.</div>
+</section>
+
+<section id="routes">
+    <h2>Routes admin (<code>admin.php?action=</code>)</h2>
+    <table>
+        <tr><th>Action</th><th>Méthode</th><th>Effet</th></tr>
+        <tr><td>login</td><td><span class="tag get">GET</span> <span class="tag post">POST</span></td><td>Formulaire / connexion</td></tr>
+        <tr><td>dashboard</td><td><span class="tag get">GET</span></td><td>Statistiques</td></tr>
+        <tr><td>members</td><td><span class="tag get">GET</span></td><td>Liste des membres</td></tr>
+        <tr><td>promote / demote</td><td><span class="tag post">POST</span></td><td>Rôle admin (super uniquement)</td></tr>
+        <tr><td>block / unblock</td><td><span class="tag post">POST</span></td><td>Bloquer un membre</td></tr>
+        <tr><td>delete</td><td><span class="tag post">POST</span></td><td>Supprimer (super uniquement)</td></tr>
+        <tr><td>security</td><td><span class="tag get">GET</span></td><td>IP bloquées</td></tr>
+        <tr><td>ip_unblock / ip_unblock_all</td><td><span class="tag post">POST</span></td><td>Débloquer des IP</td></tr>
+        <tr><td>settings</td><td><span class="tag get">GET</span> <span class="tag post">POST</span></td><td>Paramètres</td></tr>
+        <tr><td>logout</td><td><span class="tag get">GET</span></td><td>Déconnexion</td></tr>
+    </table>
+</section>
+
+<section id="themes">
+    <h2>Thèmes</h2>
+    <p>4 thèmes : <b>Panafricain</b>, <b>Classique</b>, <b>Sombre</b>, <b>Clair</b>. Chaque thème définit des variables CSS injectées par <code>Theme::css()</code>. Les vues utilisent ces variables (<code>--bg-base</code>, <code>--text</code>, <code>--accent</code>, <code>--bar</code>…).</p>
+    <p><b>Aperçu en direct</b> : sur la page Paramètres, un script applique les variables du thème sélectionné sans recharger.</p>
+<pre><code>select.addEventListener('change', () =&gt; {
+    const vars = THEMES[select.value];
+    for (const k in vars) document.documentElement.style.setProperty(k, vars[k]);
+});</code></pre>
+</section>
+
+<section id="config">
+    <h2>Configuration (<code>config/config.php</code>)</h2>
+<pre><code>GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET   // clés OAuth (surchargées par l'admin)
+GOOGLE_REDIRECT_URI                       // calculée automatiquement
+DB_HOST / DB_NAME / DB_USER / DB_PASS     // local par défaut, ou config/db.php
+ADMIN_EMAILS                              // super-admins (Google)
+SECRET_KEY                                // clé de la page unlock.php
+IS_LOCAL                                  // détection local / en ligne</code></pre>
+    <div class="note">En ligne, les identifiants BDD viennent de <code>config/db.php</code> (créé manuellement ou à la 1re connexion admin).</div>
+</section>
+
+</main>
+</div>
+
+<footer>
+    RPN — Documentation technique · Générée pour le projet · bokonzi.com/rpm
+</footer>
+</body>
+</html>

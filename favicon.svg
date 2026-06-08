@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RPN">
+  <defs>
+    <clipPath id="round"><rect width="64" height="64" rx="14"/></clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <!-- bandes panafricaines (style afro / Ghana) : rouge, or, vert -->
+    <rect x="0" y="0"     width="64" height="21.33" fill="#e63946"/>
+    <rect x="0" y="21.33" width="64" height="21.33" fill="#f4c14b"/>
+    <rect x="0" y="42.66" width="64" height="21.34" fill="#2a9d4a"/>
+    <!-- étoile noire centrale (unité africaine) -->
+    <path d="M32 18 l3.7 7.6 8.4 1.2 -6.1 5.9 1.4 8.3 -7.4-3.9 -7.4 3.9 1.4-8.3 -6.1-5.9 8.4-1.2z" fill="#14110f"/>
+  </g>
+</svg>

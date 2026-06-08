@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Tutoriel complet</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+    :root { --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#fff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280; --code:#0f172a; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html { scroll-behavior:smooth; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); position:sticky; top:0; z-index:30; }
+    header { background:var(--noir); color:#fff; padding:50px 24px; text-align:center;
+        background-image:radial-gradient(circle at 15% 0%,rgba(230,57,70,.30),transparent 45%),radial-gradient(circle at 85% 120%,rgba(42,157,74,.30),transparent 48%); }
+    header h1 { font-size:34px; } header h1 b { color:var(--or); }
+    header p { color:rgba(255,255,255,.75); margin-top:12px; font-size:15px; max-width:680px; margin-inline:auto; }
+    .badges { margin-top:18px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+    .badges span { background:rgba(255,255,255,.1); border:1px solid rgba(244,193,75,.4); color:var(--or); padding:5px 12px; border-radius:20px; font-size:12px; }
+    .layout { display:flex; max-width:1120px; margin:0 auto; gap:32px; padding:30px 24px; align-items:flex-start; }
+    nav.toc { position:sticky; top:46px; min-width:248px; max-height:calc(100vh - 70px); overflow-y:auto; font-size:13.5px; padding-right:6px; }
+    nav.toc a { display:block; color:var(--muted); text-decoration:none; padding:5px 10px; border-radius:7px; }
+    nav.toc a:hover { background:#f0f0f5; color:var(--noir); }
+    nav.toc .grp { font-weight:800; color:var(--noir); margin:14px 0 4px; font-size:11.5px; text-transform:uppercase; letter-spacing:.6px; }
+    main { flex:1; min-width:0; }
+    section { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:26px 30px; margin-bottom:22px; scroll-margin-top:30px; }
+    section > h2 { font-size:22px; color:var(--noir); margin-bottom:6px; }
+    section > .intro { color:var(--muted); font-size:14px; margin-bottom:16px; padding-bottom:14px; border-bottom:2px solid var(--or); }
+    h3 { font-size:16.5px; margin:20px 0 8px; color:var(--noir); display:flex; align-items:center; gap:8px; }
+    p { margin-bottom:10px; } ul,ol { margin:8px 0 12px 22px; } li { margin-bottom:6px; }
+    code { background:#f1f1f6; color:#b3243a; padding:2px 6px; border-radius:5px; font-family:Consolas,Monaco,monospace; font-size:13px; }
+    pre { background:var(--code); color:#e5e7eb; padding:14px 16px; border-radius:10px; overflow-x:auto; margin:12px 0; font-size:12.5px; line-height:1.5; }
+    pre code { background:none; color:inherit; padding:0; }
+    table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13.5px; }
+    th,td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--noir); background:#fcf7e9; }
+    .note { background:#fff8e6; border-left:4px solid var(--or); padding:11px 15px; border-radius:0 8px 8px 0; margin:13px 0; font-size:13.5px; }
+    .tip  { background:#e9f7ee; border-left:4px solid var(--vert); padding:11px 15px; border-radius:0 8px 8px 0; margin:13px 0; font-size:13.5px; }
+    .warn { background:#fde8ea; border-left:4px solid var(--rouge); padding:11px 15px; border-radius:0 8px 8px 0; margin:13px 0; font-size:13.5px; }
+    .steps { counter-reset:s; list-style:none; margin-left:0; }
+    .steps li { counter-increment:s; position:relative; padding-left:38px; margin-bottom:10px; }
+    .steps li::before { content:counter(s); position:absolute; left:0; top:-1px; width:26px; height:26px; background:var(--or); color:var(--noir); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+    .pill { display:inline-block; background:#eef; color:#3b3b7a; border-radius:6px; padding:1px 8px; font-size:12px; font-weight:600; margin:1px; }
+    .who { font-size:12px; font-weight:700; padding:3px 9px; border-radius:14px; }
+    .who.m { background:#e9f7ee; color:#1c7a3a; } .who.a { background:#fde8ea; color:#c0283a; } .who.v { background:#eef; color:#3b3b7a; }
+    footer { text-align:center; padding:34px; color:var(--muted); font-size:13px; }
+    @media(max-width:860px){ .layout{flex-direction:column;} nav.toc{position:static;min-width:0;max-height:none;} }
+    .pdf-btn { display:inline-flex; align-items:center; gap:8px; margin-top:16px; cursor:pointer; font-family:inherit;
+        font-size:14px; font-weight:700; color:var(--noir); background:var(--or); border:none; border-radius:10px;
+        padding:11px 18px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+    .pdf-btn:hover { filter:brightness(1.05); }
+    /* Impression / « Enregistrer en PDF » : mise en page épurée et aérée */
+    @media print {
+        @page { margin:16mm 14mm; }
+        .bar, nav.toc, .pdf-btn, footer, .badges { display:none !important; }
+        body { background:#fff; color:#000; font-size:12pt; }
+        header { padding:0 0 10px; }
+        .layout { display:block; }
+        main { max-width:none; padding:0; }
+        section { break-inside:avoid; page-break-inside:avoid; box-shadow:none !important;
+            border:1px solid #ccc; margin:0 0 12px; padding:14px 16px; }
+        h1 { font-size:20pt; } h2 { font-size:15pt; break-after:avoid; } h3 { font-size:12.5pt; break-after:avoid; }
+        a { color:#000; text-decoration:none; }
+        .note,.tip,.warn { border-left-width:4px; }
+    }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header>
+    <h1>RPN — <b>Tutoriel complet</b></h1>
+    <p>Le guide d'utilisation de A à Z : chaque page, chaque bouton, comment ça marche et à quoi ça sert. Pour les visiteurs, les membres et les administrateurs.</p>
+    <div class="badges">
+        <span>👤 Membres</span><span>🛡️ Admin</span><span>📅 Agenda</span><span>📰 Articles</span><span>🔔 Notifications</span><span>📱 Application</span>
+    </div>
+    <button type="button" class="pdf-btn" onclick="window.print()">📄 Télécharger en PDF</button>
+</header>
+
+<div class="layout">
+<nav class="toc">
+    <div class="grp">Démarrer</div>
+    <a href="#intro">1. Présentation</a>
+    <a href="#acces">2. Accès & rôles</a>
+    <a href="#connexion">3. Se connecter</a>
+    <div class="grp">Membre</div>
+    <a href="#dashboard">4. Tableau de bord</a>
+    <a href="#code">5. Code membre & visibilité</a>
+    <a href="#theme-perso">6. Mon thème</a>
+    <div class="grp">Articles</div>
+    <a href="#articles-lire">7. Lire les articles</a>
+    <a href="#articles-ecrire">8. Écrire un article</a>
+    <a href="#articles-mdp">8b. Mot de passe d'accès</a>
+    <a href="#articles-avis">9. Avis & discussion</a>
+    <a href="#articles-signaler">9b. Signaler un article</a>
+    <a href="#quiz">9c. Questionnaires (QCM)</a>
+    <div class="grp">Communauté & profil</div>
+    <a href="#profil">9d. Mon profil (rôle, pays, adresse)</a>
+    <a href="#niveaux">9e. Mes niveaux</a>
+    <a href="#recherche">9f. Rechercher un membre</a>
+    <a href="#messagerie">9g. Messagerie privée</a>
+    <a href="#diaspora">9h. Carte de la diaspora</a>
+    <a href="#assistant">9i. Assistant Sankofa</a>
+    <div class="grp">Agenda</div>
+    <a href="#agenda-calendrier">10. Le calendrier</a>
+    <a href="#agenda-creer">11. Créer un événement</a>
+    <a href="#agenda-gerer">12. Gérer mes événements</a>
+    <a href="#agenda-reserver">13. Réserver</a>
+    <a href="#agenda-proximite">14. Recherche par proximité</a>
+    <a href="#agenda-notes">15. Noter un événement</a>
+    <a href="#agenda-passes">16. Événements passés</a>
+    <div class="grp">Plus</div>
+    <a href="#notifications">17. Notifications</a>
+    <a href="#urgent">17b. Alertes URGENT</a>
+    <a href="#afrique">18. Pays d'Afrique</a>
+    <a href="#app">19. Installer l'application</a>
+    <div class="grp">Administration</div>
+    <a href="#admin-dashboard">20. Tableau de bord admin</a>
+    <a href="#admin-membres">21. Gérer les membres</a>
+    <a href="#admin-params">22. Paramètres</a>
+    <a href="#admin-cle">23. Clé API</a>
+    <a href="#admin-articles">24. Modération articles</a>
+    <a href="#admin-securite">25. Sécurité & danger</a>
+    <div class="grp">Technique</div>
+    <a href="#api">26. API distante</a>
+    <a href="#secu">27. Sécurité & vie privée</a>
+    <a href="#faq">28. FAQ / dépannage</a>
+</nav>
+
+<main>
+
+<section id="intro">
+    <h2>1. Présentation</h2>
+    <p class="intro">RPN est une plateforme communautaire : articles, agenda de rendez-vous entre membres, notifications, et une application installable sur téléphone.</p>
+    <p>RPN réunit en un seul site :</p>
+    <ul>
+        <li>📰 un <b>magazine d'articles</b> (lecture, écriture, mise en page, avis, discussion) ;</li>
+        <li>📅 un <b>agenda d'événements</b> entre membres (créneaux, réservations, photos, notes, carte de proximité) ;</li>
+        <li>🔔 des <b>notifications en temps réel</b> (comme des SMS) ;</li>
+        <li>🛡️ un <b>espace administrateur</b> complet ;</li>
+        <li>📱 une <b>application</b> installable (PWA / APK) avec mises à jour.</li>
+    </ul>
+    <div class="note">Le site s'adapte au thème choisi (couleurs) et fonctionne sur ordinateur comme sur téléphone.</div>
+</section>
+
+<section id="acces">
+    <h2>2. Accès & rôles</h2>
+    <p class="intro">Trois profils, trois niveaux d'accès.</p>
+    <table>
+        <tr><th>Rôle</th><th>Comment</th><th>Peut faire</th></tr>
+        <tr><td><span class="who v">Visiteur</span></td><td>Sans connexion</td><td>Lire les articles publics, voir la page Pays d'Afrique, installer l'app.</td></tr>
+        <tr><td><span class="who m">Membre</span></td><td>Connexion Google</td><td>Tout le contenu : écrire des articles, créer/réserver des événements, recevoir des notifications, choisir son thème.</td></tr>
+        <tr><td><span class="who a">Administrateur</span></td><td>Identifiants MySQL ou e-mail admin</td><td>En plus : gérer membres, articles, paramètres, thèmes, sécurité, clé API, tout effacer.</td></tr>
+    </table>
+    <p>Adresse de base : <code>https://bokonzi.com/rpn/</code> (ou <code>http://localhost/rpn/</code> en local).</p>
+</section>
+
+<section id="connexion">
+    <h2>3. Se connecter</h2>
+    <p class="intro">Trois portes : Google, e-mail/mot de passe (membres) et identifiants (administrateur).</p>
+    <h3>👤 Membre — « Se connecter avec Google »</h3>
+    <ol class="steps">
+        <li>Sur la page d'accueil, clique <b>« Se connecter avec Google »</b>.</li>
+        <li>Choisis ton compte Google et autorise.</li>
+        <li>Tu arrives sur ton <b>tableau de bord</b>. Ton profil (nom, photo) est repris de Google.</li>
+    </ol>
+    <h3>✉️ Membre — sans compte Google (inscription par e-mail)</h3>
+    <p>Pas de compte Google ? Tu peux créer un compte classique :</p>
+    <ol class="steps">
+        <li>Sur l'accueil, sous le bouton Google, utilise le formulaire <b>e-mail + mot de passe</b> pour te connecter, ou clique le bouton vert <b>« S'inscrire »</b>.</li>
+        <li>Renseigne <b>nom, e-mail, mot de passe</b> (min. 6 caractères, à confirmer).</li>
+        <li>Tu es connecté·e directement et tu peux <b>ajouter ta photo</b> depuis le tableau de bord (voir §4).</li>
+    </ol>
+    <div class="note">Pour ta sécurité, l'inscription par e-mail crée toujours un compte <b>membre</b> (jamais administrateur). Les mots de passe sont chiffrés.</div>
+    <h3>🛡️ Administrateur</h3>
+    <p>Va sur <code>…/rpn/admin/login</code> et saisis le <b>nom de la base</b> et le <b>mot de passe MySQL</b>. C'est aussi la page de <b>configuration</b> du site (voir la doc « Connexion Google » et l'installation).</p>
+    <div class="note">La configuration détaillée de la connexion Google (URI de redirection, console) est expliquée dans <a href="connexion-google.html">connexion-google.html</a>.</div>
+</section>
+
+<section id="dashboard">
+    <h2>4. Tableau de bord (membre)</h2>
+    <p class="intro">Ta page d'accueil une fois connecté·e : <code>…/rpn/dashboard</code>.</p>
+    <p>On y trouve :</p>
+    <ul>
+        <li><b>🟥 Alertes URGENT</b> : en haut, les articles/événements marqués urgents par un responsable. Chaque alerte a une <b>croix ✕</b> pour la fermer (uniquement pour toi). Voir §17b.</li>
+        <li><b>Profil</b> : avatar, nom, badge (Membre / Administrateur), e-mail. Tu peux <b>📷 ajouter / changer / retirer ta photo</b> ici (utile surtout si tu t'es inscrit·e par e-mail). Un bouton <b>🔄 Mise à jour</b> (juste sous l'e-mail) vérifie la dernière version de l'app.</li>
+        <li><b>🏅 Mon niveau</b> : ta progression Héritier → Sage, avec un lien « Voir tous les niveaux » (voir §9e).</li>
+        <li><b>📌 Tes rendez-vous aujourd'hui</b> : rappel des événements <b>réservés</b> du jour (heure, titre, hôte, lieu), cliquables vers l'agenda.</li>
+        <li><b>🪪 Mon code & visibilité</b> : ton code membre et l'autorisation d'être ajouté (voir §5).</li>
+        <li><b>🌍 Mes pays d'origine</b> et <b>🎓 Mon rôle / domaine</b> + <b>📍 adresse</b> : ton profil, avec autocomplétion (voir §9d).</li>
+        <li><b>🔎 Rechercher un membre</b> : barre de recherche avec autocomplétion des profils visibles (voir §9f).</li>
+        <li><b>🎨 Mon thème</b> : choisis ton apparence perso (voir §6).</li>
+        <li><b>Statistiques</b> : articles publiés, tes articles, questionnaires (cliquables).</li>
+        <li><b>Actions rapides</b>, rangées <b>par thème</b> : <b>👥 Communauté</b> (Rechercher un profil, Messages, Agenda, Carte diaspora), <b>📚 Apprendre &amp; contenus</b> (Articles, Questionnaires, Assistant), <b>🧭 Mon espace</b> (Niveaux, Notifications, Export/Import, Aide), et <b>👑 Administration</b> si tu es admin.</li>
+        <li><b>📦 Sauvegarde de mon projet</b> : tout en bas, pour exporter/importer tes contenus en <code>.zip</code>.</li>
+    </ul>
+    <div class="tip">Besoin d'aide en direct ? Le bouton flottant <b>🎓 Visite guidée</b> (en bas à gauche, sur toutes les pages) surligne chaque élément et l'explique, page après page.</div>
+</section>
+
+<section id="code">
+    <h2>5. Code membre & visibilité</h2>
+    <p class="intro">Chaque membre a un <b>code unique</b> et décide lui-même s'il peut être ajouté à des activités. C'est le cœur du respect de la <b>vie privée</b> sur RPN.</p>
+
+    <h3>🪪 Ton code — à quoi ça sert ?</h3>
+    <p>Chaque membre reçoit un <b>code unique</b> de la forme <b>1 lettre + 3 chiffres</b> (ex. <code>G235</code>), affiché sur son tableau de bord. <b>Aucun code ne se répète.</b></p>
+    <p>Ce code est une <b>clé d'accord privée</b>. Concrètement, il sert à :</p>
+    <ul>
+        <li><b>Être ajouté à un événement sans être public</b> : tu donnes ton code à un organisateur de confiance ; lui seul peut alors t'inscrire à son créneau, même si tu restes invisible pour tous les autres.</li>
+        <li><b>Te retrouver directement</b> : quelqu'un qui connaît ton code peut t'ajouter sans avoir à fouiller dans une liste.</li>
+    </ul>
+    <p>👉 En résumé : <b>connaître ton code = tu as donné ton accord</b>. Tant que tu ne le partages pas, personne ne peut t'inscrire par ce moyen.</p>
+
+    <h3>🔓 « Trouvable » ou « invisible » ?</h3>
+    <p>Par défaut, tu es <b>invisible</b> : tu n'apparais dans <b>aucune liste publique</b>, et personne ne peut t'ajouter à une activité (sauf si tu as donné ton code, voir ci-dessus). C'est le mode « vie privée ».</p>
+    <p>Si tu cliques sur <b>« M'autoriser à être ajouté »</b>, tu deviens <b>trouvable</b> : ton <b>nom</b> apparaît dans la liste que voient les organisateurs, et ils peuvent te cocher pour t'inscrire — <b>sans</b> avoir besoin de ton code. Tu peux <b>redevenir invisible</b> à tout moment d'un seul clic.</p>
+    <table>
+        <tr><th>Méthode pour t'ajouter à un événement</th><th>Condition</th></tr>
+        <tr><td>Depuis la <b>liste publique</b> (l'organisateur coche ton nom)</td><td>Il faut avoir activé <b>« trouvable »</b></td></tr>
+        <tr><td>Par <b>code</b> (l'organisateur saisit ton code)</td><td>Marche <b>toujours</b> — c'est toi qui as transmis le code</td></tr>
+    </table>
+    <div class="tip">Le <b>code fonctionne toujours</b>, même quand tu es invisible : partage-le seulement aux personnes de confiance. L'option « trouvable » est un raccourci public en plus — pas une obligation.</div>
+    <div class="note">Aucune de ces options ne révèle ton e-mail ni ne te notifie sans raison : un ajout déclenche simplement une notification de confirmation.</div>
+</section>
+
+<section id="theme-perso">
+    <h2>6. Mon thème (personnel)</h2>
+    <p class="intro">Change l'apparence du site rien que pour toi.</p>
+    <ol class="steps">
+        <li>Sur le tableau de bord, carte <b>« 🎨 Mon thème »</b>.</li>
+        <li>Choisis un thème dans la liste — l'<b>aperçu est immédiat</b>.</li>
+        <li>Clique <b>« Appliquer »</b>. Ton choix est mémorisé et te suit à chaque connexion.</li>
+    </ol>
+    <p>Les thèmes sont <b>rangés par famille</b> dans le menu :</p>
+    <ul>
+        <li><b>Communauté</b> : Panafricain (défaut), Pro Black.</li>
+        <li><b>Clairs</b> : Classique, Clair, Menthe.</li>
+        <li><b>Sombres &amp; néon</b> : Sombre, Océan, Forêt, Coucher de soleil, Violet.</li>
+        <li><b>Héros &amp; dessins animés</b> : Simpson, <b>Black Panther</b>, <b>Batman</b>, <b>Rayman</b>.</li>
+        <li><b>Sur mesure</b> : Personnalisé (couleurs définies par l'admin).</li>
+    </ul>
+    <p>« Thème du site (défaut) » remet l'apparence commune.</p>
+    <div class="note">Ton thème ne s'applique <b>qu'à toi</b>. Les autres gardent le thème du site (défini par l'admin, mêmes familles dans Paramètres).</div>
+</section>
+
+<section id="articles-lire">
+    <h2>7. Lire les articles</h2>
+    <p class="intro">Page <code>…/rpn/articles</code> — accessible aux visiteurs.</p>
+    <ul>
+        <li><b>Liste</b> des articles publiés, avec recherche (filtre par titre/contenu).</li>
+        <li>Clique un article pour l'ouvrir : sa <b>mise en page</b> dépend du modèle choisi (image en haut, carrousel, etc.).</li>
+        <li><b>Compteur de vues</b> : une vue par visiteur (par IP) et le suivi des membres.</li>
+        <li><b>Galeries animées</b> : selon le modèle, les photos défilent (carrousel à flèches, diaporama en fondu, galerie à défilement continu).</li>
+    </ul>
+    <div class="tip">📣 Les articles passés en <b>« Annonce »</b> par un admin apparaissent <b>en avant sur la page d'accueil</b> de tout le monde (voir §24).</div>
+</section>
+
+<section id="articles-ecrire">
+    <h2>8. Écrire / modifier un article</h2>
+    <p class="intro">Tout membre peut écrire. Bouton « ＋ Nouvel article » dans la liste.</p>
+    <ol class="steps">
+        <li><b>Titre</b> et <b>contenu</b> (texte enrichi).</li>
+        <li><b>Image de couverture</b> (facultative) + <b>galerie</b> de photos.</li>
+        <li><b>Fichiers joints</b> (PDF, documents…) téléchargeables par les lecteurs.</li>
+        <li><b>Mise en page</b> : choisis parmi ~19 modèles. Aperçu en direct.</li>
+        <li><b>Article parent</b> (facultatif) : rattache l'article à un autre pour en faire un <b>sous-article</b> (il s'ouvre alors depuis son parent, et apparaît en petite vignette sur la carte du parent).</li>
+        <li><b>📝 Questionnaires associés</b> (facultatif) : coche un ou plusieurs questionnaires (voir §9c). Ils seront proposés <b>à la fin de la lecture</b> de l'article.</li>
+        <li><b>🟥 Afficher dans le tableau de bord de tout le monde</b> : coche pour signaler l'article comme <b>URGENT</b> (alerte rouge chez tous les membres).</li>
+        <li><b>🔑 Protéger par mot de passe</b> (facultatif) : 3 choix — <b>Aucun</b> (libre), <b>Mon code membre</b> (ton code sert de mot de passe par défaut, à communiquer aux lecteurs), ou <b>Personnalisé</b> (tu saisis ton propre mot de passe). Voir §8b.</li>
+        <li><b>Brouillon</b> ou <b>Publié</b> : un brouillon n'est visible que de toi (et des admins). Au clic, si le <b>titre</b> ou le <b>contenu</b> manque, un message te le signale (le champ concerné se surligne).</li>
+    </ol>
+    <div class="note">Sur la page d'un article, la <b>photo de l'auteur</b> s'affiche en rond en haut à droite. L'auteur (et les admins) voient aussi <b>qui a lu l'article</b> : la liste des membres + les <b>adresses IP</b> des visiteurs non connectés (voir §24).</div>
+    <h3>🎨 Les modèles de mise en page</h3>
+    <p><span class="pill">Standard</span><span class="pill">Minimal</span><span class="pill">Carte</span><span class="pill">Magazine</span><span class="pill">Affiche</span><span class="pill">Vitrine</span><span class="pill">Moderne</span><span class="pill">Pleine largeur</span><span class="pill">Bandeau</span><span class="pill">Côte à côte</span><span class="pill">Portrait</span><span class="pill">Fiche</span><span class="pill">Journal</span><span class="pill">Classique</span><span class="pill">Élégant</span><span class="pill">Encadré</span><span class="pill">Carrousel</span><span class="pill">Diaporama</span><span class="pill">Galerie animée</span></p>
+    <div class="tip">Publier un article déclenche une <b>notification</b> aux autres membres.</div>
+</section>
+
+<section id="articles-mdp">
+    <h2>8b. Accès protégé par mot de passe</h2>
+    <p class="intro">Un article peut exiger un mot de passe pour être ouvert.</p>
+    <ul>
+        <li><b>Côté auteur</b> : dans le formulaire, bloc « 🔑 Protéger l'accès » — choisis <b>Aucun</b>, <b>code membre</b> (ton code, ex. <code>G235</code>) ou <b>mot de passe personnalisé</b>.</li>
+        <li><b>Côté lecteur</b> : à l'ouverture, un écran demande le mot de passe. Une fois saisi correctement, l'accès est mémorisé pour la visite.</li>
+        <li>L'<b>auteur</b> et les <b>admins</b> accèdent <b>sans</b> mot de passe.</li>
+        <li>Dans la liste, un article protégé affiche « 🔒 Contenu protégé » au lieu de l'extrait (pas de fuite).</li>
+    </ul>
+    <div class="note">Le mot de passe est <b>chiffré</b> et n'est jamais affiché. Pour le retirer, repasse l'option sur « Aucun ».</div>
+</section>
+
+<section id="articles-avis">
+    <h2>9. Avis & discussion</h2>
+    <p class="intro">Chaque article peut être noté et commenté.</p>
+    <ul>
+        <li><b>Avis</b> : une note de 1 à 5 ★ + un commentaire (un avis par membre, modifiable).</li>
+        <li><b>Discussion</b> : fil de messages sous l'article. Un message peut être <b>signalé</b> (modération) et supprimé par son auteur ou un admin.</li>
+        <li><b>Suppression</b> de l'article : par son auteur ou un administrateur.</li>
+    </ul>
+</section>
+
+<section id="articles-signaler">
+    <h2>9b. Signaler un article</h2>
+    <p class="intro">Un système de modération communautaire pour les contenus inappropriés.</p>
+    <ul>
+        <li>Sur la page d'un article, tout membre connecté (sauf l'auteur) voit un bouton <b>🚩 Signaler</b> — un seul signalement par personne.</li>
+        <li>Dès que <b>3 membres différents</b> ont signalé un article, il est <b>automatiquement masqué au public</b>.</li>
+        <li><b>Conditions</b> : un article <b>protégé</b> ou en <b>annonce</b> n'est jamais masqué ; l'<b>auteur</b> et les <b>admins</b> continuent de le voir, avec un bandeau d'avertissement.</li>
+        <li>Un <b>administrateur</b> peut <b>réinitialiser</b> les signalements (ce qui rétablit l'article) — directement depuis l'article, ou depuis <b>Admin → Articles</b> (panneau « 🚩 Articles signalés » qui liste tout d'un coup).</li>
+    </ul>
+</section>
+
+<section id="quiz">
+    <h2>9c. Questionnaires interactifs (QCM)</h2>
+    <p class="intro">Crée des quiz notés, associe-les à des articles, et propose-les en fin de lecture. Accès : tableau de bord → <b>« ❓ Questionnaires »</b> (ou Admin → Questionnaires).</p>
+
+    <h3>✍️ Créer un questionnaire</h3>
+    <ol class="steps">
+        <li>Clique <b>« ➕ Créer un questionnaire »</b>. Donne un <b>titre</b>, une <b>description</b> et, si tu veux, une <b>image de couverture</b>.</li>
+        <li>Ajoute autant de <b>questions</b> que tu veux. Pour chaque question, choisis le mode :
+            <ul>
+                <li><b>🔘 Une seule bonne réponse</b> (choix unique) ;</li>
+                <li><b>☑️ Plusieurs bonnes réponses</b> (choix multiple).</li>
+            </ul>
+        </li>
+        <li>Saisis les <b>réponses possibles</b> et <b>coche la (ou les) bonne(s)</b>.</li>
+        <li><b>Publie</b> (ou garde en brouillon). N'importe quel membre peut créer un quiz ; l'auteur et les admins peuvent le modifier/supprimer.</li>
+    </ol>
+
+    <h3>🎯 Répondre, score & pourcentage</h3>
+    <p>Un membre répond, valide, puis voit son <b>score</b> (ex. 7/9), son <b>pourcentage de réussite</b> (avec une barre de progression) et le <b>corrigé</b> (bonne réponse en vert, son choix faux en rouge, réponse manquée signalée). Le pourcentage apparaît aussi sur la carte du quiz et sous l'article associé.</p>
+    <h3>🔁 Nombre de tentatives</h3>
+    <p>À la création, le créateur fixe le <b>nombre de tentatives autorisées</b> :</p>
+    <ul>
+        <li><b>0 = illimité</b> : le membre peut refaire le quiz autant de fois qu'il veut.</li>
+        <li><b>1, 2, 3…</b> : au-delà, le bouton « Refaire » se verrouille (« Nombre maximum de tentatives atteint »).</li>
+    </ul>
+    <p class="note" style="display:block">La limite est <b>ignorée pour les questionnaires obligatoires</b> (pour ne jamais bloquer un membre qui doit le valider).</p>
+
+    <h3>🔗 Associer à un article</h3>
+    <p>Dans le formulaire d'article, section <b>« 📝 Questionnaires associés »</b>, coche les quiz à rattacher. En bas de l'article, un encadré <b>« Teste tes connaissances »</b> proposera <b>« Commencer à répondre → »</b> (avec l'image et le score si déjà fait).</p>
+
+    <h3>⛔ Questionnaire obligatoire (admin)</h3>
+    <p>Un administrateur peut cocher, à la création :</p>
+    <ul>
+        <li><b>« Rendre obligatoire »</b> : tant qu'un membre n'a pas répondu, <b>toute l'application est bloquée</b> pour lui (il est redirigé vers le questionnaire). Les <b>admins ne sont jamais bloqués</b>.</li>
+        <li><b>« Il faut réussir pour continuer »</b> : le membre doit obtenir <b>toutes les bonnes réponses</b> pour être débloqué (sinon il recommence). Sans cette option, répondre suffit.</li>
+    </ul>
+    <div class="tip">Comme les articles, un quiz peut aussi être marqué <b>🟥 URGENT</b> pour apparaître dans le tableau de bord de tous.</div>
+</section>
+
+<section id="profil">
+    <h2>9d. Mon profil : rôle, pays d'origine &amp; adresse</h2>
+    <p>Depuis le tableau de bord, complète ton profil pour être trouvé·e par la communauté. Trois blocs distincts :</p>
+    <ul>
+        <li><b>🌍 Mes pays d'origine</b> : un champ avec <b>autocomplétion</b> — tape « séné » → choisis 🇸🇳 Sénégal (drapeau affiché). Plusieurs pays possibles ; chaque pays devient une étiquette (clique « × » pour retirer).</li>
+        <li><b>🎓 Mon rôle / domaine</b> : un seul champ qui <b>se complète automatiquement</b> — tape « maths » → propose « Prof de maths », « Mathématiques »… Clique pour ajouter, ou écris ton propre rôle puis <b>Entrée</b>.</li>
+        <li><b>📍 Mon adresse / ville</b> : champ avec <b>autocomplétion de villes</b>. La ville choisie est <b>géolocalisée</b> : tu apparais sur la carte de la diaspora et dans la recherche par kilomètres.</li>
+    </ul>
+    <div class="tip">Pour être <b>visible</b> des autres (recherche, carte), active « <b>M'autoriser à être ajouté</b> » dans « Mon code &amp; visibilité ». Sinon ton profil reste privé.</div>
+</section>
+
+<section id="niveaux">
+    <h2>9e. Mes niveaux (Héritier → Sage)</h2>
+    <p>Tu gagnes des <b>points</b> en participant. Une carte sur le tableau de bord montre ton niveau, ta progression et le détail ; la page <b>« Mes niveaux »</b> liste tous les paliers et le barème.</p>
+    <ul>
+        <li>📰 Article publié <b>+15</b> · ❓ QCM passé <b>+10</b> · 📅 Réservation <b>+5</b> · ⭐ Avis <b>+3</b> · 💬 Message <b>+2</b> · ⏳ ancienneté <b>+2/semaine</b>.</li>
+        <li>Paliers : 🌱 <b>Héritier</b> (0) → 🤝 <b>Transmetteur</b> (50) → 🛡️ <b>Gardien</b> (150) → 🏗️ <b>Bâtisseur</b> (350) → 🦉 <b>Sage</b> (700).</li>
+    </ul>
+</section>
+
+<section id="recherche">
+    <h2>9f. Rechercher un membre / professeur</h2>
+    <p>Depuis « <b>Rechercher un profil</b> » (Actions rapides) ou la carte « Rechercher un membre » : tape un <b>nom, une matière, un pays ou une ville</b>.</p>
+    <ul>
+        <li><b>Autocomplétion</b> dès 2 lettres : suggestions avec avatar, nom et matière — <b>uniquement les profils visibles</b>.</li>
+        <li>Les résultats affichent le <b>niveau</b>, les matières, le pays (drapeau) et la <b>distance en km</b> entre toi et la personne (les plus proches d'abord).</li>
+        <li>Les filtres de matières n'affichent que celles <b>réellement portées par des membres</b> (avec le nombre).</li>
+    </ul>
+</section>
+
+<section id="messagerie">
+    <h2>9g. Messagerie privée</h2>
+    <p>Discute en privé avec un autre membre : depuis une fiche, clique <b>« ✉️ Message »</b>, ou ouvre <b>« Messages »</b> (Actions rapides) pour voir toutes tes conversations.</p>
+    <ul>
+        <li>Boîte de réception avec compteur de <b>non-lus</b> (badge sur le tableau de bord).</li>
+        <li><b>Temps réel adaptatif</b> : si ton interlocuteur est <b>en ligne</b> (point vert), la conversation se met à jour toutes les <b>10 s</b> ; sinon toutes les <b>60 s</b>.</li>
+    </ul>
+</section>
+
+<section id="diaspora">
+    <h2>9h. Carte de la diaspora</h2>
+    <p><b>« Carte de la diaspora »</b> (Actions rapides) affiche une carte interactive : les grands foyers afro-descendants (Afrique, États-Unis, Canada, Caraïbes, Guyane, Brésil, Europe) et les <b>membres trouvables géolocalisés</b> (points dorés). Renseigne ton adresse pour y apparaître.</p>
+</section>
+
+<section id="assistant">
+    <h2>9i. Assistant Sankofa</h2>
+    <p>L'<b>Assistant Sankofa</b> (Actions rapides) n'est <b>pas une IA</b> : c'est un <b>algorithme</b> qui cherche dans les articles et les questionnaires et t'oriente. Pose une question ou un mot-clé (« lingala », « réserver un cours », « prof de maths ») → il propose les bonnes ressources et les bons raccourcis.</p>
+</section>
+
+<section id="agenda-calendrier">
+    <h2>10. Le calendrier</h2>
+    <p class="intro">Page <code>…/rpn/agenda</code> — vue d'ensemble façon agenda.</p>
+    <ul>
+        <li>Vues <b>mois / semaine / jour</b>, navigation avant/arrière.</li>
+        <li>Couleurs : <b>mes créneaux</b>, <b>mes réservations</b>, <b>événements publics</b> (option à activer).</li>
+        <li>Clique <b>« + »</b> sur un jour pour créer un événement à cette date.</li>
+        <li>Onglets : <b>Calendrier</b>, <b>＋ Créer un événement</b>, <b>Mes créneaux</b>, <b>Événements passés</b>, recherche.</li>
+    </ul>
+</section>
+
+<section id="agenda-creer">
+    <h2>11. Créer un événement</h2>
+    <p class="intro">Onglet « ＋ Créer un événement ».</p>
+    <ol class="steps">
+        <li><b>Titre</b>, <b>date</b> et <b>heure</b> (obligatoirement dans le futur).</li>
+        <li><b>Durée</b> et <b>nombre de places</b>.</li>
+        <li><b>Type</b> : 📍 Présentiel (adresse géocodée pour la carte) ou 🔗 En ligne (lien visio).</li>
+        <li><b>Visibilité</b> : 🌐 Public (visible par tous) ou 🔒 Privé (accessible par code). <b>Chaque événement reçoit un code unique</b>, visible dans « Mes créneaux ».</li>
+        <li><b>Délai minimum de réservation</b> : ferme les inscriptions X heures avant le début.</li>
+        <li><b>Participants</b> : coche dans la <b>liste claire (nom + prénom)</b> des membres ayant autorisé, <b>ou</b> ajoute-les <b>par code</b> (champ dédié, séparés par un espace).</li>
+        <li><b>Photos</b> : ajoute une ou plusieurs images de l'événement.</li>
+        <li><b>Adresse</b> (avec suggestions OpenStreetMap) et <b>description</b>.</li>
+    </ol>
+    <div class="note">L'option « rendre les inscrits et leurs notes visibles » est <b>masquée par défaut</b> (tu peux l'activer). Un événement public prévient les autres membres par notification.</div>
+</section>
+
+<section id="agenda-gerer">
+    <h2>12. Gérer mes événements (« Mes créneaux »)</h2>
+    <p class="intro">Tu es l'hôte : tu gardes le contrôle total avant le début.</p>
+    <ul>
+        <li><b>Code</b> de l'événement affiché (public ou privé) + bouton « copier ».</li>
+        <li><b>Modifier</b> titre, date/heure, durée, description : si l'horaire change, les inscrits sont prévenus.</li>
+        <li><b>Lieu</b> et <b>délai de réservation</b> : modifiables, avec <b>historique</b> (les anciennes valeurs restent barrées).</li>
+        <li><b>Places</b> : augmenter / diminuer.</li>
+        <li><b>Public ⇄ Privé</b> : bascule à tout moment (le code reste stable).</li>
+        <li><b>Ajouter un membre</b> hors limite (liste des « trouvables » ou par code).</li>
+        <li><b>Présence</b> : après l'événement, marque qui était présent.</li>
+        <li><b>Photos</b> : visibles sur la fiche. <b>Supprimer</b> l'événement efface tout (réservations, photos, notes).</li>
+        <li>🔒 <b>Protéger</b> l'événement : il est <b>conservé</b> même si un admin « efface tout l'agenda ».</li>
+        <li>📄 <b>Voir la fiche complète</b> : chaque événement a sa <b>page dédiée</b> (détail public — voir §13).</li>
+    </ul>
+</section>
+
+<section id="agenda-reserver">
+    <h2>13. Réserver une place</h2>
+    <p class="intro">Sur un événement qui n'est pas le tien.</p>
+    <ol class="steps">
+        <li>Trouve l'événement (liste publique, recherche, calendrier ou par code).</li>
+        <li>Clique <b>« Réserver une place »</b> (si des places sont libres et le délai non dépassé).</li>
+        <li>Tu reçois une confirmation ; l'hôte est notifié. Tu peux <b>annuler</b> à tout moment.</li>
+    </ol>
+    <h3>🔒 Événement privé par code</h3>
+    <p>Dans la recherche de l'agenda, saisis le <b>code</b> (2 lettres + 3 chiffres) communiqué par l'hôte pour accéder à un événement privé.</p>
+    <h3>📄 Fiche dédiée de l'événement</h3>
+    <p>Chaque événement a une <b>page complète</b> (comme un article) : <code>…/rpn/agenda/event?id=…</code> — titre, <b>date + heure exacte (de … à …)</b> en plus du compte à rebours, hôte (et sa note), description, <b>photos</b>, <b>carte</b> (si présentiel), places avec <b>% d'occupation</b>, note de l'événement et bouton de réservation. Elle n'affiche que les événements <b>publics</b> (les privés restent réservés au créateur, aux inscrits et aux admins). Lien <b>« 📄 Voir la fiche complète »</b> sur chaque créneau.</p>
+    <h3>📅 Ajouter à Google Agenda</h3>
+    <p>Sur les cartes de créneaux (Mes créneaux, Mes réservations, Trouver) et sur la fiche de l'événement, un bouton bleu <b>« 📅 Ajouter à Google Agenda »</b> ouvre Google Agenda <b>pré-rempli</b> (titre, date/heure en fuseau de Paris, lieu) : un clic + confirmation et l'événement est dans ton agenda. Un lien <b>« .ics »</b> permet aussi de l'ajouter à <b>tout autre agenda</b> (Apple, Outlook…). <span class="note" style="display:inline">Ce n'est pas une synchro automatique : c'est un ajout en 1 clic, sans réglage.</span></p>
+    <h3>🔎 Rechercher un événement</h3>
+    <p>Sous « Tous les créneaux publics », un champ de <b>recherche</b> filtre instantanément par <b>titre, hôte ou lieu</b>.</p>
+</section>
+
+<section id="agenda-proximite">
+    <h2>14. Recherche par proximité (carte)</h2>
+    <p class="intro">Trouve les événements présentiels autour d'une ville.</p>
+    <ul>
+        <li>Saisis une <b>ville/adresse</b> (ta <b>ville par défaut</b> est pré-remplie si tu l'as enregistrée).</li>
+        <li>Choisis un <b>rayon</b> (km) ou <b>« Toutes »</b> (toutes distances).</li>
+        <li>Filtre <b>mes créneaux</b> et/ou <b>ceux des autres</b> (publics). Les privés ne sont visibles que de leur créateur et des admins.</li>
+        <li>La <b>carte</b> (Leaflet/OpenStreetMap) affiche tous les points ; les événements au même endroit sont <b>regroupés</b> (clique le marqueur pour la liste).</li>
+    </ul>
+</section>
+
+<section id="agenda-notes">
+    <h2>15. Noter un événement</h2>
+    <p class="intro">Les participants évaluent l'événement.</p>
+    <ol class="steps">
+        <li>Tu dois avoir été <b>inscrit·e</b> à l'événement.</li>
+        <li>Une fois l'événement <b>commencé</b>, des étoiles ★ apparaissent sur sa fiche.</li>
+        <li>Clique le nombre d'étoiles (1 à 5). La <b>moyenne</b> et le nombre d'avis s'affichent ensuite sur l'événement.</li>
+    </ol>
+    <div class="note">À distinguer de la <b>réputation de l'hôte</b> (note de la personne), qui est séparée.</div>
+</section>
+
+<section id="agenda-passes">
+    <h2>16. Événements passés</h2>
+    <p class="intro">Onglet « 🕒 Événements passés ».</p>
+    <p>Les créneaux terminés y sont déplacés <b>en lecture seule</b> : on ne peut plus les modifier, mais on garde l'historique (participants, présence, notes).</p>
+</section>
+
+<section id="notifications">
+    <h2>17. Notifications</h2>
+    <p class="intro">Page <code>…/rpn/notifications</code> + alertes en temps réel.</p>
+    <ul>
+        <li>Reçues quand : un <b>événement public</b> est créé, tu es <b>ajouté·e</b> à un créneau, ton créneau change d'horaire, un <b>article</b> est publié, etc.</li>
+        <li><b>Temps réel</b> : l'app sonde le serveur régulièrement → les alertes arrivent quasi instantanément.</li>
+        <li><b>Comme un SMS</b> : notification système (bannière), <b>son</b> et <b>vibration</b> sur mobile.</li>
+        <li><b>Pastille</b> de non-lues sur l'icône 🔔. La page liste tout et marque comme lu ; tu peux <b>vider</b> la liste.</li>
+    </ul>
+</section>
+
+<section id="urgent">
+    <h2>17b. Alertes URGENT (carré rouge)</h2>
+    <p class="intro">Mettre quelque chose d'important en évidence pour tout le monde.</p>
+    <h3>🟥 Marquer urgent</h3>
+    <ul>
+        <li><b>Article</b> : dans le formulaire (admin), interrupteur rouge <b>« 🟥 URGENT »</b> (ou bouton dans la modération).</li>
+        <li><b>Événement</b> : dans <b>« Mes créneaux »</b>, bouton <b>« 🟥 Marquer URGENT »</b> (l'hôte).</li>
+    </ul>
+    <h3>📍 Effet</h3>
+    <ul>
+        <li>Une <b>alerte rouge</b> s'affiche en haut du <b>tableau de bord de tous</b> les utilisateurs, cliquable vers l'élément.</li>
+        <li>Un <b>badge « 🟥 URGENT »</b> apparaît aussi sur la carte/fiche de l'événement et l'article.</li>
+        <li>Chaque utilisateur ferme l'alerte avec la <b>croix ✕</b> — elle disparaît <b>seulement pour lui</b> (les autres la voient encore).</li>
+        <li>Les événements urgents ne s'affichent que tant qu'ils sont <b>à venir</b> ; les articles tant qu'ils sont <b>publiés</b>. Re-clic = retirer l'urgence.</li>
+    </ul>
+</section>
+
+<section id="afrique">
+    <h2>18. Pays d'Afrique</h2>
+    <p class="intro">Page <code>…/rpn/afrique</code> — vitrine culturelle publique.</p>
+    <p>Les <b>54 pays</b> d'Afrique avec leur <b>drapeau</b>, triés par nom, avec une <b>recherche</b> instantanée. Le style suit le thème actif.</p>
+</section>
+
+<section id="app">
+    <h2>19. Installer l'application</h2>
+    <p class="intro">RPN est une application installable (PWA), aussi disponible en APK.</p>
+    <h3>📲 Installer</h3>
+    <ul>
+        <li><b>Android / Chrome</b> : menu ⋮ → « Installer l'application » (ou la bannière proposée).</li>
+        <li><b>iPhone / Safari</b> : Partager → « Sur l'écran d'accueil ».</li>
+        <li><b>Ordinateur</b> : icône d'installation dans la barre d'adresse.</li>
+    </ul>
+    <h3>🔄 Mises à jour</h3>
+    <p>Quand une nouvelle version est disponible, une <b>bannière</b> apparaît dans l'app et un bouton <b>« 🔄 Mise à jour »</b> permet de recharger la dernière version <b>sans tout réinstaller</b>.</p>
+    <div class="tip">Une <b>visite guidée</b> interactive accompagne les nouveaux utilisateurs sur les pages principales.</div>
+</section>
+
+<section id="admin-dashboard">
+    <h2>20. Tableau de bord administrateur</h2>
+    <p class="intro"><code>…/rpn/admin/dashboard</code> — réservé aux admins.</p>
+    <ul>
+        <li><b>Statistiques</b> du site (membres, articles…).</li>
+        <li>Liens pour <b>utiliser l'app</b> comme un membre (espace membre, écrire, gérer les articles, agenda).</li>
+        <li>Accès à : Membres, Sécurité, Paramètres, Style des articles, Modération.</li>
+        <li><b>Zone de danger</b> (super-admin) : tout effacer — protégée par mot de passe (voir §25).</li>
+    </ul>
+</section>
+
+<section id="admin-membres">
+    <h2>21. Gérer les membres</h2>
+    <p class="intro"><code>…/rpn/admin/members</code>.</p>
+    <table>
+        <tr><th>Action</th><th>Effet</th></tr>
+        <tr><td>Promouvoir</td><td>Donne les droits administrateur</td></tr>
+        <tr><td>Rétrograder</td><td>Repasse en simple membre</td></tr>
+        <tr><td>Bloquer / Débloquer</td><td>Interdit / réautorise la connexion</td></tr>
+        <tr><td>Supprimer</td><td>Efface le compte</td></tr>
+    </table>
+    <div class="note">Les <b>super-administrateurs</b> (e-mails définis en configuration, ou connexion par identifiants MySQL) sont intouchables et seuls habilités aux actions les plus sensibles.</div>
+</section>
+
+<section id="admin-params">
+    <h2>22. Paramètres</h2>
+    <p class="intro"><code>…/rpn/admin/settings</code> — onglets de réglages.</p>
+    <ul>
+        <li><b>🎨 Apparence</b> : thème du site (commun à tous), avec mode <b>Personnalisé</b> (tes propres couleurs).</li>
+        <li><b>📰 Articles</b> : mise en page par défaut des nouveaux articles.</li>
+        <li><b>✏️ Contenu</b> : titre, message d'accueil et bas de page.</li>
+        <li><b>🔑 Connexion Google</b> : Client ID / Secret (voir <a href="connexion-google.html">la doc dédiée</a>).</li>
+        <li><b>🔒 Sécurité</b> : nombre d'essais avant blocage et durée du blocage admin.</li>
+        <li><b>🔌 Clé API</b> : voir §23.</li>
+        <li><b>🎛️ Style global</b> : police, arrondis, ombres et animations appliqués à tout le site.</li>
+    </ul>
+    <h3>🎨 Générateur de favicon</h3>
+    <p>Menu <b>Admin → 🎨 Favicon</b> : change à tout moment l'icône du site (onglet du navigateur + icône d'installation de l'appli), de deux façons :</p>
+    <ul>
+        <li><b>À partir d'un texte</b> : 1 à 3 lettres, couleur de fond, couleur du texte, coins arrondis — avec <b>aperçu en direct</b>.</li>
+        <li><b>À partir d'une image</b> : recadrée au carré automatiquement.</li>
+    </ul>
+    <p>Le favicon s'applique <b>partout</b> immédiatement (un numéro de version force le rafraîchissement ; au besoin, Ctrl+Maj+R).</p>
+</section>
+
+<section id="admin-cle">
+    <h2>23. Clé API</h2>
+    <p class="intro">Paramètres → onglet « 🔌 Clé API ».</p>
+    <ul>
+        <li>Affiche la <b>clé actuelle</b> + bouton <b>Copier</b>.</li>
+        <li>Case <b>« Régénérer »</b> : crée une nouvelle clé à l'enregistrement (l'ancienne est <b>révoquée</b>).</li>
+        <li>La clé sert à <b>écrire des articles à distance</b> via l'API (voir §26). Garde-la secrète.</li>
+    </ul>
+</section>
+
+<section id="admin-articles">
+    <h2>24. Modération des articles</h2>
+    <p class="intro"><code>…/rpn/admin/articles</code>.</p>
+    <ul>
+        <li>Vue d'ensemble de <b>tous</b> les articles (publiés + brouillons), avec Voir / Modifier / Supprimer.</li>
+        <li><b>🚩 Articles signalés</b> : un panneau en haut liste les articles signalés (nombre, masqué ou non) avec un bouton <b>Réinitialiser</b> ; un badge apparaît aussi dans le tableau (voir §9b).</li>
+        <li><b>Réattribuer</b> un article à un autre membre (colonne « Auteur »).</li>
+        <li><b>📦 Exporter tout</b> en <code>.zip</code> : <b>tout le projet</b> — articles (texte, couverture, galeries, pièces jointes) <b>et</b> questionnaires (questions, réponses, images) avec leurs associations.</li>
+        <li><b>Importer</b> un <code>.zip</code> : articles <b>et</b> questionnaires reviennent en <b>brouillon</b>, attribués à l'admin (les associations article↔quiz sont rétablies).</li>
+        <li>🔒 <b>Protéger</b> un article : il est <b>conservé</b> lors d'un « effacer tous les articles ».</li>
+        <li>📣 <b>Annonce</b> : passe l'article en annonce → il apparaît <b>en avant sur la page d'accueil de tout le monde</b>.</li>
+        <li><b>🎨 Style des articles</b> : taille du texte, police… appliqués globalement.</li>
+    </ul>
+    <h3>👁️ Qui a vu l'article ?</h3>
+    <p>Sur la page d'un article, l'<b>auteur</b> et les <b>admins</b> voient une section dédiée : la <b>liste des membres</b> qui l'ont consulté (avec photo et date) <b>et</b> la liste des <b>adresses IP</b> des visiteurs <b>non connectés</b>. Le total en haut compte tous les visiteurs uniques (par IP).</p>
+</section>
+
+<section id="admin-securite">
+    <h2>25. Sécurité & zone de danger</h2>
+    <p class="intro">Protection des connexions et effacement protégé.</p>
+    <h3>🔒 Anti-bruteforce</h3>
+    <p>Page <code>…/rpn/admin/security</code> : après trop d'essais ratés, une IP est <b>bloquée</b> un certain temps (réglable). Tu peux débloquer une IP (ou toutes). Une page secrète <code>…/rpn/unlock</code> existe aussi.</p>
+    <h3>⚠️ Tout effacer (super-admin)</h3>
+    <p>Dans le tableau de bord admin, « Effacer l'agenda » et « Effacer les articles » exigent le <b>mot de passe de la base de données</b> (vraie ré-authentification MySQL). Mauvais mot de passe → rien n'est supprimé. Les éléments <b>protégés 🔒</b> (articles et événements) sont <b>toujours conservés</b>.</p>
+    <div class="warn">Ces actions sont <b>irréversibles</b>. L'export <code>.zip</code> sert de sauvegarde avant tout effacement.</div>
+</section>
+
+<section id="api">
+    <h2>26. API distante (écrire des articles)</h2>
+    <p class="intro">Créer un article à distance avec la clé API.</p>
+    <p>Points d'entrée :</p>
+    <ul>
+        <li><code>GET …/rpn/api/ping</code> — test (renvoie un JSON).</li>
+        <li><code>POST …/rpn/api/article</code> — crée un article. En-tête <b><code>X-API-Key: &lt;ta clé&gt;</code></b>.</li>
+    </ul>
+    <p>Champs : <code>title</code>, <code>content</code> (obligatoires), <code>template</code>, <code>active</code> (1 publié / 0 brouillon), <code>author_name</code>, <code>cover</code> (fichier) ou <code>image_url</code>, galerie via <code>photos[]</code> ou <code>gallery_urls</code>.</p>
+    <pre><code>curl -X POST "https://bokonzi.com/rpn/api/article" \
+  -H "X-API-Key: VOTRE_CLE" \
+  -F "title=Mon titre" \
+  -F "content=&lt;contenu HTML&gt;" \
+  -F "active=1" \
+  -F "cover=@photo.jpg"</code></pre>
+    <div class="note">Sans clé valide → erreur <code>401</code>. La clé se gère dans Paramètres → Clé API (§23).</div>
+</section>
+
+<section id="secu">
+    <h2>27. Sécurité & vie privée</h2>
+    <ul>
+        <li><b>Connexion Google</b> : aucun mot de passe stocké ; protection anti-CSRF (paramètre <code>state</code>).</li>
+        <li><b>Membres invisibles par défaut</b> : on ne peut t'ajouter qu'avec ton accord (liste) ou ton code.</li>
+        <li><b>Événements privés</b> : visibles seulement par leur créateur et les admins ; accès par code.</li>
+        <li><b>Secrets protégés</b> : <code>config/config.php</code> et la base ne sont jamais accessibles par le navigateur (erreur 403).</li>
+        <li><b>Effacements sensibles</b> protégés par mot de passe MySQL.</li>
+        <li><b>Codes uniques</b> (membres et événements) : jamais de doublon.</li>
+    </ul>
+</section>
+
+<section id="faq">
+    <h2>28. FAQ / dépannage</h2>
+    <h3>❓ « Erreur de connexion à la base » / page d'installation</h3>
+    <p>La base n'est pas configurée : va sur <code>…/rpn/admin/login</code> et saisis le nom de base + mot de passe MySQL. Tant que ce n'est pas fait, le site propose la page d'installation partout (sans boucle).</p>
+    <h3>❓ <code>redirect_uri_mismatch</code> à la connexion Google</h3>
+    <p>L'URI de redirection n'est pas déclarée chez Google. Voir <a href="connexion-google.html">connexion-google.html</a>.</p>
+    <h3>❓ Je ne vois pas un membre pour l'ajouter à un événement</h3>
+    <p>Il n'a pas activé « trouvable ». Demande-lui son <b>code</b> et ajoute-le par code.</p>
+    <h3>❓ Les drapeaux / la carte ne s'affichent pas</h3>
+    <p>Ces éléments utilisent des services externes (flagcdn, OpenStreetMap) : une <b>connexion Internet</b> est nécessaire.</p>
+    <h3>❓ Je ne reçois pas les notifications système</h3>
+    <p>Autorise les notifications du site/app dans ton navigateur ou ton téléphone.</p>
+</section>
+
+</main>
+</div>
+<footer>RPN — Tutoriel complet · Voir aussi
+    <a href="fonctionnalites.html">fonctionnalites.html</a> ·
+    <a href="application.html">application.html</a> ·
+    <a href="connexion-google.html">connexion-google.html</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Estimation des coûts (serveur & réalisation)</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+    :root { --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#fff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); }
+    header { background:var(--noir); color:#fff; padding:54px 24px; text-align:center;
+        background-image:radial-gradient(circle at 15% 0%,rgba(230,57,70,.30),transparent 45%),radial-gradient(circle at 85% 120%,rgba(42,157,74,.30),transparent 48%); }
+    header h1 { font-size:32px; } header h1 b { color:var(--or); }
+    header p { color:rgba(255,255,255,.78); margin-top:12px; font-size:15px; max-width:660px; margin-inline:auto; }
+    .wrap { max-width:980px; margin:0 auto; padding:34px 22px 60px; }
+    .back { display:inline-block; margin-bottom:18px; font-size:13px; color:var(--rouge); text-decoration:none; font-weight:700; }
+    h2 { font-size:22px; color:var(--noir); margin:34px 0 6px; }
+    h2 .e { margin-right:8px; }
+    .lead { color:var(--muted); margin-bottom:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; border-left:5px solid var(--or); }
+    table { width:100%; border-collapse:collapse; margin:10px 0; font-size:14px; }
+    th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { background:#faf7ef; color:var(--noir); font-size:12.5px; text-transform:uppercase; letter-spacing:.4px; }
+    td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    tr:last-child td { border-bottom:none; }
+    .total td { font-weight:800; background:#fffaf0; border-top:2px solid var(--or); }
+    .pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:700; }
+    .pill.s { background:rgba(42,157,74,.14); color:#1d7a37; }
+    .pill.r { background:rgba(230,57,70,.12); color:#c32030; }
+    .note { font-size:13px; color:var(--muted); margin-top:8px; }
+    .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin:8px 0 4px; }
+    .box { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+    .box .big { font-size:24px; font-weight:800; color:var(--noir); }
+    .box .lbl { font-size:12.5px; color:var(--muted); }
+    .disclaimer { background:#fff8e6; border:1px solid #f0dca0; border-radius:12px; padding:14px 16px; font-size:13px; color:#6b5b16; margin-top:26px; }
+    footer { text-align:center; padding:26px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header>
+    <h1>RPN — <b>Estimation des coûts</b></h1>
+    <p>Deux volets : ce que coûte le <strong>fonctionnement</strong> (serveur, récurrent) et ce que vaut la <strong>réalisation</strong> (développement, ponctuel). Montants indicatifs en euros, fourchettes marché 2026.</p>
+</header>
+
+<div class="wrap">
+    <a class="back" href="index.html">← Retour au centre d'aide</a>
+
+    <!-- ============================ SERVEUR ============================ -->
+    <h2><span class="e">🖥️</span>1. Coûts serveur <span class="pill s">récurrent / an</span></h2>
+    <p class="lead">Frais d'hébergement et de mise en ligne. RPN tourne sur un hébergement <strong>mutualisé PHP/MySQL</strong> (type Hostinger), largement suffisant pour une communauté.</p>
+    <div class="card">
+        <table>
+            <thead><tr><th>Poste</th><th>Détail</th><th class="num">Coût / an</th></tr></thead>
+            <tbody>
+                <tr><td>Hébergement mutualisé</td><td>PHP 8 + MySQL/MariaDB, SSD, trafic communautaire (Hostinger Premium/Business)</td><td class="num">40 – 130 €</td></tr>
+                <tr><td>Nom de domaine</td><td>.com / .org (souvent offert la 1re année)</td><td class="num">10 – 15 €</td></tr>
+                <tr><td>Certificat SSL (HTTPS)</td><td>Let's Encrypt — inclus</td><td class="num">0 €</td></tr>
+                <tr><td>Emails pro (option)</td><td>contact@bokonzi.com — facultatif</td><td class="num">0 – 36 €</td></tr>
+                <tr><td>Sauvegardes auto (option)</td><td>souvent incluses, sinon module hébergeur</td><td class="num">0 – 30 €</td></tr>
+                <tr class="total"><td>Total serveur</td><td>fonctionnement annuel (mutualisé)</td><td class="num">≈ 50 – 210 € / an</td></tr>
+            </tbody>
+        </table>
+        <p class="note">📈 <strong>Si forte montée en charge</strong> (milliers d'utilisateurs actifs) : passage à un <strong>VPS</strong> ≈ 5 – 25 €/mois (60 – 300 €/an), avec un peu d'administration système en plus.</p>
+    </div>
+    <div class="grid2">
+        <div class="box"><div class="big">≈ 50 – 210 €</div><div class="lbl">par an (mutualisé, usage actuel)</div></div>
+        <div class="box"><div class="big">≈ 5 – 18 €</div><div class="lbl">par mois (tout compris)</div></div>
+    </div>
+
+    <!-- ============================ RÉALISATION ============================ -->
+    <h2><span class="e">🛠️</span>2. Coûts de réalisation <span class="pill r">ponctuel</span></h2>
+    <p class="lead">Valeur du développement, par module — au prix du marché d'une agence/freelance (≈ 45–70 €/h). RPN est un mini-framework PHP maison avec un large périmètre fonctionnel.</p>
+    <div class="card">
+        <table>
+            <thead><tr><th>Module</th><th>Contenu</th><th class="num">Estimation</th></tr></thead>
+            <tbody>
+                <tr><td>Architecture MVC maison</td><td>routeur, contrôleurs/modèles/vues, helpers, auto-création BDD</td><td class="num">1 000 – 3 000 €</td></tr>
+                <tr><td>Authentification</td><td>Google OAuth + inscription email/mot de passe (hachage), sessions</td><td class="num">800 – 2 000 €</td></tr>
+                <tr><td>Espace membre</td><td>tableau de bord, profil, photo, rôles/domaines, thème personnel</td><td class="num">1 500 – 3 500 €</td></tr>
+                <tr><td>Espace administrateur</td><td>membres, paramètres, sécurité, générateur de favicon, style global</td><td class="num">2 000 – 5 000 €</td></tr>
+                <tr><td>Articles</td><td>éditeur, modèles, galerie, fichiers, sous-articles, mot de passe (3 modes), signalement, avis &amp; discussions, rendu d'équations (KaTeX)</td><td class="num">3 000 – 7 000 €</td></tr>
+                <tr><td>Questionnaires (QCM)</td><td>création, options uniques/multiples, % de réussite, nb d'essais, obligatoire, association aux articles</td><td class="num">1 500 – 4 000 €</td></tr>
+                <tr><td>Agenda / rendez-vous</td><td>créneaux, réservations, Google Agenda + .ics, géolocalisation, notes, historique</td><td class="num">2 000 – 5 000 €</td></tr>
+                <tr><td>Notifications in-app</td><td>file de notifications, temps réel (poll), confirmations</td><td class="num">500 – 1 500 €</td></tr>
+                <tr><td>Sécurité</td><td>anti-bruteforce IP, état OAuth (CSRF), PDO préparé, uploads cloisonnés, .htaccess</td><td class="num">1 500 – 4 000 €</td></tr>
+                <tr><td>Export / Import</td><td>archive .zip (articles + quiz + images + associations), anti-doublon</td><td class="num">800 – 2 000 €</td></tr>
+                <tr><td>Thèmes &amp; identité visuelle</td><td>thèmes par familles, couleurs perso, aperçu en direct, favicon</td><td class="num">600 – 1 800 €</td></tr>
+                <tr><td>API JSON</td><td>écriture d'articles à distance, clé API</td><td class="num">500 – 1 500 €</td></tr>
+                <tr><td>Documentation &amp; déploiement</td><td>guides, mise en ligne, sécurisation production</td><td class="num">800 – 2 000 €</td></tr>
+                <tr class="total"><td>Total réalisation</td><td>périmètre actuel de RPN</td><td class="num">≈ 16 500 – 42 000 €</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ============================ TEMPS ============================ -->
+    <h2><span class="e">⏱️</span>3. Temps de développement</h2>
+    <div class="card">
+        <table>
+            <thead><tr><th>Phase</th><th class="num">Temps estimé</th></tr></thead>
+            <tbody>
+                <tr><td>Conception &amp; architecture</td><td class="num">20 – 40 h</td></tr>
+                <tr><td>Back-end (PHP/MySQL)</td><td class="num">110 – 220 h</td></tr>
+                <tr><td>Front-end (UI/UX, vues, thèmes)</td><td class="num">60 – 130 h</td></tr>
+                <tr><td>Sécurité</td><td class="num">25 – 60 h</td></tr>
+                <tr><td>Tests &amp; mise au point</td><td class="num">25 – 70 h</td></tr>
+                <tr><td>Documentation &amp; déploiement</td><td class="num">15 – 40 h</td></tr>
+                <tr class="total"><td>Total</td><td class="num">≈ 255 – 560 h</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ============================ SYNTHÈSE ============================ -->
+    <h2><span class="e">📊</span>4. Synthèse</h2>
+    <div class="card">
+        <table>
+            <thead><tr><th>Niveau</th><th>Description</th><th class="num">Valeur</th></tr></thead>
+            <tbody>
+                <tr><td>🟢 Prototype simple</td><td>quelques pages, sans admin avancé</td><td class="num">1 500 – 4 000 €</td></tr>
+                <tr><td>🟡 <strong>RPN — version actuelle</strong></td><td>plateforme communautaire complète (articles, quiz, agenda, admin, sécurité…)</td><td class="num"><strong>16 000 – 42 000 €</strong></td></tr>
+                <tr><td>🔴 Version SaaS avancée</td><td>app mobile, paiement, IA, montée en charge</td><td class="num">42 000 – 90 000 €+</td></tr>
+            </tbody>
+        </table>
+        <div class="grid2" style="margin-top:14px">
+            <div class="box"><div class="big">≈ 50 – 210 € / an</div><div class="lbl">🖥️ Fonctionnement (serveur)</div></div>
+            <div class="box"><div class="big">≈ 16 000 – 42 000 €</div><div class="lbl">🛠️ Réalisation (développement)</div></div>
+        </div>
+    </div>
+
+    <div class="disclaimer">
+        ⚠️ <strong>Estimations indicatives.</strong> Les coûts de réalisation reflètent la <em>valeur marché</em> du développement (agence/freelance, ≈ 45–70 €/h) ; ils varient selon le prestataire, le pays et les exigences. Les coûts serveur correspondent à un hébergement mutualisé pour un usage communautaire — ils augmentent avec le trafic et le stockage.
+    </div>
+
+    <footer>RPN — Institut Sankofa · Document d'estimation des coûts · 2026</footer>
+</div>
+</body>
+</html>

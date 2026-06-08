@@ -1,0 +1,23 @@
+<?php
+/**
+ * IDENTIFIANTS DE BASE DE DONNÉES — PRODUCTION (bokonzi.com)
+ * =====================================================================
+ * 1. Renomme ce fichier en  config/db.php  (enlève « .example »).
+ * 2. Remplace les valeurs ci-dessous par celles de ton hébergeur Hostinger
+ *    (hPanel → « Bases de données MySQL » : tu y vois le nom de la base,
+ *     l'utilisateur et le mot de passe que tu as définis).
+ * 3. Téléverse-le dans le dossier  /rpn/config/  du serveur.
+ *
+ * ⚠️ NE PUBLIE JAMAIS ce fichier (il contient le mot de passe de la base).
+ *    Ne le mets pas sur un dépôt public.
+ *
+ * Dès que ce fichier existe, le site se connecte tout seul : plus besoin de
+ * saisir les identifiants au login, et « Réinitialiser la session » ne casse
+ * plus rien.
+ */
+
+define('DB_HOST',    'localhost');                 // Hostinger mutualisé : 'localhost' (sinon, voir hPanel)
+define('DB_NAME',    'uXXXXXXXX_rpn');             // ← nom EXACT de ta base Hostinger
+define('DB_USER',    'uXXXXXXXX_rpn');             // ← utilisateur de la base
+define('DB_PASS',    'TON_MOT_DE_PASSE_BASE');     // ← mot de passe de la base
+define('DB_CHARSET', 'utf8mb4');

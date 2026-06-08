@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Centre d'aide & tutoriels</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+    :root { --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#fff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); }
+    header { background:var(--noir); color:#fff; padding:54px 24px; text-align:center;
+        background-image:radial-gradient(circle at 15% 0%,rgba(230,57,70,.30),transparent 45%),radial-gradient(circle at 85% 120%,rgba(42,157,74,.30),transparent 48%); }
+    header h1 { font-size:34px; } header h1 b { color:var(--or); }
+    header p { color:rgba(255,255,255,.75); margin-top:12px; font-size:15px; max-width:620px; margin-inline:auto; }
+    .wrap { max-width:1000px; margin:0 auto; padding:34px 22px 50px; }
+    .lead { text-align:center; color:var(--muted); margin-bottom:26px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px; }
+    a.card { display:block; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px 24px;
+        text-decoration:none; color:inherit; transition:transform .15s, border-color .15s, box-shadow .15s; border-left:5px solid var(--or); }
+    a.card:hover { transform:translateY(-4px); border-color:var(--accent,#f4c14b); box-shadow:0 14px 34px rgba(0,0,0,.10); }
+    a.card .ico { font-size:30px; }
+    a.card h2 { font-size:18px; color:var(--noir); margin:10px 0 6px; }
+    a.card p { font-size:13.5px; color:var(--muted); }
+    a.card .go { display:inline-block; margin-top:12px; font-size:13px; font-weight:700; color:var(--rouge); }
+    a.card.big { grid-column:1 / -1; border-left-color:var(--rouge); background:linear-gradient(180deg,#fff,#fffaf0); }
+    .sect { margin:30px 0 12px; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--noir); }
+    footer { text-align:center; padding:26px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<header>
+    <h1>RPN — <b>Centre d'aide</b></h1>
+    <p>Tous les tutoriels et la documentation du projet, au même endroit. Choisis un guide ci-dessous.</p>
+</header>
+
+<div class="wrap">
+    <p class="lead">👋 Nouveau ? Commence par le <b>Tutoriel complet</b>.</p>
+
+    <div class="grid">
+        <a class="card big" href="tutoriel.html">
+            <div class="ico">📘</div>
+            <h2>Tutoriel complet (A → Z)</h2>
+            <p>Le guide principal et <b>exhaustif</b> : chaque page, chaque bouton, pour visiteurs, membres et administrateurs. Connexion (Google / e-mail / admin), tableau de bord &amp; photo de profil, code membre &amp; visibilité, thèmes, articles (mot de passe, signalement, sous-articles, vues par IP), <b>questionnaires (QCM)</b>, agenda &amp; <b>Google Agenda</b>, notifications, alertes urgentes, administration (favicon, modération, export/import complet), API, sécurité.</p>
+            <span class="go">Ouvrir le guide complet →</span>
+        </a>
+    </div>
+
+    <div class="sect">Guides thématiques</div>
+    <div class="grid">
+        <a class="card" href="fonctionnalites.html">
+            <div class="ico">✨</div>
+            <h2>Fonctionnalités</h2>
+            <p>La liste des possibilités du site, expliquées simplement.</p>
+            <span class="go">Voir →</span>
+        </a>
+        <a class="card" href="application.html">
+            <div class="ico">📱</div>
+            <h2>Installer l'application</h2>
+            <p>Mettre RPN sur ton téléphone (PWA / APK) et gérer les mises à jour.</p>
+            <span class="go">Voir →</span>
+        </a>
+        <a class="card" href="connexion-google.html">
+            <div class="ico">🔑</div>
+            <h2>Connexion Google (OAuth)</h2>
+            <p>Configurer « Se connecter avec Google » : URI de redirection, console, dépannage.</p>
+            <span class="go">Voir →</span>
+        </a>
+        <a class="card" href="fonctionnement.html">
+            <div class="ico">⚙️</div>
+            <h2>Comment ça marche</h2>
+            <p>Le fonctionnement général de la plateforme.</p>
+            <span class="go">Voir →</span>
+        </a>
+        <a class="card" href="documentation.html">
+            <div class="ico">📄</div>
+            <h2>Documentation générale</h2>
+            <p>Présentation d'ensemble du projet.</p>
+            <span class="go">Voir →</span>
+        </a>
+    </div>
+
+    <div class="sect">Pour les développeurs / responsables</div>
+    <div class="grid">
+        <a class="card" href="TECHNIQUE.md">
+            <div class="ico">🛠️</div>
+            <h2>Documentation technique</h2>
+            <p>Architecture MVC, base de données, routes, sécurité, déploiement (Markdown).</p>
+            <span class="go">Voir →</span>
+        </a>
+        <a class="card" href="README.md">
+            <div class="ico">📕</div>
+            <h2>README</h2>
+            <p>Installation (XAMPP / Hostinger), mise en ligne, référence des fichiers.</p>
+            <span class="go">Voir →</span>
+        </a>
+        <a class="card" href="prix.html">
+            <div class="ico">💶</div>
+            <h2>Tarifs & coûts (2026)</h2>
+            <p>Hébergement, maintenance et fabrication — prix du marché <b>avec sources</b>.</p>
+            <span class="go">Voir →</span>
+        </a>
+    </div>
+</div>
+
+<footer>RPN — Centre d'aide · <a href="../">Retour au site</a></footer>
+</body>
+</html>
