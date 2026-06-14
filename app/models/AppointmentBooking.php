@@ -112,4 +112,34 @@ class AppointmentBooking
         $stmt = Database::pdo()->prepare('DELETE FROM appointment_bookings WHERE appointment_id = ?');
         $stmt->execute([$appointmentId]);
     }
+
+    /**
+     * Rendez-vous réservés par ce membre qui commencent dans les $leadMin minutes
+     * (à venir, pas encore rappelés). Sert à envoyer un rappel automatique.
+     * Retourne des lignes : id, title, start_at.
+     */
+    public static function dueReminders(int $userId, int $leadMin = 60): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+        $stmt = Database::pdo()->prepare(
+            'SELECT a.id, a.title, a.start_at
+             FROM appointment_bookings b
+             JOIN appointments a ON a.id = b.appointment_id
+             WHERE b.user_id = ? AND b.reminded = 0
+               AND a.start_at > NOW() AND a.start_at <= (NOW() + INTERVAL ? MINUTE)
+             ORDER BY a.start_at ASC'
+        );
+        $stmt->execute([$userId, max(1, $leadMin)]);
+        return $stmt->fetchAll();
+    }
+
+    /** Marque le rappel comme envoyé pour cette réservation (évite les doublons). */
+    public static function markReminded(int $appointmentId, int $userId): void
+    {
+        Database::pdo()
+            ->prepare('UPDATE appointment_bookings SET reminded = 1 WHERE appointment_id = ? AND user_id = ?')
+            ->execute([$appointmentId, $userId]);
+    }
 }

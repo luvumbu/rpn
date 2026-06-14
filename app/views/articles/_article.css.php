@@ -221,6 +221,47 @@
             .gallery-marquee-track { animation:none; }
         }
 
+        /* === Galerie : GRILLE / MOSAÏQUE === */
+        .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:12px; }
+        .gallery-grid .g-cell { display:block; border-radius:12px; overflow:hidden; border:1px solid var(--card-border); }
+        .gallery-grid .g-img { width:100%; height:150px; object-fit:cover; display:block; transition:transform .3s ease; }
+        .gallery-grid .g-cell:hover .g-img { transform:scale(1.06); }
+
+        /* === Galerie : SLIDER MANUEL (flèches + points) === */
+        .gallery-slider { position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--card-border); }
+        .gs-viewport { overflow:hidden; }
+        .gs-track { display:flex; transition:transform .45s ease; }
+        .gs-slide { flex:0 0 100%; min-width:100%; display:block; }
+        .gs-slide .g-img { width:100%; height:420px; object-fit:cover; display:block; background:rgba(127,127,127,.12); }
+        .gs-nav { position:absolute; top:calc(50% - 22px); width:44px; height:44px; border-radius:50%; border:none;
+            cursor:pointer; font-size:24px; line-height:1; color:#fff; background:rgba(0,0,0,.5);
+            display:flex; align-items:center; justify-content:center; transition:background .15s; z-index:2; }
+        .gs-nav:hover { background:rgba(0,0,0,.72); }
+        .gs-nav.prev { left:14px; } .gs-nav.next { right:14px; }
+        .gs-dots { position:absolute; bottom:14px; left:0; right:0; z-index:2; display:flex; justify-content:center; gap:8px; }
+        .gs-dot { width:10px; height:10px; padding:0; border-radius:50%; cursor:pointer; border:1px solid rgba(255,255,255,.7);
+            background:rgba(255,255,255,.35); transition:background .15s, transform .15s; }
+        .gs-dot.active { background:#fff; transform:scale(1.15); }
+        @media (max-width:560px) { .gs-slide .g-img { height:280px; } }
+
+        /* === Galerie : BANDEAU + MINIATURES === */
+        .gallery-thumbs .gt-main-link { display:block; border-radius:14px; overflow:hidden; border:1px solid var(--card-border); }
+        .gallery-thumbs .gt-main { width:100%; height:440px; object-fit:cover; display:block; background:rgba(127,127,127,.12); }
+        .gt-strip { display:flex; gap:10px; margin-top:12px; overflow-x:auto; padding-bottom:4px; }
+        .gt-thumb { flex:0 0 auto; width:104px; height:74px; padding:0; cursor:pointer; border-radius:10px; overflow:hidden;
+            background:none; border:2px solid transparent; transition:border-color .15s, opacity .15s; opacity:.65; }
+        .gt-thumb .g-img { width:100%; height:100%; object-fit:cover; display:block; }
+        .gt-thumb:hover { opacity:1; }
+        .gt-thumb.active { border-color:var(--accent); opacity:1; }
+        @media (max-width:560px) { .gallery-thumbs .gt-main { height:280px; } }
+
+        /* Tags / catégories de l'article */
+        .article-tags { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+        .article-tags .art-tag { font-size:13px; font-weight:600; text-decoration:none; color:var(--accent);
+            background:rgba(127,127,127,.08); border:1px solid var(--card-border); border-radius:999px; padding:5px 13px;
+            transition:border-color .15s, background .15s; }
+        .article-tags .art-tag:hover { border-color:var(--accent); background:rgba(127,127,127,.16); }
+
         /* Pièces jointes (documents) */
         .attachments { margin-top:24px; }
         .attach-title { font-size:16px; color:var(--accent); margin-bottom:12px; }

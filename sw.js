@@ -6,8 +6,8 @@
  *    periodic sync. Ces handlers sont réels (ils agissent si l'événement
  *    survient) ; ils n'ajoutent aucune demande de permission par eux-mêmes.
  * ============================================================ */
-const OFFLINE_CACHE = 'rpm-offline-v1';
-const OFFLINE_URL   = 'offline.html';
+const OFFLINE_CACHE = 'rpm-offline-v2';
+const OFFLINE_URL   = 'assets/offline.html';
 
 self.addEventListener('install', (e) => {
     e.waitUntil(
@@ -39,8 +39,8 @@ self.addEventListener('push', (e) => {
     try { if (e.data) { data = Object.assign(data, e.data.json()); } } catch (_) {}
     e.waitUntil(self.registration.showNotification(data.title, {
         body: data.body,
-        icon: 'icon-192.png',
-        badge: 'icon-192.png',
+        icon: 'assets/icon-192.png',
+        badge: 'assets/icon-192.png',
         data: { url: data.url || './' }
     }));
 });

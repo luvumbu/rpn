@@ -411,6 +411,46 @@ class Database
         self::$pdo->exec(self::SCHEMA_QUIZ_RESPONSES);
         self::$pdo->exec(self::SCHEMA_QUIZ_ANSWERS);
         self::$pdo->exec(self::SCHEMA_MESSAGES);
+        // Paiements Stripe (dons/cotisations ponctuels + abonnements).
+        self::$pdo->exec(
+            "CREATE TABLE IF NOT EXISTS `payments` (
+                `id`            INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id`       INT NOT NULL,
+                `type`          VARCHAR(20) NOT NULL DEFAULT 'payment',   -- payment | subscription
+                `amount`        INT NOT NULL DEFAULT 0,                   -- en centimes
+                `currency`      VARCHAR(8) NOT NULL DEFAULT 'eur',
+                `status`        VARCHAR(20) NOT NULL DEFAULT 'pending',   -- pending | paid | failed | canceled
+                `description`   VARCHAR(190) DEFAULT NULL,
+                `session_id`    VARCHAR(255) DEFAULT NULL,                -- id de la session Stripe Checkout
+                `customer_id`   VARCHAR(255) DEFAULT NULL,
+                `created_at`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                KEY `idx_user` (`user_id`),
+                KEY `idx_session` (`session_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+        // Réinitialisation de mot de passe (jetons à usage unique, expirables).
+        self::$pdo->exec(
+            "CREATE TABLE IF NOT EXISTS `password_resets` (
+                `id`         INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id`    INT NOT NULL,
+                `token_hash` CHAR(64) NOT NULL,
+                `expires_at` DATETIME NOT NULL,
+                `used`       TINYINT(1) NOT NULL DEFAULT 0,
+                `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                KEY `idx_token` (`token_hash`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+        // Salons visio enregistrés par les membres (historique « Mes salons »).
+        self::$pdo->exec(
+            "CREATE TABLE IF NOT EXISTS `meeting_links` (
+                `id`         INT AUTO_INCREMENT PRIMARY KEY,
+                `user_id`    INT NOT NULL,
+                `url`        VARCHAR(255) NOT NULL,
+                `label`      VARCHAR(120) DEFAULT NULL,
+                `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                KEY `idx_user` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
 
         // Petites migrations pour les bases déjà créées avant l'ajout de colonnes.
         self::ensureColumn('articles', 'template', "VARCHAR(30) NOT NULL DEFAULT 'standard' AFTER `image`");
@@ -419,6 +459,9 @@ class Database
         self::ensureColumn('articles', 'protected', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `active`"); // protégé contre l'effacement global
         self::ensureColumn('articles', 'announcement', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `protected`"); // mis en avant sur l'accueil
         self::ensureColumn('articles', 'urgent', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `announcement`"); // alerte URGENT (carré rouge)
+        self::ensureColumn('articles', 'position', "INT NOT NULL DEFAULT 0 AFTER `urgent`"); // ordre manuel sur l'accueil (petit = en premier)
+        self::ensureColumn('articles', 'gallery_style', "VARCHAR(20) NOT NULL DEFAULT 'auto' AFTER `position`"); // style d'affichage des images multiples
+        self::ensureColumn('articles', 'tags', "VARCHAR(255) DEFAULT NULL AFTER `gallery_style`"); // mots-clés / catégories (séparés par des virgules)
         self::ensureColumn('articles', 'access_password', "VARCHAR(255) DEFAULT NULL AFTER `author_name`"); // mot de passe d'accès (haché)
         self::ensureColumn('appointments', 'mode', "VARCHAR(20) NOT NULL DEFAULT 'presentiel' AFTER `capacity`");
         self::ensureColumn('appointments', 'location', "VARCHAR(255) NOT NULL DEFAULT '' AFTER `mode`");
@@ -426,6 +469,10 @@ class Database
         self::ensureColumn('appointments', 'show_booker_ratings', "TINYINT(1) NOT NULL DEFAULT 1 AFTER `visibility`");
         self::ensureColumn('appointments', 'min_notice_hours', "INT NOT NULL DEFAULT 0 AFTER `show_booker_ratings`");
         self::ensureColumn('appointment_bookings', 'present', "TINYINT(1) DEFAULT NULL AFTER `user_name`");
+        self::ensureColumn('appointment_bookings', 'reminded', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `present`"); // rappel ~1h avant déjà envoyé ?
+        // Messagerie : pièce jointe facultative (fichier partagé) par message.
+        self::ensureColumn('messages', 'file', "VARCHAR(255) DEFAULT NULL AFTER `body`");
+        self::ensureColumn('messages', 'file_name', "VARCHAR(255) DEFAULT NULL AFTER `file`");
         self::ensureColumn('appointments', 'code', "VARCHAR(8) NOT NULL DEFAULT '' AFTER `visibility`");
         self::ensureColumn('appointments', 'protected', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `code`"); // protégé contre l'effacement global
         self::ensureColumn('appointments', 'urgent', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `protected`"); // alerte URGENT (carré rouge)
@@ -451,7 +498,29 @@ class Database
         self::ensureColumn('quizzes', 'required', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `urgent`");
         self::ensureColumn('quizzes', 'pass_required', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `required`");
         self::ensureColumn('quizzes', 'max_attempts', "INT NOT NULL DEFAULT 0 AFTER `pass_required`");
+        // Options d'affichage : questions une par une, retour immédiat, effets visuels.
+        self::ensureColumn('quizzes', 'one_by_one', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `max_attempts`");
+        self::ensureColumn('quizzes', 'instant_feedback', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `one_by_one`");
+        self::ensureColumn('quizzes', 'effects', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `instant_feedback`");
+        self::ensureColumn('quizzes', 'time_limit', "INT NOT NULL DEFAULT 0 AFTER `effects`");        // secondes (0 = pas de chrono)
+        self::ensureColumn('quizzes', 'shuffle', "TINYINT(1) NOT NULL DEFAULT 0 AFTER `time_limit`"); // mélange questions + réponses
+        self::ensureColumn('quizzes', 'pass_threshold', "INT NOT NULL DEFAULT 0 AFTER `shuffle`");    // % minimum pour réussir (0 = aucun)
+        self::ensureColumn('quizzes', 'msg_pass', "VARCHAR(255) DEFAULT NULL AFTER `pass_threshold`"); // message si réussi
+        self::ensureColumn('quizzes', 'msg_fail', "VARCHAR(255) DEFAULT NULL AFTER `msg_pass`");       // message si échoué
+        self::ensureColumn('quiz_questions', 'image', "VARCHAR(255) DEFAULT NULL AFTER `body`"); // image propre à chaque question
+        self::ensureColumn('quiz_questions', 'explanation', "VARCHAR(500) DEFAULT NULL AFTER `image`"); // explication « pourquoi »
         self::ensureColumn('quiz_responses', 'attempts', "INT NOT NULL DEFAULT 1 AFTER `total`");
+
+        // Migration ponctuelle : « une question à la fois » devient le défaut.
+        // On bascule TOUS les quiz existants une seule fois (les changements faits
+        // ensuite, quiz par quiz, sont respectés car cela ne s'exécute qu'une fois).
+        if ((int) Settings::get('qz_one_by_one_applied', 0) !== 1) {
+            try {
+                self::$pdo->exec('UPDATE quizzes SET one_by_one = 1');
+                try { self::$pdo->exec('ALTER TABLE quizzes ALTER one_by_one SET DEFAULT 1'); } catch (\Throwable $e2) { /* selon version MySQL */ }
+                Settings::save(['qz_one_by_one_applied' => 1]);
+            } catch (\Throwable $e) { /* non critique : réessaiera au prochain chargement */ }
+        }
 
         return self::$pdo;
     }
@@ -587,46 +656,133 @@ class Database
     }
 
     /**
-     * Page « Installation requise » (forçage de la configuration), SANS
-     * redirection HTTP → aucune boucle possible. Bouton vers le login admin +
-     * lien de réinitialisation de session.
+     * Page d'INSTALLATION (forçage de la configuration de la base), affichée par
+     * le garde global tant que la base n'est pas configurée — quelle que soit la
+     * page demandée. C'est un vrai FORMULAIRE auto-traité (aucun contrôleur ni
+     * route nécessaire) :
+     *   1. l'utilisateur saisit hôte / base / utilisateur / mot de passe ;
+     *   2. on VÉRIFIE la connexion réelle (tryConnect) — rien n'est enregistré si
+     *      elle échoue ;
+     *   3. on ENREGISTRE partout (session + config/db.php ou storage/db.php) via
+     *      persist(), puis on redirige : tout le site est reconnecté.
+     * La vérification a lieu à CHAQUE requête (le garde appelle needsSetup()).
+     *
+     * $msg : message d'erreur éventuel transmis par fail() (connexion perdue).
      */
     public static function installPage(string $msg = ''): never
     {
         $base = defined('BASE_PATH') ? BASE_PATH : '';
+        $home = ($base !== '' ? $base : '') . '/';
+        $action = $base . '/install';
+
+        // Jeton anti-CSRF (la session est démarrée au bootstrap).
+        if (empty($_SESSION['_install_csrf'])) {
+            $_SESSION['_install_csrf'] = bin2hex(random_bytes(16));
+        }
+        $csrf = $_SESSION['_install_csrf'];
+
+        // Valeurs (pré-remplissage du formulaire).
+        $host = trim((string) ($_POST['db_host'] ?? 'localhost'));
+        $name = trim((string) ($_POST['db_name'] ?? ''));
+        $user = trim((string) ($_POST['db_user'] ?? ''));
+        $pass = (string) ($_POST['db_pass'] ?? '');
+
+        $error  = $msg;
+        $manual = '';
+
+        // ---- Traitement de la soumission ------------------------------------
+        $submitted = (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') && isset($_POST['db_install']);
+        if ($submitted) {
+            if (!hash_equals($csrf, (string) ($_POST['_csrf'] ?? ''))) {
+                $error = 'Session expirée, réessaie.';
+            } elseif ($name === '' || $user === '') {
+                $error = 'Le nom de la base et l\'utilisateur sont obligatoires.';
+            } elseif (!self::tryConnect($host, $name, $user, $pass)) {
+                $error = 'Connexion refusée : vérifie le nom de la base, l\'utilisateur et le mot de passe '
+                       . '(hPanel → Bases de données MySQL).';
+            } else {
+                // Vérification OK → on débloque ce navigateur tout de suite…
+                $_SESSION['db'] = ['host' => $host, 'name' => $name, 'user' => $user, 'pass' => $pass];
+                // …et on écrit le fichier pour reconnecter TOUT le monde.
+                if (self::persist(['host' => $host, 'name' => $name, 'user' => $user, 'pass' => $pass])) {
+                    if (!headers_sent()) {
+                        http_response_code(302);
+                        header('Location: ' . $home);
+                    }
+                    exit;
+                }
+                // Connexion OK mais écriture impossible (droits) → config manuelle.
+                $fileContent = "<?php\n"
+                    . "define('DB_HOST',    " . var_export($host, true) . ");\n"
+                    . "define('DB_NAME',    " . var_export($name, true) . ");\n"
+                    . "define('DB_USER',    " . var_export($user, true) . ");\n"
+                    . "define('DB_PASS',    " . var_export($pass, true) . ");\n"
+                    . "define('DB_CHARSET', 'utf8mb4');\n";
+                $error  = 'Connexion réussie, mais impossible d\'écrire le fichier de config (droits du dossier). '
+                        . 'Crée manuellement le fichier config/db.php avec ce contenu :';
+                $manual = '<pre>' . htmlspecialchars($fileContent) . '</pre>';
+            }
+        }
+
+        // ---- Rendu du formulaire --------------------------------------------
         if (!headers_sent()) {
             http_response_code(503);
             header('Content-Type: text/html; charset=utf-8');
         }
-        $login  = $base . '/admin/login';
+        $eHost = htmlspecialchars($host);
+        $eName = htmlspecialchars($name);
+        $eUser = htmlspecialchars($user);
+        $eCsrf = htmlspecialchars($csrf);
+        $errBlock = $error !== '' ? '<div class="err">' . htmlspecialchars($error) . '</div>' . $manual : '';
         $logout = $base . '/admin/logout';
+
         exit(<<<HTML
 <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Installation requise</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Installation — Configuration de la base</title>
 <style>
  *{box-sizing:border-box;margin:0;padding:0}
  body{font-family:'Segoe UI',system-ui,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
    padding:24px;background:radial-gradient(circle at 15% 0%,rgba(230,57,70,.25),transparent 45%),
    radial-gradient(circle at 85% 120%,rgba(42,157,74,.25),transparent 48%),#14110f;color:#fff}
- .box{max-width:460px;background:rgba(255,255,255,.05);border:1px solid rgba(244,193,75,.3);border-radius:18px;
-   padding:32px 28px;box-shadow:0 24px 64px rgba(0,0,0,.5);text-align:center}
- .ico{font-size:40px;margin-bottom:10px}
- h1{font-size:22px;color:#f4c14b;margin-bottom:12px}
- p{color:rgba(255,255,255,.8);font-size:14px;line-height:1.6;margin-bottom:18px}
- .btn{display:inline-block;text-decoration:none;font-weight:700;background:#f4c14b;color:#14110f;
-   padding:13px 24px;border-radius:12px;font-size:15px}
- .reset{display:inline-block;margin-top:16px;color:rgba(255,255,255,.6);font-size:13px;text-decoration:underline}
- small{display:block;margin-top:18px;color:rgba(255,255,255,.45);font-size:12px;word-break:break-word}
+ .box{max-width:480px;width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(244,193,75,.3);border-radius:18px;
+   padding:30px 28px;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+ .ico{font-size:38px;text-align:center}
+ h1{font-size:21px;color:#f4c14b;margin:6px 0 6px;text-align:center}
+ p.lead{color:rgba(255,255,255,.78);font-size:13.5px;line-height:1.6;margin-bottom:18px;text-align:center}
+ label{display:block;font-size:12.5px;color:rgba(255,255,255,.7);margin:12px 0 5px}
+ input{width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+   background:rgba(0,0,0,.25);color:#fff;font-size:14px}
+ input:focus{outline:2px solid #f4c14b;border-color:transparent}
+ .btn{width:100%;margin-top:20px;border:none;cursor:pointer;font-weight:700;background:#f4c14b;color:#14110f;
+   padding:13px;border-radius:12px;font-size:15px}
+ .err{background:rgba(230,57,70,.18);border:1px solid rgba(230,57,70,.5);color:#ffd7db;
+   padding:11px 13px;border-radius:10px;font-size:13px;margin-bottom:14px;line-height:1.5}
+ .err pre{margin-top:8px;background:#0b0d12;border:1px solid rgba(255,255,255,.12);border-radius:8px;
+   padding:10px;font-size:11.5px;color:#d7dce5;overflow:auto;white-space:pre-wrap;word-break:break-word}
+ .hint{font-size:12px;color:rgba(255,255,255,.5);margin-top:6px;line-height:1.5}
+ .reset{display:block;text-align:center;margin-top:16px;color:rgba(255,255,255,.55);font-size:12.5px}
 </style></head><body>
- <div class="box">
+ <form class="box" method="post" action="$action" autocomplete="off">
    <div class="ico">🔧</div>
-   <h1>Installation requise</h1>
-   <p>La base de données n'est pas encore configurée. Connecte-toi avec le <b>nom de la base</b> et le
-      <b>mot de passe MySQL</b> (Hostinger) pour finaliser l'installation.</p>
-   <a class="btn" href="$login">Configurer la base de données →</a>
+   <h1>Configuration de la base de données</h1>
+   <p class="lead">Le site n'est pas encore connecté à sa base. Renseigne les identifiants
+      (hPanel → <b>Bases de données MySQL</b>). La connexion est <b>vérifiée</b> avant l'enregistrement.</p>
+   $errBlock
+   <input type="hidden" name="_csrf" value="$eCsrf">
+   <input type="hidden" name="db_install" value="1">
+   <label>Hôte</label>
+   <input name="db_host" value="$eHost" placeholder="localhost">
+   <label>Nom de la base</label>
+   <input name="db_name" value="$eName" placeholder="u123456789_rpn" required>
+   <label>Utilisateur</label>
+   <input name="db_user" value="$eUser" placeholder="u123456789_rpn" required>
+   <label>Mot de passe</label>
+   <input type="password" name="db_pass" placeholder="mot de passe MySQL">
+   <button class="btn" type="submit">Vérifier et installer →</button>
+   <div class="hint">Sur Hostinger mutualisé, l'hôte est en général <b>localhost</b>. Le nom de la base et
+      l'utilisateur commencent souvent par <b>u…_</b>.</div>
    <a class="reset" href="$logout">Réinitialiser la session</a>
-   <small>$msg</small>
- </div>
+ </form>
 </body></html>
 HTML);
     }

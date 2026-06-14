@@ -46,11 +46,9 @@
 </head>
 <body>
     <div class="wrap">
+        <?php view('admin/_nav', ['active' => 'members']); ?>
         <div class="top">
             <h1>Membres <span>(<?= count($users) ?>)</span></h1>
-            <div class="nav">
-                <a href="<?= url('admin/dashboard') ?>">← Tableau de bord</a>
-            </div>
         </div>
 
         <table class="table">

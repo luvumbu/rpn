@@ -469,33 +469,49 @@ class AdminArticleController
     }
 
     /** Panneau « modules » de style global des articles. */
+    /** Style des articles : désormais regroupé dans Paramètres → Articles. */
     public function style(): void
     {
         $this->guard();
-        $saved = Session::get('style_saved');
-        Session::remove('style_saved');
-
-        view('admin/articles/style', [
-            'user'        => Session::user(),
-            'scale'       => ArticleStyle::scale(),
-            'fontEnabled' => ArticleStyle::fontEnabled(),
-            'fontKey'     => ArticleStyle::fontKey(),
-            'fonts'       => ArticleStyle::fonts(),
-            'saved'       => $saved,
-        ]);
+        redirect('admin/settings#p-articles');
     }
 
     /** Enregistre les réglages de style global. */
     public function saveStyle(): void
     {
         $this->guard();
-        $font = $_POST['art_font'] ?? 'moderne';
+        $font  = $_POST['art_font'] ?? 'moderne';
+        $width = $_POST['art_width'] ?? 'default';
         Settings::save([
             'art_text_scale'   => max(70, min(200, (int) ($_POST['art_text_scale'] ?? 100))),
             'art_font_enabled' => isset($_POST['art_font_enabled']) ? 1 : 0,
             'art_font'         => array_key_exists($font, ArticleStyle::fonts()) ? $font : 'moderne',
+            'art_width'        => array_key_exists($width, ArticleStyle::widths()) ? $width : 'default',
         ]);
         Session::set('style_saved', true);
-        redirect('admin/articles/style');
+        redirect('admin/settings#p-articles');
+    }
+
+    /**
+     * « Style général » (mise en page). Enregistre toujours le modèle choisi comme
+     * mise en page par défaut (nouveaux articles) ; si action = « all », l'applique
+     * en plus à TOUS les articles existants (écrase leur modèle individuel).
+     */
+    public function applyStyle(): void
+    {
+        $this->guard();
+        $tpl = ArticleTemplate::key($_POST['general_template'] ?? 'standard');
+        Settings::save(['default_template' => $tpl]);
+
+        $label = ArticleTemplate::all()[$tpl] ?? $tpl;
+        if (($_POST['action'] ?? 'default') === 'all') {
+            $n = Article::setTemplateForAll($tpl);
+            Session::set('gentpl_msg',
+                '✅ Mise en page « ' . $label . ' » appliquée à ' . $n . ' article' . ($n > 1 ? 's' : '') . '.');
+        } else {
+            Session::set('gentpl_msg',
+                '✅ « ' . $label . ' » enregistré comme mise en page par défaut (nouveaux articles).');
+        }
+        redirect('admin/settings#p-articles');
     }
 }

@@ -110,11 +110,11 @@
 </head>
 <body>
     <div class="wrap">
+        <?php view('admin/_nav', ['active' => 'articles']); ?>
         <div class="top">
             <h1>📰 <span>Articles</span> (<?= count($articles) ?>)</h1>
             <div class="nav">
-                <a href="<?= url('admin/dashboard') ?>">← Tableau de bord</a>
-                <a href="<?= url('admin/articles/style') ?>">🎨 Style des articles</a>
+                <a href="<?= url('admin/settings') ?>#p-articles">🎨 Style des articles</a>
                 <a class="add" href="<?= url('articles/new') ?>">＋ Nouvel article</a>
             </div>
         </div>

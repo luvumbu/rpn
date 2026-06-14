@@ -12,7 +12,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Poppins', -apple-system, Segoe UI, Roboto, sans-serif;
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
             padding: 48px 20px; color: var(--text); position: relative; overflow-x: hidden;
             background:
                 radial-gradient(circle at 15% 12%, var(--glow1), transparent 42%),
@@ -101,6 +101,28 @@
 
         /* Sur grand écran : les annonces à gauche, la connexion à droite. */
         @media (min-width: 880px) { .announce-board { order: -1; } }
+
+        /* ---- Tous les articles publics ---- */
+        .public-articles { width: 100%; max-width: 1100px; margin: 44px auto 0; }
+        .pa-head { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 800;
+            color: var(--accent); margin-bottom: 18px; text-transform: uppercase; letter-spacing: .6px;
+            justify-content: center; }
+        .pa-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+        .pa-card { display: flex; flex-direction: column; text-decoration: none; color: var(--text);
+            background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 18px;
+            overflow: hidden; box-shadow: var(--card-shadow);
+            transition: border-color .15s, transform .15s; }
+        .pa-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+        .pa-cover { width: 100%; height: 140px; object-fit: cover; border-bottom: 1px solid var(--card-border); }
+        .pa-cover.placeholder { display: flex; align-items: center; justify-content: center;
+            font-size: 40px; color: var(--accent); background: rgba(127,127,127,.10); }
+        .pa-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .pa-title { font-weight: 700; font-size: 15.5px; line-height: 1.3; }
+        .pa-ex { font-size: 13px; color: var(--muted); line-height: 1.45;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .pa-meta { margin-top: auto; font-size: 11.5px; color: var(--muted);
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pa-empty { color: var(--muted); font-size: 14px; text-align: center; }
     </style>
 </head>
 <body>
@@ -110,6 +132,9 @@
             <h1><?= htmlspecialchars(Settings::get('main_title', 'RPN')) ?></h1>
             <p class="sub"><?= htmlspecialchars(Settings::get('main_message', 'Bienvenue. Connecte-toi pour rejoindre la communauté.')) ?></p>
 
+            <?php if (!empty($success)): ?>
+                <div class="auth-error" style="background:rgba(42,157,74,.14);border-color:var(--vert,#2a9d4a);color:var(--text);"><?= htmlspecialchars($success) ?></div>
+            <?php endif; ?>
             <?php if (!empty($error)): ?>
                 <div class="auth-error"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
@@ -125,6 +150,7 @@
                 <input type="password" name="password" placeholder="Mot de passe" required autocomplete="current-password">
                 <button type="submit">Se connecter</button>
             </form>
+            <a href="<?= url('forgot') ?>" style="display:block;margin-top:10px;font-size:13px;color:var(--muted);text-decoration:none;">Mot de passe oublié ?</a>
             <a class="register-link" href="<?= url('register') ?>">Pas encore de compte ? <b>S'inscrire →</b></a>
 
             <div class="foot">
@@ -135,6 +161,7 @@
                 <a href="<?= url('articles') ?>">📰 Articles</a>
                 <a href="<?= url('afrique') ?>">🌍 Pays d'Afrique</a>
                 <a href="<?= url('admin/login') ?>">🔐 Administrateur</a>
+                <a href="<?= url('legal') ?>">📄 Mentions légales</a>
             </div>
         </section>
 
@@ -162,5 +189,33 @@
             </aside>
         <?php endif; ?>
     </main>
+
+    <section class="public-articles">
+        <div class="pa-head">📰 Tous les articles</div>
+        <?php if (!empty($articles)): ?>
+            <div class="pa-grid">
+                <?php foreach ($articles as $a): ?>
+                    <?php $excerpt = trim(mb_strimwidth(strip_tags((string) ($a['content'] ?? '')), 0, 140, '…')); ?>
+                    <a class="pa-card" href="<?= url('article') ?>?id=<?= (int) $a['id'] ?>">
+                        <?php if (!empty($a['image'])): ?>
+                            <img class="pa-cover" src="<?= url('uploads/articles/' . rawurlencode($a['image'])) ?>" alt="">
+                        <?php else: ?>
+                            <span class="pa-cover placeholder">📰</span>
+                        <?php endif; ?>
+                        <span class="pa-body">
+                            <span class="pa-title"><?= htmlspecialchars($a['title']) ?></span>
+                            <?php if ($excerpt !== ''): ?><span class="pa-ex"><?= htmlspecialchars($excerpt) ?></span><?php endif; ?>
+                            <span class="pa-meta">
+                                <?php if (!empty($a['author_name'])): ?><span>✍️ <?= htmlspecialchars($a['author_name']) ?></span><?php endif; ?>
+                                <span><?= date('d/m/Y', strtotime($a['created_at'])) ?></span>
+                            </span>
+                        </span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p class="pa-empty">Aucun article publié pour le moment.</p>
+        <?php endif; ?>
+    </section>
 </body>
 </html>

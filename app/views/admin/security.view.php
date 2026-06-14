@@ -33,9 +33,9 @@
 </head>
 <body>
     <div class="wrap">
+        <?php view('admin/_nav', ['active' => 'security']); ?>
         <div class="top">
             <h1>🛡️ <span>Sécurité</span> — IP bloquées</h1>
-            <div class="nav"><a href="<?= url('admin/dashboard') ?>">← Tableau de bord</a></div>
         </div>
 
         <?php if (empty($blocked)): ?>

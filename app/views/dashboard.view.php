@@ -57,6 +57,11 @@
         .photo-remove { font:inherit; font-size:13px; font-weight:600; cursor:pointer; color:var(--muted);
             background:none; border:1px solid var(--card-border); border-radius:10px; padding:8px 12px; }
         .photo-remove:hover { color:var(--rouge,#e63946); border-color:var(--rouge,#e63946); }
+        /* Bouton « Espace admin » (doré) — à côté de la photo, réservé aux admins */
+        .admin-enter { display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-size:13px; font-weight:800;
+            color:#0b0a06; background:linear-gradient(135deg,#f4d27a,#caa84a); border:1px solid rgba(212,175,55,.7);
+            border-radius:10px; padding:8px 15px; box-shadow:0 6px 18px rgba(0,0,0,.28); transition:transform .15s, filter .15s; }
+        .admin-enter:hover { filter:brightness(1.06); transform:translateY(-2px); }
         .photo-error { background:rgba(230,57,70,.12); border:1px solid var(--rouge,#e63946); color:var(--text);
             padding:11px 14px; border-radius:12px; margin-bottom:16px; font-size:14px; }
 
@@ -276,15 +281,31 @@
                     <p class="email"><?= htmlspecialchars($user['email']) ?></p>
                 <?php endif; ?>
                 <button type="button" class="update-btn" data-rpm-update-check title="Vérifier les mises à jour de l'application">🔄 Mise à jour</button>
-                <form class="photo-form" method="post" action="<?= url('profile/photo') ?>" enctype="multipart/form-data">
-                    <label class="photo-pick">
-                        📷 <?= $hasPhoto ? 'Changer ma photo' : 'Ajouter une photo' ?>
-                        <input type="file" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" class="js-autoresize" data-autosubmit>
-                    </label>
-                    <?php if ($hasPhoto): ?>
-                        <button type="submit" name="remove_photo" value="1" class="photo-remove" title="Retirer ma photo">Retirer</button>
+                <div class="photo-form">
+                    <form method="post" action="<?= url('profile/photo') ?>" enctype="multipart/form-data" style="display:contents;">
+                        <label class="photo-pick">
+                            📷 <?= $hasPhoto ? 'Changer ma photo' : 'Ajouter une photo' ?>
+                            <input type="file" name="photo" accept="image/*" class="js-autoresize" data-autosubmit data-tojpeg>
+                        </label>
+                        <?php if ($hasPhoto): ?>
+                            <button type="submit" name="remove_photo" value="1" class="photo-remove" title="Retirer ma photo">Retirer</button>
+                        <?php endif; ?>
+                    </form>
+                    <?php if ($isAdmin): ?>
+                        <a class="admin-enter" href="<?= url('admin/dashboard') ?>" title="Aller à l'espace administrateur">👑 Espace admin</a>
                     <?php endif; ?>
-                </form>
+                </div>
+                <?php if ($isAdmin && (int) ($user['id'] ?? 0) === 0): // super-admin : nom affiché personnalisable ?>
+                    <form method="post" action="<?= url('profile/admin_name') ?>"
+                          style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+                        <input type="text" name="admin_name" value="<?= htmlspecialchars($user['name'] ?? '') ?>" maxlength="60"
+                               placeholder="Nom affiché (ex. Admin)"
+                               style="flex:1;min-width:150px;padding:9px 12px;border-radius:10px;border:1px solid var(--card-border);background:rgba(127,127,127,.08);color:var(--text);font-family:inherit;font-size:13.5px;">
+                        <button type="submit" title="Enregistrer le nom"
+                                style="font:inherit;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);border-radius:10px;padding:9px 14px;">💾 Nom</button>
+                        <span style="flex-basis:100%;font-size:12px;color:var(--muted);">Nom affiché de l'admin — laisse vide pour revenir au nom par défaut.</span>
+                    </form>
+                <?php endif; ?>
                 <?= image_resize_js() ?>
             </div>
         </section>
@@ -322,6 +343,7 @@
                 <?php endforeach; ?>
             </div>
             <a class="lvl-more" href="<?= url('niveaux') ?>">📋 Voir tous les niveaux & comment gagner des points →</a>
+            <a class="lvl-more" href="<?= url('classement') ?>" style="margin-left:18px;">🏆 Voir le classement des membres →</a>
         </section>
         <?php endif; ?>
 
@@ -502,6 +524,11 @@
                 <div class="txt"><h3>Mes niveaux</h3><p>Progression Héritier → Sage</p></div>
                 <span class="arrow">→</span>
             </a>
+            <a class="card action" href="<?= url('paiement') ?>">
+                <div class="ico">💳</div>
+                <div class="txt"><h3>Paiement</h3><p>Don, cotisation ou abonnement</p></div>
+                <span class="arrow">→</span>
+            </a>
             <a class="card action" href="<?= url('notifications') ?>">
                 <div class="ico">🔔<?php if (!empty($unreadNotifs)): ?><span class="notif-badge"><?= (int) $unreadNotifs > 9 ? '9+' : (int) $unreadNotifs ?></span><?php endif; ?></div>
                 <div class="txt"><h3>Notifications</h3><p><?= !empty($unreadNotifs) ? (int) $unreadNotifs . ' non lue' . ((int) $unreadNotifs > 1 ? 's' : '') : 'Confirmations, rappels…' ?></p></div>
@@ -517,23 +544,17 @@
                 <div class="txt"><h3>Importer un projet</h3><p>Restaurer un .zip (un seul ou tout)</p></div>
                 <span class="arrow">→</span>
             </a>
+            <a class="card action" href="<?= url('profile/privacy') ?>">
+                <div class="ico">🔏</div>
+                <div class="txt"><h3>Confidentialité & mes données</h3><p>Télécharger ou supprimer mes données (RGPD)</p></div>
+                <span class="arrow">→</span>
+            </a>
             <a class="card action" href="<?= url('docs/index.html') ?>">
                 <div class="ico">📖</div>
                 <div class="txt"><h3>Aide & tutoriels</h3><p>Guides pour tout le site</p></div>
                 <span class="arrow">→</span>
             </a>
         </div>
-
-        <?php if ($isAdmin): ?>
-        <p class="section-title">👑 Administration</p>
-        <div class="actions">
-            <a class="card action accent" href="<?= url('admin/dashboard') ?>">
-                <div class="ico">⚙️</div>
-                <div class="txt"><h3>Espace administrateur</h3><p>Membres, articles, paramètres</p></div>
-                <span class="arrow">→</span>
-            </a>
-        </div>
-        <?php endif; ?>
 
         <?php if (!empty($user) && (int) ($user['id'] ?? 0) > 0): ?>
         <section class="card backup-card" id="backup">

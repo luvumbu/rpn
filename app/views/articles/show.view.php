@@ -185,6 +185,7 @@ ob_start(); ?>Publié le <?= date('d/m/Y', strtotime($article['created_at'])) ?>
         <?php endif; ?>
 
         <?php if (!in_array($tpl, ArticleTemplate::carouselKeys(), true)): // les modes carrousel intègrent déjà les photos ?>
+            <?php $galleryStyle = Article::galleryStyleKey($article['gallery_style'] ?? 'auto'); ?>
             <?php include __DIR__ . '/_gallery.php'; ?>
         <?php endif; ?>
 
@@ -200,6 +201,15 @@ ob_start(); ?>Publié le <?= date('d/m/Y', strtotime($article['created_at'])) ?>
             }, $files ?? []);
             include __DIR__ . '/_files.php';
         ?>
+
+        <?php $artTags = Article::tagsToList($article['tags'] ?? ''); ?>
+        <?php if ($artTags): ?>
+            <div class="article-tags">
+                <?php foreach ($artTags as $t): ?>
+                    <a class="art-tag" href="<?= url('articles/search') ?>?tag=<?= rawurlencode($t) ?>">#<?= htmlspecialchars($t) ?></a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
         <?php if (!empty($articleQuizzes)): ?>
         <section class="article-quiz" id="quiz">

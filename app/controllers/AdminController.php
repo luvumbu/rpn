@@ -97,9 +97,9 @@ class AdminController
 
         Session::set('user', [
             'id'      => 0,
-            'name'    => $db['user'],
+            'name'    => (string) Settings::get('admin_name', '') ?: $db['user'], // nom choisi, sinon défaut
             'email'   => '',
-            'picture' => '',
+            'picture' => (string) Settings::get('admin_picture', ''),             // photo perso du super-admin
             'role'    => 'admin',
         ]);
         redirect('admin/dashboard');
@@ -120,42 +120,83 @@ class AdminController
         Session::remove('admin_notice');
     }
 
-    /** Générateur de favicon (admin) : page de réglages. */
+    /** Tableau de bord analytique (statistiques d'usage) — admin. */
+    public function analytics(): void
+    {
+        $this->guard();
+        $pdo = Database::pdo();
+        $scalar = static function (string $sql) use ($pdo) {
+            try { return $pdo->query($sql)->fetchColumn(); } catch (\Throwable $e) { return 0; }
+        };
+        $rows = static function (string $sql) use ($pdo): array {
+            try { return $pdo->query($sql)->fetchAll(); } catch (\Throwable $e) { return []; }
+        };
+
+        view('admin/analytics', [
+            'user'         => Session::user(),
+            'members'      => (int) User::count(),
+            'activeMembers'=> (int) $scalar("SELECT COUNT(*) FROM users WHERE last_login >= (NOW() - INTERVAL 30 DAY)"),
+            'newMembers'   => (int) $scalar("SELECT COUNT(*) FROM users WHERE created_at >= (NOW() - INTERVAL 30 DAY)"),
+            'articles'     => (int) Article::count(),
+            'articlesActive'=> (int) Article::countActive(),
+            'totalViews'   => (int) $scalar("SELECT COUNT(*) FROM article_views"),
+            'topArticles'  => $rows("SELECT a.id, a.title, COUNT(v.id) AS views
+                                      FROM articles a LEFT JOIN article_views v ON v.article_id = a.id
+                                      GROUP BY a.id ORDER BY views DESC, a.created_at DESC LIMIT 6"),
+            'quizzes'      => (int) $scalar("SELECT COUNT(*) FROM quizzes"),
+            'quizActive'   => (int) Quiz::countActive(),
+            'quizResponses'=> (int) $scalar("SELECT COUNT(*) FROM quiz_responses"),
+            'quizAvg'      => (int) round((float) $scalar("SELECT AVG(score/total*100) FROM quiz_responses WHERE total > 0")),
+            'topQuizzes'   => $rows("SELECT q.id, q.title, COUNT(r.id) AS participants,
+                                      ROUND(AVG(CASE WHEN r.total>0 THEN r.score/r.total*100 END)) AS avgpct
+                                      FROM quizzes q LEFT JOIN quiz_responses r ON r.quiz_id = q.id
+                                      GROUP BY q.id ORDER BY participants DESC, q.created_at DESC LIMIT 6"),
+            'appointments' => (int) $scalar("SELECT COUNT(*) FROM appointments"),
+            'bookings'     => (int) $scalar("SELECT COUNT(*) FROM appointment_bookings"),
+
+            // Paiements (Stripe)
+            'payTotal'     => (int) $scalar("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='paid'"),
+            'payCount'     => (int) $scalar("SELECT COUNT(*) FROM payments WHERE status='paid'"),
+            'paySubs'      => (int) $scalar("SELECT COUNT(*) FROM payments WHERE status='paid' AND type='subscription'"),
+            'payCurrency'  => strtoupper(StripeClient::currency()),
+            'recentPays'   => $rows("SELECT p.created_at, p.type, p.amount, p.currency, p.user_id,
+                                      (SELECT u.name FROM users u WHERE u.id = p.user_id) AS uname
+                                      FROM payments p WHERE p.status='paid' ORDER BY p.created_at DESC LIMIT 12"),
+        ]);
+    }
+
+    /** Générateur de favicon : désormais regroupé dans Paramètres → Favicon. */
     public function favicon(): void
     {
         $this->guard();
-        view('admin/favicon', [
-            'user'    => Session::user(),
-            'version' => (string) Settings::get('favicon_version', '1'),
-            'custom'  => (int) Settings::get('favicon_custom', 0) === 1,
-            'saved'   => Session::get('favicon_saved'),
-            'error'   => Session::get('favicon_error'),
-        ]);
-        Session::remove('favicon_saved');
-        Session::remove('favicon_error');
+        redirect('admin/settings#p-favicon');
     }
 
     /** Génère et applique le nouveau favicon (depuis un texte ou une image). */
     public function saveFavicon(): void
     {
         $this->guard();
-        $mode = ($_POST['mode'] ?? 'text') === 'image' ? 'image' : 'text';
+        $mode  = ($_POST['mode'] ?? 'text') === 'image' ? 'image' : 'text';
+        $shape = in_array($_POST['shape'] ?? 'round', ['square', 'round', 'circle'], true) ? $_POST['shape'] : 'round';
+        $font  = in_array($_POST['font'] ?? 'bold', ['bold', 'regular', 'serif', 'mono'], true) ? $_POST['font'] : 'bold';
         try {
             if ($mode === 'image' && !empty($_FILES['favicon_img']['name'])) {
-                Favicon::fromUpload('favicon_img');
+                Favicon::fromUpload('favicon_img', $shape);
             } else {
                 Favicon::fromText(
                     (string) ($_POST['text'] ?? 'R'),
                     (string) ($_POST['bg'] ?? '#14110f'),
                     (string) ($_POST['fg'] ?? '#f4c14b'),
-                    !empty($_POST['round'])
+                    $shape,
+                    !empty($_POST['transparent']),
+                    $font
                 );
             }
             Session::set('favicon_saved', true);
         } catch (\Throwable $e) {
             Session::set('favicon_error', $e->getMessage());
         }
-        redirect('admin/favicon');
+        redirect('admin/settings#p-favicon');
     }
 
     /** Supprime les fichiers d'un dossier d'uploads (récursif), en gardant .htaccess. */
@@ -402,23 +443,11 @@ class AdminController
     }
 
     /** Panneau de STYLE GLOBAL du site (police, arrondi, ombres, animations). */
+    /** Style global : désormais regroupé dans Paramètres → Style global. */
     public function globalStyle(): void
     {
         $this->guard();
-        $saved = Session::get('gstyle_saved');
-        Session::remove('gstyle_saved');
-
-        view('admin/style', [
-            'user'        => Session::user(),
-            'fonts'       => GlobalStyle::fonts(),
-            'shadows'     => GlobalStyle::shadows(),
-            'fontEnabled' => GlobalStyle::fontEnabled(),
-            'fontKey'     => GlobalStyle::fontKey(),
-            'radius'      => GlobalStyle::radius(),
-            'shadowKey'   => GlobalStyle::shadowKey(),
-            'anim'        => GlobalStyle::animationsEnabled(),
-            'saved'       => $saved,
-        ]);
+        redirect('admin/settings#p-style-global');
     }
 
     /** Enregistre les réglages de style global. */
@@ -435,15 +464,26 @@ class AdminController
             'gs_anim'         => isset($_POST['gs_anim']) ? 1 : 0,
         ]);
         Session::set('gstyle_saved', true);
-        redirect('admin/style');
+        redirect('admin/settings#p-style-global');
     }
 
     /** Page des paramètres (clés API Google, durée de blocage...). */
     public function settings(): void
     {
         $this->guard();
-        $saved = Session::get('settings_saved');
+        // Confirmations « enregistré » de chaque section (toutes regroupées ici).
+        $saved             = Session::get('settings_saved');
+        $savedGlobalStyle  = Session::get('gstyle_saved');
+        $savedFavicon      = Session::get('favicon_saved');
+        $savedArticleStyle = Session::get('style_saved');
+        $genTemplateMsg    = Session::get('gentpl_msg');
+        $faviconError      = Session::get('favicon_error');
         Session::remove('settings_saved');
+        Session::remove('gstyle_saved');
+        Session::remove('favicon_saved');
+        Session::remove('style_saved');
+        Session::remove('gentpl_msg');
+        Session::remove('favicon_error');
 
         view('admin/settings', [
             'user'         => Session::user(),
@@ -468,38 +508,152 @@ class AdminController
             'articleTemplates' => ArticleTemplate::all(),
             'defaultTemplate'  => ArticleTemplate::key(Settings::get('default_template', 'standard')),
             'apiKey'       => Settings::get('api_key', '') ?: (defined('API_KEY') ? API_KEY : ''),
+            'defaultDiscoverable' => (int) Settings::get('default_discoverable', 0),
+            'mailFrom'     => (string) Settings::get('mail_from', ''),
+
+            // --- Paiements (Stripe) ---------------------------------------------
+            'stripeSecret'      => (string) Settings::get('stripe_secret', ''),
+            'stripePublishable' => (string) Settings::get('stripe_publishable', ''),
+            'stripeWebhook'     => (string) Settings::get('stripe_webhook_secret', ''),
+            'stripeCurrency'    => (string) Settings::get('stripe_currency', 'eur'),
+            'stripeDonationLabel'   => (string) Settings::get('stripe_donation_label', 'Soutenir la communauté'),
+            'stripeDonationAmounts' => (string) Settings::get('stripe_donation_amounts', '5,10,20,50'),
+            'stripePlans'       => (function () {
+                $p = json_decode((string) Settings::get('stripe_plans', '[]'), true);
+                $p = is_array($p) ? $p : [];
+                // Toujours 3 lignes pour le formulaire.
+                for ($i = 0; $i < 3; $i++) {
+                    $p[$i] = [
+                        'name'     => (string) ($p[$i]['name'] ?? ''),
+                        'amount'   => (string) ($p[$i]['amount'] ?? ''),
+                        'interval' => ($p[$i]['interval'] ?? 'month') === 'year' ? 'year' : 'month',
+                    ];
+                }
+                return array_slice($p, 0, 3);
+            })(),
+
             'saved'        => $saved,
+
+            // --- Style global du site (police, arrondi, ombres, animations) -----
+            'gsFonts'       => GlobalStyle::fonts(),
+            'gsShadows'     => GlobalStyle::shadows(),
+            'gsFontEnabled' => GlobalStyle::fontEnabled(),
+            'gsFontKey'     => GlobalStyle::fontKey(),
+            'gsRadius'      => GlobalStyle::radius(),
+            'gsShadowKey'   => GlobalStyle::shadowKey(),
+            'gsAnim'        => GlobalStyle::animationsEnabled(),
+            'savedGlobalStyle' => $savedGlobalStyle,
+
+            // --- Favicon --------------------------------------------------------
+            'favVersion'   => (string) Settings::get('favicon_version', '1'),
+            'favCustom'    => (int) Settings::get('favicon_custom', 0) === 1,
+            'savedFavicon' => $savedFavicon,
+            'faviconError' => $faviconError,
+
+            // --- Style des articles (taille + police) ---------------------------
+            'artScale'       => ArticleStyle::scale(),
+            'artFontEnabled' => ArticleStyle::fontEnabled(),
+            'artFontKey'     => ArticleStyle::fontKey(),
+            'artFonts'       => ArticleStyle::fonts(),
+            'artWidthKey'    => ArticleStyle::widthKey(),
+            'artWidths'      => ArticleStyle::widths(),
+            'savedArticleStyle' => $savedArticleStyle,
+            'genTemplateMsg'    => $genTemplateMsg,
         ]);
     }
 
-    /** Enregistre les paramètres. */
+    /**
+     * Enregistre les paramètres. MODULAIRE : chaque section de la page
+     * a son propre formulaire et n'envoie que ses champs ; on n'enregistre
+     * donc QUE les clés réellement soumises (les autres sont préservées).
+     */
     public function saveSettings(): void
     {
         $this->guard();
-        Settings::save([
-            'google_client_id'     => trim($_POST['client_id'] ?? ''),
-            'google_client_secret' => trim($_POST['client_secret'] ?? ''),
-            'block_hours'          => max(1, (int) ($_POST['block_hours'] ?? 24)),
-            'max_attempts'         => max(1, (int) ($_POST['max_attempts'] ?? 3)),
-            'theme'                => array_key_exists($_POST['theme'] ?? '', Theme::all()) ? $_POST['theme'] : 'panafricain',
-            'theme_custom_bg'      => Theme::hex($_POST['tc_bg'] ?? '', '#14110f'),
-            'theme_custom_text'    => Theme::hex($_POST['tc_text'] ?? '', '#ffffff'),
-            'theme_custom_accent'  => Theme::hex($_POST['tc_accent'] ?? '', '#f4c14b'),
-            'theme_custom_ink'     => Theme::hex($_POST['tc_ink'] ?? '', '#14110f'),
-            'theme_custom_rouge'   => Theme::hex($_POST['tc_rouge'] ?? '', '#e63946'),
-            'theme_custom_vert'    => Theme::hex($_POST['tc_vert'] ?? '', '#2a9d4a'),
-            'theme_custom_or'      => Theme::hex($_POST['tc_or'] ?? '', '#f4c14b'),
-            'default_template'     => ArticleTemplate::key($_POST['default_template'] ?? 'standard'),
-            'main_title'           => trim($_POST['main_title'] ?? '') ?: 'RPN',
-            'main_message'         => trim($_POST['main_message'] ?? ''),
-            'main_footer'          => trim($_POST['main_footer'] ?? ''),
-        ]);
+        $vals = [];
+
+        // Connexion Google
+        if (isset($_POST['client_id']))     { $vals['google_client_id']     = trim($_POST['client_id']); }
+        if (isset($_POST['client_secret'])) { $vals['google_client_secret'] = trim($_POST['client_secret']); }
+
+        // Sécurité
+        if (isset($_POST['block_hours']))  { $vals['block_hours']  = max(1, (int) $_POST['block_hours']); }
+        if (isset($_POST['max_attempts'])) { $vals['max_attempts'] = max(1, (int) $_POST['max_attempts']); }
+
+        // Thème + couleurs personnalisées (soumis ensemble)
+        if (isset($_POST['theme'])) {
+            $vals['theme']              = array_key_exists($_POST['theme'], Theme::all()) ? $_POST['theme'] : 'panafricain';
+            $vals['theme_custom_bg']    = Theme::hex($_POST['tc_bg'] ?? '', '#14110f');
+            $vals['theme_custom_text']  = Theme::hex($_POST['tc_text'] ?? '', '#ffffff');
+            $vals['theme_custom_accent']= Theme::hex($_POST['tc_accent'] ?? '', '#f4c14b');
+            $vals['theme_custom_ink']   = Theme::hex($_POST['tc_ink'] ?? '', '#14110f');
+            $vals['theme_custom_rouge'] = Theme::hex($_POST['tc_rouge'] ?? '', '#e63946');
+            $vals['theme_custom_vert']  = Theme::hex($_POST['tc_vert'] ?? '', '#2a9d4a');
+            $vals['theme_custom_or']    = Theme::hex($_POST['tc_or'] ?? '', '#f4c14b');
+        }
+
+        // Articles — mise en page par défaut
+        if (isset($_POST['default_template'])) { $vals['default_template'] = ArticleTemplate::key($_POST['default_template']); }
+
+        // Membres — visibilité par défaut à l'inscription
+        if (isset($_POST['default_discoverable'])) { $vals['default_discoverable'] = ((int) $_POST['default_discoverable'] === 1) ? 1 : 0; }
+
+        // E-mail expéditeur (pour les emails transactionnels : mot de passe oublié…)
+        if (array_key_exists('mail_from', $_POST)) {
+            $mf = trim((string) $_POST['mail_from']);
+            $vals['mail_from'] = ($mf === '' || filter_var($mf, FILTER_VALIDATE_EMAIL)) ? $mf : Settings::get('mail_from', '');
+        }
+
+        // Paiements Stripe (clés + don + plans d'abonnement)
+        if (array_key_exists('stripe_secret', $_POST)) {
+            $vals['stripe_secret']         = trim((string) $_POST['stripe_secret']);
+            $vals['stripe_publishable']    = trim((string) ($_POST['stripe_publishable'] ?? ''));
+            $vals['stripe_webhook_secret'] = trim((string) ($_POST['stripe_webhook_secret'] ?? ''));
+            $cur = strtolower(trim((string) ($_POST['stripe_currency'] ?? 'eur')));
+            $vals['stripe_currency'] = preg_match('/^[a-z]{3}$/', $cur) ? $cur : 'eur';
+            $vals['stripe_donation_label'] = mb_substr(trim((string) ($_POST['stripe_donation_label'] ?? '')), 0, 120) ?: 'Soutenir la communauté';
+            $amts = array_values(array_filter(array_map('intval', explode(',', (string) ($_POST['stripe_donation_amounts'] ?? '')))));
+            $vals['stripe_donation_amounts'] = $amts ? implode(',', $amts) : '5,10,20,50';
+
+            $names     = (array) ($_POST['plan_name'] ?? []);
+            $amounts   = (array) ($_POST['plan_amount'] ?? []);
+            $intervals = (array) ($_POST['plan_interval'] ?? []);
+            $plans = [];
+            $n = count($names);
+            for ($i = 0; $i < $n; $i++) {
+                $nm = trim((string) ($names[$i] ?? ''));
+                $am = (float) str_replace(',', '.', (string) ($amounts[$i] ?? 0));
+                if ($nm === '' || $am <= 0) { continue; }
+                $plans[] = [
+                    'name'     => mb_substr($nm, 0, 80),
+                    'amount'   => round($am, 2),
+                    'interval' => (($intervals[$i] ?? 'month') === 'year') ? 'year' : 'month',
+                ];
+            }
+            $vals['stripe_plans'] = json_encode(array_values($plans), JSON_UNESCAPED_UNICODE);
+        }
+
+        // Page d'accueil
+        if (isset($_POST['main_title']))                { $vals['main_title']   = trim($_POST['main_title']) ?: 'RPN'; }
+        if (array_key_exists('main_message', $_POST))   { $vals['main_message'] = trim($_POST['main_message']); }
+        if (array_key_exists('main_footer', $_POST))    { $vals['main_footer']  = trim($_POST['main_footer']); }
+
+        if ($vals) {
+            Settings::save($vals);
+        }
         // Régénération de la clé API (case cochée) : nouvelle clé aléatoire.
         if (!empty($_POST['regen_api_key'])) {
             Settings::save(['api_key' => 'rpmapi_' . bin2hex(random_bytes(18))]);
         }
         Session::set('settings_saved', true);
-        redirect('admin/settings');
+        redirect('admin/settings' . $this->sectionHash());
+    }
+
+    /** Ancre #onglet à rouvrir après enregistrement (champ caché « section »). */
+    private function sectionHash(): string
+    {
+        $s = preg_replace('/[^a-z0-9\-]/', '', (string) ($_POST['section'] ?? ''));
+        return $s !== '' ? '#' . $s : '';
     }
 
     /** Déconnexion de l'espace admin. */

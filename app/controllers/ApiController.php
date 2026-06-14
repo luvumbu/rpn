@@ -1,156 +1,364 @@
 <?php
 /**
- * CONTRÔLEUR API
- * Petite API JSON pour piloter le site à distance — actuellement : créer des
- * articles. Protégée par une CLÉ API (constante API_KEY dans config.php),
- * passée dans l'en-tête « X-API-Key » ou le paramètre « key ».
+ * CONTRÔLEUR API (JSON)
+ * Petite API pour piloter le site à distance : créer des articles et des
+ * questionnaires (quiz), éventuellement liés entre eux.
  *
- *   POST /rpm/api/article   → crée un article (titre, contenu HTML, etc.)
- *   GET  /rpm/api/ping       → test de disponibilité
+ * Toute la « plomberie » commune (lecture du corps, clé API, réponses JSON,
+ * URL absolue, téléchargement d'image) est factorisée dans la classe de base
+ * ApiKernel : ce contrôleur ne contient plus que la logique métier de chaque
+ * action.
  *
- * Permet par exemple de demander à un assistant d'écrire un article et de le
- * publier directement sur le site.
+ * Points d'entrée :
+ *   GET  /rpm/api/ping      → test de disponibilité (public)
+ *   POST /rpm/api/article   → crée un article            (clé API requise)
+ *   POST /rpm/api/quiz      → crée un quiz (+ lien article) (clé API requise)
+ *
+ * SÉCURITÉ : les deux écritures appellent requireKey() AVANT toute action ;
+ * sans clé valide → 401, rien n'est créé. Les modèles n'utilisent que des
+ * requêtes préparées (pas d'injection SQL) et le HTML des articles est filtré
+ * par Html::clean (anti-XSS) ; le texte des quiz est stocké sans balise et
+ * échappé à l'affichage.
  */
-class ApiController
+class ApiController extends ApiKernel
 {
-    /** Réponse JSON + arrêt. */
-    private function json(array $data, int $code = 200): void
-    {
-        http_response_code($code);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        exit;
-    }
-
-    /** Vérifie la clé API (en-tête X-API-Key, ou paramètre key). 401 sinon. */
-    private function requireKey(): void
-    {
-        $key = (string) ($_SERVER['HTTP_X_API_KEY'] ?? ($_POST['key'] ?? ($_GET['key'] ?? '')));
-        // Clé effective : dès qu'une clé a été générée depuis l'admin (Settings
-        // « api_key »), c'est la SEULE valable (régénérer révoque l'ancienne).
-        // Sinon, on retombe sur API_KEY de config.php.
-        $stored    = (string) Settings::get('api_key', '');
-        $reference = $stored !== '' ? $stored : (defined('API_KEY') ? (string) API_KEY : '');
-        if ($reference === '' || $key === '' || !hash_equals($reference, $key)) {
-            $this->json(['ok' => false, 'error' => 'Clé API manquante ou invalide.'], 401);
-        }
-    }
-
-    /** Télécharge une image depuis une URL (http/https) et l'enregistre. Renvoie le nom ou null. */
-    private function downloadImage(string $url): ?string
-    {
-        if (!preg_match('#^https?://#i', $url)) {
-            return null;
-        }
-        $data = null;
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_TIMEOUT => 15, CURLOPT_USERAGENT => 'RPN/1.0',
-            ]);
-            $res = curl_exec($ch);
-            $data = $res === false ? null : $res;
-            curl_close($ch);
-        }
-        if ($data === null && ini_get('allow_url_fopen')) {
-            $data = @file_get_contents($url);
-            if ($data === false) { $data = null; }
-        }
-        if ($data === null || $data === '') {
-            return null;
-        }
-        $tmp = tempnam(sys_get_temp_dir(), 'rpmimg_');
-        @file_put_contents($tmp, $data);
-        try { $name = Upload::imageFromPath($tmp, 'articles'); }
-        catch (\Throwable $e) { $name = null; }
-        @unlink($tmp);
-        return $name;
-    }
-
-    /** Test : GET /rpm/api/ping */
+    /** GET /rpm/api/ping — test de disponibilité (aucune donnée modifiée). */
     public function ping(): void
     {
         $this->json(['ok' => true, 'service' => 'RPN API', 'date' => date('c')]);
     }
 
     /**
-     * Crée un article. POST /rpm/api/article
-     * Corps accepté : JSON ou form-urlencoded.
+     * POST /rpm/api/article — crée un article.
      *   title*       (string)  — titre
-     *   content*     (string)  — contenu HTML (nettoyé par Html::clean)
+     *   content*     (string)  — contenu HTML (filtré par Html::clean)
      *   template     (string)  — clé de mise en page (défaut « standard »)
      *   active       (0|1)     — 1 = publié (défaut), 0 = brouillon
      *   author_name  (string)  — nom affiché de l'auteur (défaut « RPN »)
+     *   parent_id    (int)     — rattache à un article parent existant
+     *   image_url    (string)  — couverture téléchargée depuis une URL
+     *   gallery_urls (array)   — URLs d'images de galerie
+     *   (multipart : champs fichier « cover » et « photos[] » également gérés)
      */
     public function createArticle(): void
     {
+        $this->readInput();
         $this->requireKey();
 
-        // Accepte JSON (Content-Type: application/json) ou form-urlencoded.
-        $in  = [];
-        $ct  = $_SERVER['CONTENT_TYPE'] ?? '';
-        if (stripos($ct, 'application/json') !== false) {
-            $raw = file_get_contents('php://input');
-            $in  = json_decode((string) $raw, true) ?: [];
-        }
-        $field = static function (string $k, $def = '') use ($in) {
-            return $in[$k] ?? $_POST[$k] ?? $def;
-        };
-
-        $title   = trim((string) $field('title'));
-        $content = (string) $field('content');
+        $title   = $this->text('title', 255);
+        $content = (string) $this->field('content');
         if ($title === '' || trim(strip_tags($content)) === '') {
-            $this->json(['ok' => false, 'error' => 'Champs requis : title et content.'], 422);
+            $this->fail('Champs requis : title et content.', 422);
         }
 
-        $template = ArticleTemplate::key((string) $field('template', 'standard'));
-        $active   = !empty($field('active', 1)) ? 1 : 0;
-        $author   = trim((string) $field('author_name', 'RPN'));
-        // Sous-article : parent_id (rattache l'article à un article parent existant).
-        $parentId = (int) $field('parent_id', 0);
+        $template = ArticleTemplate::key((string) $this->field('template', 'standard'));
+        $active   = !empty($this->field('active', 1)) ? 1 : 0;
+        $author   = $this->text('author_name', 190);
+        if ($author === '') { $author = 'RPN'; }
+
+        // Sous-article : parent_id (doit exister, sinon ignoré → article racine).
+        $parentId = (int) $this->field('parent_id', 0);
         $parent   = $parentId > 0 ? Article::find($parentId) : null;
         $parentId = $parent ? (int) $parent['id'] : null;
 
-        // Image de couverture : fichier 'cover' (multipart) OU 'image_url' (téléchargée).
+        // Couverture : fichier « cover » (multipart) OU « image_url » (téléchargée).
         $cover = null;
         try { $cover = Upload::image('cover', 'articles'); } catch (\Throwable $e) { $cover = null; }
         if (!$cover) {
-            $imgUrl = trim((string) $field('image_url', ''));
+            $imgUrl = trim((string) $this->field('image_url', ''));
             if ($imgUrl !== '') { $cover = $this->downloadImage($imgUrl); }
         }
 
-        $id = Article::create([
-            'title'       => mb_substr($title, 0, 255),
-            'content'     => Html::clean($content),
-            'image'       => $cover,
-            'template'    => $template,
-            'active'      => $active,
-            'parent_id'   => $parentId,
-            'author_id'   => 0,
-            'author_name' => $author !== '' ? mb_substr($author, 0, 190) : 'RPN',
-        ]);
+        // ANTI-DOUBLON : si un article du même titre (créé par l'API) existe
+        // déjà, on le MET À JOUR au lieu d'en créer un second. Republier le même
+        // contenu est donc idempotent (aucun doublon).
+        $existing   = Article::findByTitleAuthor($title, 0);
+        $createdNew = ($existing === null);
 
-        // Galerie : fichiers 'photos[]' (multipart) et/ou 'gallery_urls' (liste d'URL).
-        foreach (Upload::images('photos', 'articles') as $g) {
-            ArticleImage::add($id, $g);
-        }
-        $gurls = $field('gallery_urls', []);
-        if (is_array($gurls)) {
-            foreach ($gurls as $gu) {
-                $n = $this->downloadImage((string) $gu);
-                if ($n) { ArticleImage::add($id, $n); }
+        if ($createdNew) {
+            $id = Article::create([
+                'title'       => $title,
+                'content'     => Html::clean($content),
+                'image'       => $cover,
+                'template'    => $template,
+                'active'      => $active,
+                'parent_id'   => $parentId,
+                'author_id'   => 0,
+                'author_name' => $author,
+            ]);
+
+            // Galerie (à la création seulement, pour ne pas dupliquer les photos).
+            foreach (Upload::images('photos', 'articles') as $g) {
+                ArticleImage::add($id, $g);
             }
+            $gurls = $this->field('gallery_urls', []);
+            if (is_array($gurls)) {
+                foreach ($gurls as $gu) {
+                    $n = $this->downloadImage((string) $gu);
+                    if ($n) { ArticleImage::add($id, $n); }
+                }
+            }
+        } else {
+            $id = (int) $existing['id'];
+            $data = [
+                'title'     => $title,
+                'content'   => Html::clean($content),
+                'template'  => $template,
+                'active'    => $active,
+                'parent_id' => $parentId,
+            ];
+            if ($cover) { $data['image'] = $cover; } // on ne change l'image que si une nouvelle est fournie
+            Article::update($id, $data);
         }
 
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $this->json([
             'ok'       => true,
             'id'       => $id,
+            'created'  => $createdNew,
             'active'   => $active,
             'template' => $template,
-            'url'      => $scheme . '://' . $host . url('article') . '?id=' . $id,
-        ], 201);
+            'url'      => $this->absoluteUrl('article', ['id' => $id]),
+        ], $createdNew ? 201 : 200);
+    }
+
+    /**
+     * POST /rpm/api/quiz — crée un questionnaire et, en option, le rattache à
+     * un article (table article_quizzes).
+     *   title*        (string)  — titre du questionnaire
+     *   description   (string)  — présentation (facultatif)
+     *   active        (0|1)     — 1 = publié (défaut)
+     *   author_name   (string)  — auteur affiché (défaut « RPN »)
+     *   article_id    (int)     — rattache le quiz à cet article (facultatif)
+     *   max_attempts  (int)     — 0 = illimité (défaut)
+     *   questions*    (array)   — [{ body, type:'single'|'multiple',
+     *                               options:[{ label, correct:bool }, …] }, …]
+     */
+    public function createQuiz(): void
+    {
+        $this->readInput();
+        $this->requireKey();
+
+        $title     = $this->text('title', 200);
+        $questions = $this->field('questions', []);
+        if ($title === '' || !is_array($questions) || count($questions) === 0) {
+            $this->fail('Champs requis : title et questions[].', 422);
+        }
+
+        $description = (string) $this->field('description', '');
+        $active      = !empty($this->field('active', 1)) ? 1 : 0;
+        $author      = $this->text('author_name', 150);
+        if ($author === '') { $author = 'RPN'; }
+        $articleId   = (int) $this->field('article_id', 0);
+        $maxAttempts = max(0, (int) $this->field('max_attempts', 0));
+
+        // Couverture : fichier « cover » (multipart), sinon « image_url »
+        // (téléchargée), sinon HÉRITÉE de la couverture de l'article lié.
+        $cover = null;
+        try { $cover = Upload::image('cover', 'quizzes'); } catch (\Throwable $e) { $cover = null; }
+        if (!$cover) {
+            $imgUrl = trim((string) $this->field('image_url', ''));
+            if ($imgUrl !== '') { $cover = $this->downloadImage($imgUrl, 'quizzes'); }
+        }
+        if (!$cover && $articleId > 0) {
+            $cover = $this->coverFromArticle($articleId);
+        }
+
+        // ANTI-DOUBLON : un quiz du même titre (créé par l'API) → mise à jour
+        // (on remplace ses questions) au lieu d'un second quiz identique.
+        $existing   = Quiz::findByTitleAuthor($title, 0);
+        $createdNew = ($existing === null);
+
+        if ($createdNew) {
+            $quizId = Quiz::create([
+                'title'        => $title,
+                'description'  => trim(strip_tags($description)),
+                'image'        => $cover,
+                'active'       => $active,
+                'max_attempts' => $maxAttempts,
+                'author_id'    => 0,
+                'author_name'  => $author,
+            ]);
+        } else {
+            $quizId = (int) $existing['id'];
+            $upd = [
+                'title'        => $title,
+                'description'  => trim(strip_tags($description)),
+                'active'       => $active,
+                'max_attempts' => $maxAttempts,
+            ];
+            if ($cover) { $upd['image'] = $cover; }
+            Quiz::update($quizId, $upd);
+            Quiz::deleteQuestions($quizId); // on remplace l'ancien jeu de questions
+        }
+
+        // Crée questions + options. On ignore les questions invalides
+        // (énoncé vide, moins de 2 options, ou aucune bonne réponse cochée).
+        // Le texte des questions/options est stocké SANS balise (anti-XSS).
+        $qpos = 0; $nQ = 0; $nO = 0;
+        foreach ($questions as $q) {
+            if (!is_array($q)) { continue; }
+            $body = trim(strip_tags((string) ($q['body'] ?? '')));
+            $opts = $q['options'] ?? [];
+            if ($body === '' || !is_array($opts) || count($opts) < 2) { continue; }
+            $type = (($q['type'] ?? 'single') === 'multiple') ? 'multiple' : 'single';
+
+            $hasCorrect = false;
+            foreach ($opts as $o) {
+                if (is_array($o) && !empty($o['correct'])) { $hasCorrect = true; break; }
+            }
+            if (!$hasCorrect) { continue; }
+
+            $qid = Quiz::addQuestion($quizId, $body, $type, $qpos++); $nQ++;
+            $opos = 0;
+            foreach ($opts as $o) {
+                if (!is_array($o)) { continue; }
+                $label = trim(strip_tags((string) ($o['label'] ?? '')));
+                if ($label === '') { continue; }
+                Quiz::addOption($qid, $label, !empty($o['correct']), $opos++); $nO++;
+            }
+        }
+
+        if ($nQ === 0) {
+            if ($createdNew) { Quiz::delete($quizId); } // on n'efface que ce qu'on vient de créer
+            $this->fail('Aucune question valide (il faut au moins 2 options et 1 bonne réponse cochée).', 422);
+        }
+
+        // Rattachement à un article existant (on conserve les liens déjà en place).
+        $linked = null;
+        if ($articleId > 0 && Article::find($articleId)) {
+            $ids   = Article::quizIds($articleId);
+            $ids[] = $quizId;
+            Article::setQuizzes($articleId, $ids);
+            $linked = $articleId;
+        }
+
+        $this->json([
+            'ok'             => true,
+            'quiz_id'        => $quizId,
+            'created'        => $createdNew,
+            'questions'      => $nQ,
+            'options'        => $nO,
+            'linked_article' => $linked,
+            'image'          => $cover,
+            'active'         => $active,
+            'url'            => $this->absoluteUrl('quiz/show', ['id' => $quizId]),
+        ], $createdNew ? 201 : 200);
+    }
+
+    /**
+     * POST /rpm/api/quiz/image — définit (ou remplace) la couverture d'un quiz
+     * existant. **Clé requise.**
+     *   quiz_id*    (int)    — le quiz à illustrer
+     *   image_url   (string) — image téléchargée depuis une URL
+     *   cover       (fichier)— image envoyée en multipart
+     *   article_id  (int)    — à défaut d'image fournie, hérite de la couverture
+     *                          de cet article
+     */
+    public function setQuizImage(): void
+    {
+        $this->readInput();
+        $this->requireKey();
+
+        $quizId = (int) $this->field('quiz_id', $this->field('id', 0));
+        $quiz   = Quiz::find($quizId);
+        if (!$quiz) {
+            $this->fail('Quiz introuvable.', 404);
+        }
+
+        // Source de l'image : fichier « cover », sinon « image_url », sinon
+        // couverture héritée d'un article.
+        $cover = null;
+        try { $cover = Upload::image('cover', 'quizzes'); } catch (\Throwable $e) { $cover = null; }
+        if (!$cover) {
+            $imgUrl = trim((string) $this->field('image_url', ''));
+            if ($imgUrl !== '') { $cover = $this->downloadImage($imgUrl, 'quizzes'); }
+        }
+        if (!$cover) {
+            $cover = $this->coverFromArticle((int) $this->field('article_id', 0));
+        }
+        if (!$cover) {
+            $this->fail('Aucune image : fournis « cover » (fichier), « image_url », ou « article_id » d\'un article ayant une couverture.', 422);
+        }
+
+        $old = $quiz['image'] ?? null;
+        Quiz::update($quizId, [
+            'title'        => $quiz['title'],
+            'description'  => $quiz['description'] ?? '',
+            'active'       => (int) ($quiz['active'] ?? 1),
+            'max_attempts' => (int) ($quiz['max_attempts'] ?? 0),
+            'image'        => $cover,
+        ]);
+        if ($old && $old !== $cover) {
+            try { Upload::delete($old, 'quizzes'); } catch (\Throwable $e) { /* ignore */ }
+        }
+
+        $this->json(['ok' => true, 'quiz_id' => $quizId, 'image' => $cover], 200);
+    }
+
+    /**
+     * POST /rpm/api/article/image — définit (ou remplace) la couverture d'un
+     * article existant. **Clé requise.**
+     *   article_id* (int)    — l'article à illustrer
+     *   image_url   (string) — image téléchargée depuis une URL
+     *   cover       (fichier)— image envoyée en multipart
+     */
+    public function setArticleImage(): void
+    {
+        $this->readInput();
+        $this->requireKey();
+
+        $articleId = (int) $this->field('article_id', $this->field('id', 0));
+        $art = Article::find($articleId);
+        if (!$art) {
+            $this->fail('Article introuvable.', 404);
+        }
+
+        $cover = null;
+        try { $cover = Upload::image('cover', 'articles'); } catch (\Throwable $e) { $cover = null; }
+        if (!$cover) {
+            $imgUrl = trim((string) $this->field('image_url', ''));
+            if ($imgUrl !== '') { $cover = $this->downloadImage($imgUrl, 'articles'); }
+        }
+        if (!$cover) {
+            $this->fail('Aucune image : fournis « cover » (fichier) ou « image_url ».', 422);
+        }
+
+        $old = $art['image'] ?? null;
+        Article::update($articleId, [
+            'title'     => $art['title'],
+            'content'   => $art['content'],
+            'template'  => $art['template'] ?? 'standard',
+            'active'    => (int) ($art['active'] ?? 1),
+            'parent_id' => $art['parent_id'] ?? null,
+            'image'     => $cover,
+        ]);
+        if ($old && $old !== $cover) {
+            try { Upload::delete($old, 'articles'); } catch (\Throwable $e) { /* déjà absent */ }
+        }
+
+        $this->json([
+            'ok'         => true,
+            'article_id' => $articleId,
+            'image'      => $cover,
+            'url'        => $this->absoluteUrl('article', ['id' => $articleId]),
+        ], 200);
+    }
+
+    /**
+     * Copie la couverture d'un article vers uploads/quizzes/ (l'original n'est
+     * pas modifié). Renvoie le nom de fichier créé, ou null.
+     */
+    private function coverFromArticle(int $articleId): ?string
+    {
+        $art = $articleId > 0 ? Article::find($articleId) : null;
+        if (!$art || empty($art['image'])) {
+            return null;
+        }
+        $src = APP_ROOT . '/uploads/articles/' . $art['image'];
+        if (!is_file($src)) {
+            return null;
+        }
+        try { return Upload::imageFromPath($src, 'quizzes'); }
+        catch (\Throwable $e) { return null; }
     }
 }

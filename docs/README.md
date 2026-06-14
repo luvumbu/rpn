@@ -17,6 +17,9 @@ Application web (PHP/MySQL) avec **connexion Google** pour les membres, un **esp
 7. [Sécurité](#-sécurité)
 8. [Thèmes & personnalisation](#-thèmes--personnalisation)
 9. [Référence des fichiers](#-référence-des-fichiers)
+10. [**API JSON (articles & quiz) → `docs/api/`**](api/README.md)
+
+> 📡 **API distante** : créer des articles et des quiz par clé API — voir le dossier complet [`docs/api/`](api/README.md) (fonctionnement, routes/liens, raisons de blocage, sécurité, architecture, tests).
 
 ---
 

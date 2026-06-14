@@ -85,6 +85,14 @@ class QuizController
             'isRequired'     => 0,
             'isPassRequired' => 0,
             'maxAttempts'    => 0,
+            'oneByOne'       => 1,
+            'instantFeedback'=> 0,
+            'effects'        => 0,
+            'timeLimit'      => 0,
+            'shuffle'        => 0,
+            'passThreshold'  => 0,
+            'msgPass'        => '',
+            'msgFail'        => '',
         ]);
         Session::remove('quiz_error');
     }
@@ -110,6 +118,14 @@ class QuizController
             'isRequired'     => (int) ($quiz['required'] ?? 0),
             'isPassRequired' => (int) ($quiz['pass_required'] ?? 0),
             'maxAttempts'    => (int) ($quiz['max_attempts'] ?? 0),
+            'oneByOne'       => (int) ($quiz['one_by_one'] ?? 0),
+            'instantFeedback'=> (int) ($quiz['instant_feedback'] ?? 0),
+            'effects'        => (int) ($quiz['effects'] ?? 0),
+            'timeLimit'      => (int) round((int) ($quiz['time_limit'] ?? 0) / 60),
+            'shuffle'        => (int) ($quiz['shuffle'] ?? 0),
+            'passThreshold'  => (int) ($quiz['pass_threshold'] ?? 0),
+            'msgPass'        => (string) ($quiz['msg_pass'] ?? ''),
+            'msgFail'        => (string) ($quiz['msg_fail'] ?? ''),
         ]);
         Session::remove('quiz_error');
     }
@@ -159,6 +175,31 @@ class QuizController
         // Nombre max de tentatives (0 = illimité) — défini par le créateur.
         $maxAttempts = max(0, min(50, (int) ($_POST['max_attempts'] ?? 0)));
 
+        // --- Images PAR QUESTION : nouvelle (upload) / conservée / retirée ------
+        // On capture d'abord les anciennes images (édition) pour effacer ensuite
+        // celles devenues orphelines (remplacées, retirées, ou question supprimée).
+        $oldQImages = [];
+        if ($existing) {
+            foreach (Quiz::questions($id) as $oq) {
+                if (!empty($oq['image'])) { $oldQImages[] = $oq['image']; }
+            }
+        }
+        $usedQImages = [];
+        foreach ($clean as &$cq) {
+            $k   = $cq['key'];
+            $new = $this->uploadQuestionImage($k);
+            if ($new !== null) {
+                $cq['image'] = $new;                                       // nouvelle image
+            } elseif (!empty($rawQuestions[$k]['remove_image'])) {
+                $cq['image'] = null;                                       // retirée
+            } else {
+                $ex = trim((string) ($rawQuestions[$k]['existing_image'] ?? ''));
+                $cq['image'] = ($ex !== '' && !preg_match('#[/\\\\]#', $ex)) ? $ex : null; // conservée
+            }
+            if ($cq['image'] !== null) { $usedQImages[] = $cq['image']; }
+        }
+        unset($cq);
+
         // Crée ou met à jour le cartouche.
         if ($id) {
             $data = ['title' => $title, 'description' => $description, 'active' => $active, 'max_attempts' => $maxAttempts];
@@ -187,10 +228,17 @@ class QuizController
         // (Re)crée les questions et leurs options.
         $qpos = 0;
         foreach ($clean as $q) {
-            $qid = Quiz::addQuestion($id, $q['body'], $q['type'], $qpos++);
+            $qid = Quiz::addQuestion($id, $q['body'], $q['type'], $qpos++, $q['image'] ?? null, $q['explanation'] ?? null);
             $opos = 0;
             foreach ($q['options'] as $opt) {
                 Quiz::addOption($qid, $opt['label'], $opt['correct'], $opos++);
+            }
+        }
+
+        // Efface les anciennes images de questions devenues inutilisées.
+        foreach ($oldQImages as $oimg) {
+            if (!in_array($oimg, $usedQImages, true)) {
+                Upload::delete($oimg, 'quizzes');
             }
         }
 
@@ -202,6 +250,20 @@ class QuizController
         if (Session::isAdmin()) {
             Quiz::setRequired($id, !empty($_POST['required']), !empty($_POST['pass_required']));
         }
+
+        // Options d'affichage (une par une, retour immédiat, effets) — ouvert à tous les créateurs.
+        Quiz::setModes($id, !empty($_POST['one_by_one']), !empty($_POST['instant_feedback']), !empty($_POST['effects']));
+
+        // Réglages avancés : chrono (minutes → secondes), ordre aléatoire, seuil + messages.
+        $timeLimit = max(0, min(180, (int) ($_POST['time_limit'] ?? 0))) * 60;
+        Quiz::setExtra(
+            $id,
+            $timeLimit,
+            !empty($_POST['shuffle']),
+            (int) ($_POST['pass_threshold'] ?? 0),
+            trim((string) ($_POST['msg_pass'] ?? '')),
+            trim((string) ($_POST['msg_fail'] ?? ''))
+        );
 
         $wasActive = $existing ? ((int) ($existing['active'] ?? 0) === 1) : false;
         if ($active === 1 && !$wasActive) {
@@ -218,6 +280,45 @@ class QuizController
     }
 
     /**
+     * Ajoute / change / retire UNIQUEMENT la photo de couverture d'un quiz,
+     * depuis la page du questionnaire (auteur ou admin), sans toucher aux questions.
+     */
+    public function setImage(): void
+    {
+        $this->guard();
+        $id   = (int) ($_POST['id'] ?? 0);
+        $quiz = $id ? Quiz::find($id) : null;
+        if (!$quiz || !$this->canManage($quiz)) {
+            redirect('quiz');
+        }
+
+        $newImage = null;
+        try {
+            $newImage = Upload::image('image', 'quizzes');
+        } catch (\RuntimeException $e) {
+            Session::set('quiz_error', '⚠️ Image refusée : ' . $e->getMessage());
+            redirect('quiz/show?id=' . $id);
+        }
+
+        if ($newImage !== null) {
+            if (!empty($quiz['image'])) {
+                Upload::delete($quiz['image'], 'quizzes');
+            }
+            Quiz::setImage($id, $newImage);
+            Session::set('quiz_notice', '✅ Photo de couverture ' . (!empty($quiz['image']) ? 'changée' : 'ajoutée') . '.');
+        } elseif (!empty($_POST['remove_image'])) {
+            if (!empty($quiz['image'])) {
+                Upload::delete($quiz['image'], 'quizzes');
+            }
+            Quiz::setImage($id, null);
+            Session::set('quiz_notice', '🗑️ Photo de couverture retirée.');
+        } else {
+            Session::set('quiz_error', 'Choisis une image à ajouter.');
+        }
+        redirect('quiz/show?id=' . $id);
+    }
+
+    /**
      * Nettoie/valide les questions reçues du formulaire.
      * Ne garde que les questions ayant un énoncé, ≥ 2 réponses non vides et
      * ≥ 1 bonne réponse cochée. Pour le mode « single », on ne garde qu'UNE
@@ -227,11 +328,12 @@ class QuizController
     private function normalizeQuestions(array $raw): array
     {
         $out = [];
-        foreach ($raw as $q) {
+        foreach ($raw as $k => $q) {
             if (!is_array($q)) {
                 continue;
             }
             $body = trim((string) ($q['body'] ?? ''));
+            $expl = trim((string) ($q['explanation'] ?? ''));
             $type = ($q['type'] ?? 'single') === 'multiple' ? 'multiple' : 'single';
             $rawOpts = is_array($q['opt'] ?? null) ? $q['opt'] : [];
 
@@ -260,9 +362,41 @@ class QuizController
             if ($body === '' || count($options) < 2 || !$correctSeen) {
                 continue;
             }
-            $out[] = ['body' => $body, 'type' => $type, 'options' => $options];
+            // 'key' = index POST d'origine (sert à retrouver l'image envoyée pour cette question).
+            $out[] = ['key' => $k, 'body' => $body, 'explanation' => $expl, 'type' => $type, 'options' => $options];
         }
         return $out;
+    }
+
+    /**
+     * Récupère l'image envoyée pour la question d'index $k dans le champ multiple
+     * <input type="file" name="qimg[$k]">, la valide/redimensionne via Upload, et
+     * renvoie le nom stocké (ou null si aucune image / refusée).
+     */
+    private function uploadQuestionImage($k): ?string
+    {
+        $f = $_FILES['qimg'] ?? null;
+        if (!is_array($f) || !isset($f['name'][$k])) {
+            return null;
+        }
+        if ((int) ($f['error'][$k] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        // On reconstruit un tableau « fichier unique » et on réutilise Upload::image.
+        $_FILES['__qimg_one'] = [
+            'name'     => $f['name'][$k],
+            'type'     => $f['type'][$k] ?? '',
+            'tmp_name' => $f['tmp_name'][$k],
+            'error'    => $f['error'][$k],
+            'size'     => $f['size'][$k] ?? 0,
+        ];
+        try {
+            return Upload::image('__qimg_one', 'quizzes');
+        } catch (\RuntimeException $e) {
+            return null; // image refusée pour cette question : on l'ignore sans bloquer
+        } finally {
+            unset($_FILES['__qimg_one']);
+        }
     }
 
     /**
@@ -295,6 +429,19 @@ class QuizController
             && !empty($questions)
             && !Quiz::isCompletedBy($quiz, $uid);
 
+        // Ordre aléatoire (option) : seulement en mode « répondre », pas dans le corrigé.
+        $canRetry = Quiz::canAttempt($quiz, $uid);
+        $asForm   = !$response || (isset($_GET['redo']) && $canRetry) || $mustComplete;
+        if ($asForm && (int) ($quiz['shuffle'] ?? 0) === 1) {
+            shuffle($questions);
+            foreach ($questions as &$qShuf) {
+                if (!empty($qShuf['options']) && is_array($qShuf['options'])) {
+                    shuffle($qShuf['options']);
+                }
+            }
+            unset($qShuf);
+        }
+
         view('quiz/show', [
             'user'         => Session::user(),
             'quiz'         => $quiz,
@@ -306,7 +453,7 @@ class QuizController
             'mustComplete' => $mustComplete,
             'maxAttempts'  => (int) ($quiz['max_attempts'] ?? 0),
             'attemptsUsed' => $response ? (int) $response['attempts'] : 0,
-            'canRetry'     => Quiz::canAttempt($quiz, $uid),
+            'canRetry'     => $canRetry,
             'error'        => Session::get('quiz_error'),
             'notice'       => Session::get('quiz_notice'),
         ]);
@@ -429,6 +576,11 @@ class QuizController
         $id   = (int) ($_POST['id'] ?? 0);
         $quiz = $id ? Quiz::find($id) : null;
         if ($quiz && $this->canManage($quiz)) {
+            // Efface les fichiers images : couverture + image de chaque question.
+            if (!empty($quiz['image'])) { Upload::delete($quiz['image'], 'quizzes'); }
+            foreach (Quiz::questions($id) as $q) {
+                if (!empty($q['image'])) { Upload::delete($q['image'], 'quizzes'); }
+            }
             Quiz::delete($id);
             Session::set('quiz_notice', '🗑️ Questionnaire supprimé.');
         }

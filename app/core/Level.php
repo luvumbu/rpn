@@ -103,6 +103,36 @@ class Level
         return self::fromPoints(self::points($uid));
     }
 
+    /**
+     * Classement des membres par points (du plus haut au plus bas), top $limit.
+     * Chaque entrée : id, name, picture, points, level, levelName, emoji, rank.
+     */
+    public static function leaderboard(int $limit = 50): array
+    {
+        $rows = Database::pdo()
+            ->query("SELECT id, name, picture FROM users WHERE id > 0 AND (blocked = 0 OR blocked IS NULL) ORDER BY name ASC")
+            ->fetchAll();
+        $out = [];
+        foreach ($rows as $u) {
+            $uid  = (int) $u['id'];
+            $info = self::info($uid);
+            $out[] = [
+                'id'        => $uid,
+                'name'      => $u['name'] ?: 'Membre',
+                'picture'   => $u['picture'] ?? null,
+                'points'    => (int) $info['points'],
+                'level'     => (int) $info['level'],
+                'levelName' => $info['name'],
+                'emoji'     => $info['emoji'],
+            ];
+        }
+        usort($out, static fn ($a, $b) => $b['points'] <=> $a['points']);
+        $out = array_slice($out, 0, max(1, $limit));
+        foreach ($out as $i => &$row) { $row['rank'] = $i + 1; }
+        unset($row);
+        return $out;
+    }
+
     /** Barème lisible (pour la page « Niveaux »). */
     public static function scale(): array
     {

@@ -75,7 +75,7 @@ $v = '?v=' . rawurlencode($version);
         <?php if (!empty($error)): ?><div class="error">⚠️ <?= htmlspecialchars($error) ?></div><?php endif; ?>
 
         <div class="card current">
-            <img src="<?= url('favicon.png') . $v ?>" alt="favicon actuel">
+            <img src="<?= url('assets/favicon.png') . $v ?>" alt="favicon actuel">
             <div class="ctxt">
                 <b>Favicon actuel</b><br>
                 <?= $custom ? 'Icône personnalisée.' : 'Icône par défaut du site.' ?>

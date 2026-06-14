@@ -60,7 +60,7 @@ Controller::action()   ──►  Model (PDO)        ──►  MySQL
 ```
 
 - **Front controller** : `index.php` charge `bootstrap.php`, récupère le `Router` de `config/routes.php`, puis `dispatch($method, $uri)`.
-- **`.htaccess`** (racine) : sert directement les fichiers réels (images, `favicon.svg`, `index.php`…) et redirige tout le reste vers `index.php`. `Options -Indexes`.
+- **`.htaccess`** (racine) : sert directement les fichiers réels (images, `assets/favicon.svg`, `index.php`…) et redirige tout le reste vers `index.php`. `Options -Indexes`.
 - **`app/.htaccess`** : interdit l'accès direct au dossier `app/`.
 - **`uploads/.htaccess`** : bloque l'exécution de scripts (php, phtml, cgi…) et le listing — s'applique aussi aux sous-dossiers (`uploads/articles/files/`).
 
@@ -72,8 +72,16 @@ Controller::action()   ──►  Model (PDO)        ──►  MySQL
 rpm/
 ├── index.php                 Front controller
 ├── google-callback.php       Cible de redirection Google OAuth
-├── favicon.svg / favicon.png Favicon (SVG + repli PNG)
+├── manifest.json / sw.js     Manifeste PWA + service worker (scope racine)
+├── version.json              Marqueur de version (bannière « Mise à jour »)
 ├── .htaccess                 Réécriture d'URL
+├── assets/                   Favicons, icônes PWA, captures, page hors-ligne
+│   ├── favicon.svg/.png/.ico Favicon (SVG + replis PNG/ICO)
+│   ├── icon-192/512.png      Icônes PWA (référencées par le manifeste)
+│   ├── screenshot-*.png      Captures du manifeste
+│   └── offline.html          Page de repli hors-ligne (cachée par sw.js)
+├── scripts/                  Outils de dev (génération d'icônes PowerShell)
+├── build/                    Archives de déploiement (APK / Play Store)
 ├── config/
 │   ├── config.php            Secrets (Google, BDD défaut, ADMIN_EMAILS, SECRET_KEY)
 │   └── routes.php            Table de routage

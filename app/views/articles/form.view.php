@@ -14,7 +14,19 @@
             background: radial-gradient(circle at 10% 0%, var(--glow1), transparent 42%), var(--bg-base);
         }
         body::before { content:""; position:fixed; top:0; left:0; right:0; height:6px; background:var(--bar); }
-        .wrap { max-width:680px; margin:0 auto; }
+        .wrap { max-width:1320px; margin:0 auto; }
+        /* Mise en page éditeur : formulaire à gauche, aperçu COLLANT à droite,
+           pour voir le rendu de chaque changement sans descendre dans la page. */
+        .editor-layout { display:flex; gap:26px; align-items:flex-start; }
+        .editor-col { flex:1 1 540px; min-width:0; }
+        .preview-col { flex:1 1 470px; min-width:0; }
+        @media (min-width:1000px) {
+            .preview-col { position:sticky; top:18px; align-self:flex-start; }
+            .preview-col .apv-wrap { margin-top:0; }
+            /* Hauteur fixée à la fenêtre : l'aperçu reste visible, son contenu défile à l'intérieur. */
+            .preview-col .apv-frame { height:calc(100vh - 92px) !important; min-height:340px; }
+        }
+        @media (max-width:999px) { .editor-layout { flex-direction:column; } }
         .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
         h1 { font-size:22px; } h1 span { color:var(--accent); }
         .nav a { color:var(--text); text-decoration:none; font-size:14px; padding:8px 16px; border-radius:10px; border:1px solid var(--card-border); }
@@ -178,6 +190,8 @@
             <div class="error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
+        <div class="editor-layout">
+            <div class="editor-col">
         <form class="card" id="articleForm" method="post" action="<?= htmlspecialchars($action) ?>" enctype="multipart/form-data">
             <?php if ($article): ?>
                 <input type="hidden" name="id" value="<?= (int) $article['id'] ?>">
@@ -234,6 +248,11 @@
                 <input type="checkbox" name="active" value="1" <?= ($active ?? 1) ? 'checked' : '' ?>>
                 <span>Publier l'article <small>(visible par tout le monde, même sans connexion). Décoché = brouillon privé.</small></span>
             </label>
+
+            <label for="position">Position sur l'accueil</label>
+            <input type="text" inputmode="numeric" id="position" name="position"
+                   value="<?= (int) ($position ?? 0) ?>" placeholder="0">
+            <p class="hint">Ordre d'affichage des articles sur la page d'accueil : le plus <b>petit</b> nombre apparaît en premier. À position égale (ou 0), c'est le plus récent qui passe devant.</p>
 
             <label class="pub-check">
                 <input type="checkbox" name="urgent" value="1" id="urgChk" <?= !empty($isUrgent) ? 'checked' : '' ?>>
@@ -341,6 +360,21 @@
             </label>
             <p class="hint">Clique sur ⭐ pour choisir la photo principale (elle sert de couverture / visuel en tête). Les autres forment la galerie. Le × retire une photo.</p>
 
+            <label for="tags">Tags / catégories <small style="color:var(--muted);font-weight:400">— mots-clés séparés par des virgules (facultatif)</small></label>
+            <input type="text" id="tags" name="tags" value="<?= htmlspecialchars($article['tags'] ?? '') ?>" placeholder="Ex : histoire, culture, éducation">
+            <p class="hint">Servent à classer l'article et à le retrouver via la <b>recherche</b>. Maximum 8 tags.</p>
+
+            <label for="gallery_style">Style d'affichage des images multiples (galerie)</label>
+            <select id="gallery_style" name="gallery_style" class="tpl-select">
+                <?php $curGallery = Article::galleryStyleKey($article['gallery_style'] ?? 'auto'); ?>
+                <?php foreach (Article::galleryStyles() as $gkey => $glabel): ?>
+                    <option value="<?= htmlspecialchars($gkey) ?>" <?= $gkey === $curGallery ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($glabel) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <p class="hint">S'applique quand l'article a <b>plusieurs photos</b> (la galerie sous l'article). L'aperçu en bas se met à jour. Sans effet s'il n'y a qu'une seule photo.</p>
+
             <label>Documents <small style="color:var(--muted);font-weight:400">— pièces jointes téléchargeables (PDF, Word, Excel…)</small></label>
             <input type="file" id="docs" name="docs[]"
                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.odt,.ods,.odp" multiple class="hidden-file">
@@ -360,11 +394,15 @@
                 <?= $article ? 'Enregistrer les modifications' : 'Publier l\'article' ?>
             </button>
         </form>
+            </div><!-- /.editor-col -->
 
-        <div class="apv-wrap">
-            <div class="apv-head" id="apvHead">👁️ Aperçu en temps réel — fidèle au rendu réel <span class="spin"></span></div>
-            <iframe class="apv-frame" id="apvFrame" title="Aperçu de l'article"></iframe>
-        </div>
+            <aside class="preview-col">
+                <div class="apv-wrap">
+                    <div class="apv-head" id="apvHead">👁️ Aperçu en temps réel — fidèle au rendu réel <span class="spin"></span></div>
+                    <iframe class="apv-frame" id="apvFrame" title="Aperçu de l'article"></iframe>
+                </div>
+            </aside>
+        </div><!-- /.editor-layout -->
     </div>
 
     <script>
@@ -731,6 +769,7 @@
 
         var title  = document.getElementById('title');
         var tpl    = document.getElementById('template');
+        var gallerySel = document.getElementById('gallery_style');
         var editor = document.getElementById('rteEditor');
         var ta     = document.getElementById('content');
         var head   = document.getElementById('apvHead');
@@ -756,16 +795,20 @@
                 if (heroImg) { heroImg.src = cs; }
             }
             var gsrc = gallerySrcs();
-            // La galerie est un carrousel : le jeu d'images est rendu en DOUBLE
-            // dans la piste. On remplit tous les <a> via modulo => les doublons
-            // reçoivent la même image que l'original (boucle cohérente).
+            // Toutes les vignettes de la galerie portent .g-img, quel que soit le
+            // style choisi (carrousel auto, slider, grille, miniatures). On remplit
+            // via modulo (le carrousel auto duplique le jeu → boucle cohérente) et
+            // on fixe le href du lien parent éventuel.
             if (gsrc.length) {
-                doc.querySelectorAll('.gallery-marquee a').forEach(function (a, i) {
+                doc.querySelectorAll('.gallery img.g-img').forEach(function (im, i) {
                     var src = gsrc[i % gsrc.length];
-                    a.setAttribute('href', src);
-                    var im = a.querySelector('img');
-                    if (im) { im.src = src; }
+                    im.src = src;
+                    var a = im.closest('a');
+                    if (a) { a.setAttribute('href', src); }
                 });
+                // « Bandeau + miniatures » : la grande image active = 1re photo.
+                var gm = doc.querySelector('.gallery [data-gmain]');
+                if (gm) { gm.src = gsrc[0]; }
             }
             // Modes carrousel/diaporama : les diapositives = couverture + galerie, dans l'ordre.
             var slidesSrc = [];
@@ -794,6 +837,7 @@
             data.set('template', tpl ? tpl.value : 'standard');
             data.set('has_cover', coverSrc() ? '1' : '0');
             data.set('gallery_count', String(gallerySrcs().length));
+            data.set('gallery_style', gallerySel ? gallerySel.value : 'auto');
             data.set('docs', JSON.stringify(window.__apvDocs ? window.__apvDocs.getList() : []));
 
             if (head) { head.classList.add('loading'); }
@@ -817,6 +861,7 @@
 
         if (title)  { title.addEventListener('input', schedule); }
         if (tpl)    { tpl.addEventListener('change', schedule); }
+        if (gallerySel) { gallerySel.addEventListener('change', schedule); }
         if (editor) { editor.addEventListener('input', schedule); editor.addEventListener('keyup', schedule); }
         if (ta)     { ta.addEventListener('input', schedule); }
         imgs.onChange = schedule; // photos / principale modifiées → rafraîchit l'aperçu

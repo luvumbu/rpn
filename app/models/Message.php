@@ -4,17 +4,24 @@
  */
 class Message
 {
-    /** Envoie un message. Retourne l'id créé (0 si vide). */
-    public static function send(int $senderId, int $recipientId, string $body): int
+    /** Envoie un message (texte et/ou pièce jointe). Retourne l'id créé (0 si vide). */
+    public static function send(int $senderId, int $recipientId, string $body, ?string $file = null, ?string $fileName = null): int
     {
         $body = trim($body);
-        if ($senderId <= 0 || $recipientId <= 0 || $senderId === $recipientId || $body === '') {
+        if ($senderId <= 0 || $recipientId <= 0 || $senderId === $recipientId) {
             return 0;
         }
+        if ($body === '' && ($file === null || $file === '')) {
+            return 0; // ni texte ni fichier
+        }
         $stmt = Database::pdo()->prepare(
-            'INSERT INTO messages (sender_id, recipient_id, body) VALUES (?, ?, ?)'
+            'INSERT INTO messages (sender_id, recipient_id, body, file, file_name) VALUES (?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$senderId, $recipientId, mb_substr($body, 0, 4000)]);
+        $stmt->execute([
+            $senderId, $recipientId, mb_substr($body, 0, 4000),
+            ($file !== null && $file !== '') ? $file : null,
+            ($fileName !== null && $fileName !== '') ? mb_substr($fileName, 0, 255) : null,
+        ]);
         return (int) Database::pdo()->lastInsertId();
     }
 

@@ -40,9 +40,11 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
             $opts[] = ['label' => (string) ($o['label'] ?? ''), 'correct' => !empty($o['correct'])];
         }
         $initial[] = [
-            'body'    => (string) ($q['body'] ?? ''),
-            'type'    => ($q['type'] ?? 'single') === 'multiple' ? 'multiple' : 'single',
-            'options' => $opts,
+            'body'        => (string) ($q['body'] ?? ''),
+            'type'        => ($q['type'] ?? 'single') === 'multiple' ? 'multiple' : 'single',
+            'image'       => (string) ($q['existing_image'] ?? ''),
+            'explanation' => (string) ($q['explanation'] ?? ''),
+            'options'     => $opts,
         ];
     }
 } elseif ($isEdit) {
@@ -51,9 +53,11 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
         foreach ($q['options'] as $o) {
             $opts[] = ['label' => (string) $o['label'], 'correct' => (int) $o['is_correct'] === 1];
         }
-        $initial[] = ['body' => (string) $q['body'], 'type' => (string) $q['type'], 'options' => $opts];
+        $initial[] = ['body' => (string) $q['body'], 'type' => (string) $q['type'], 'image' => (string) ($q['image'] ?? ''), 'explanation' => (string) ($q['explanation'] ?? ''), 'options' => $opts];
     }
 }
+// URL de base des images de questions (pour l'aperçu côté JS).
+$qImgBase = url('uploads/quizzes/');
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -100,6 +104,15 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
             border:1px solid var(--card-border); border-radius:10px; padding:8px 12px; display:flex; align-items:center; gap:7px; }
         .qmode label:hover { border-color:var(--accent); }
         .qmode input { accent-color:var(--accent); }
+        /* Image par question */
+        .qimg-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:4px 0 12px; }
+        .qimg-pick { display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-size:13px; font-weight:600;
+            color:var(--accent); border:1px solid var(--accent); border-radius:10px; padding:8px 14px; }
+        .qimg-pick:hover { background:var(--accent); color:var(--accent-ink); }
+        .qimg-pick input[type=file] { display:none; }
+        .qimg-current { display:flex; align-items:center; gap:10px; }
+        .qimg-thumb { width:90px; height:56px; object-fit:cover; border-radius:9px; border:1px solid var(--card-border); }
+        .qimg-rm { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); cursor:pointer; }
         .hint { font-size:12.5px; color:var(--muted); margin-bottom:10px; }
 
         .opt { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
@@ -204,6 +217,50 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
                     </label>
                 </div>
 
+                <div style="border-top:1px solid var(--card-border); padding-top:14px; display:flex; flex-direction:column; gap:12px;">
+                    <div style="font-size:13px;font-weight:700;color:var(--accent);">🎬 Déroulé & affichage</div>
+                    <div class="pubrow">
+                        <input type="checkbox" id="one_by_one" name="one_by_one" value="1" <?= !empty($oneByOne) ? 'checked' : '' ?>>
+                        <label for="one_by_one">1️⃣ <b>Une question à la fois</b> — le membre valide, puis passe à la question suivante (pas tout affiché d'un coup).</label>
+                    </div>
+                    <div class="pubrow">
+                        <input type="checkbox" id="instant_feedback" name="instant_feedback" value="1" <?= !empty($instantFeedback) ? 'checked' : '' ?>>
+                        <label for="instant_feedback">✅ <b>Retour immédiat</b> — dire tout de suite si la réponse est bonne ou fausse après chaque question (active « une question à la fois »).</label>
+                    </div>
+                    <div class="pubrow">
+                        <input type="checkbox" id="effects" name="effects" value="1" <?= !empty($effects) ? 'checked' : '' ?>>
+                        <label for="effects">🎉 <b>Effets visuels</b> — petite animation festive si c'est juste, secousse si c'est faux (nécessite le retour immédiat).</label>
+                    </div>
+                    <div class="pubrow">
+                        <input type="checkbox" id="shuffle" name="shuffle" value="1" <?= !empty($shuffle) ? 'checked' : '' ?>>
+                        <label for="shuffle">🔀 <b>Ordre aléatoire</b> — mélange les questions et les réponses à chaque tentative.</label>
+                    </div>
+                    <div class="pubrow" style="align-items:flex-start;">
+                        <span style="font-size:18px;line-height:1.3;">⏱️</span>
+                        <label style="flex:1;">Temps limité (minutes)
+                            <input type="number" name="time_limit" min="0" max="180" value="<?= (int) ($timeLimit ?? 0) ?>"
+                                   style="width:80px;margin-left:8px;padding:6px 8px;border-radius:8px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);font-family:inherit;">
+                            <small style="display:block;color:var(--muted);margin-top:4px;"><b>0 = pas de chrono.</b> Sinon, un compte à rebours s'affiche ; à la fin du temps, les réponses sont validées automatiquement.</small>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid var(--card-border); padding-top:14px; display:flex; flex-direction:column; gap:12px;">
+                    <div style="font-size:13px;font-weight:700;color:var(--accent);">🎯 Réussite</div>
+                    <div class="pubrow" style="align-items:flex-start;">
+                        <span style="font-size:18px;line-height:1.3;">🎯</span>
+                        <label style="flex:1;">Seuil de réussite (%)
+                            <input type="number" name="pass_threshold" min="0" max="100" value="<?= (int) ($passThreshold ?? 0) ?>"
+                                   style="width:80px;margin-left:8px;padding:6px 8px;border-radius:8px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);font-family:inherit;">
+                            <small style="display:block;color:var(--muted);margin-top:4px;"><b>0 = aucun seuil.</b> Sinon, le membre « réussit » à partir de ce pourcentage de bonnes réponses.</small>
+                        </label>
+                    </div>
+                    <label class="lbl" for="msg_pass">Message si réussi (facultatif)</label>
+                    <input type="text" id="msg_pass" name="msg_pass" maxlength="255" value="<?= htmlspecialchars($msgPass ?? '') ?>" placeholder="Ex : Bravo, c'est validé ! 🎉">
+                    <label class="lbl" for="msg_fail">Message si non atteint (facultatif)</label>
+                    <input type="text" id="msg_fail" name="msg_fail" maxlength="255" value="<?= htmlspecialchars($msgFail ?? '') ?>" placeholder="Ex : Presque ! Retente ta chance 💪">
+                </div>
+
                 <?php if (!empty($isAdmin)): ?>
                 <div style="border-top:1px solid var(--card-border); padding-top:14px; display:flex; flex-direction:column; gap:12px;">
                     <div class="pubrow">
@@ -238,11 +295,22 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
                 <label><input type="radio" class="qtype" value="single" checked> 🔘 Une seule bonne réponse</label>
                 <label><input type="radio" class="qtype" value="multiple"> ☑️ Plusieurs bonnes réponses</label>
             </div>
-            <p class="hint">Coche la (ou les) bonne(s) réponse(s) à gauche de chaque proposition.</p>
+            <div class="qimg-row">
+                <label class="qimg-pick">🖼️ <span class="qimg-label">Ajouter une image</span>
+                    <input type="file" class="qimg js-autoresize" accept="image/jpeg,image/png,image/gif,image/webp">
+                </label>
+                <span class="qimg-current" hidden>
+                    <img class="qimg-thumb" alt="">
+                    <label class="qimg-rm"><input type="checkbox" class="qimg-remove"> Retirer</label>
+                </span>
+                <input type="hidden" class="qimg-existing">
+            </div>
+            <p class="hint">Coche la (ou les) bonne(s) réponse(s) à gauche de chaque proposition. L'image (facultative) s'affiche au-dessus des réponses.</p>
             <div class="opts"></div>
             <div class="btn-line">
                 <button type="button" class="mini add-opt">➕ Ajouter une réponse</button>
             </div>
+            <input type="text" class="qexplain" placeholder="💡 Explication (facultatif) — montrée après la réponse / dans le corrigé" style="margin-top:10px;">
         </div>
     </template>
 
@@ -263,6 +331,7 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
 
         // Données initiales (édition ou repli après erreur).
         var INITIAL = <?= json_encode($initial, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        var QIMG_BASE = <?= json_encode($qImgBase, JSON_UNESCAPED_SLASHES) ?>;
 
         function renumber() {
             var qs = box.querySelectorAll('.question');
@@ -324,11 +393,43 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
             body.name = 'q[' + index + '][body]';
             if (data && data.body) { body.value = data.body; }
 
+            var explain = node.querySelector('.qexplain');
+            if (explain) {
+                explain.name = 'q[' + index + '][explanation]';
+                if (data && data.explanation) { explain.value = data.explanation; }
+            }
+
             var types = node.querySelectorAll('.qtype');
             types.forEach(function (r) {
                 r.name = 'q[' + index + '][type]';
                 if (data && data.type === r.value) { r.checked = true; }
                 r.addEventListener('change', function () { applyMode(node); });
+            });
+
+            // Image de la question : champ fichier + conservation/retrait de l'existante.
+            var fileInp  = node.querySelector('.qimg');
+            var existing = node.querySelector('.qimg-existing');
+            var curBox   = node.querySelector('.qimg-current');
+            var thumb    = node.querySelector('.qimg-thumb');
+            var rmCb     = node.querySelector('.qimg-remove');
+            var lbl      = node.querySelector('.qimg-label');
+            fileInp.name  = 'qimg[' + index + ']';
+            existing.name = 'q[' + index + '][existing_image]';
+            rmCb.name     = 'q[' + index + '][remove_image]';
+            rmCb.value    = '1';
+            if (data && data.image) {
+                existing.value = data.image;
+                thumb.src = QIMG_BASE + encodeURIComponent(data.image);
+                curBox.hidden = false;
+                if (lbl) { lbl.textContent = "Changer l'image"; }
+            }
+            fileInp.addEventListener('change', function () {
+                if (fileInp.files && fileInp.files[0]) {
+                    thumb.src = URL.createObjectURL(fileInp.files[0]);
+                    curBox.hidden = false;
+                    if (rmCb) { rmCb.checked = false; }
+                    if (lbl) { lbl.textContent = "Changer l'image"; }
+                }
             });
 
             node.querySelector('.add-opt').addEventListener('click', function () { addOption(node); });

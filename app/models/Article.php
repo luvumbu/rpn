@@ -6,6 +6,102 @@
  */
 class Article
 {
+    /**
+     * Styles d'affichage de la galerie (images multiples), choisis par article.
+     * clé => libellé montré dans le formulaire.
+     */
+    public static function galleryStyles(): array
+    {
+        return [
+            'auto'   => 'Carrousel automatique (défilement continu)',
+            'slider' => 'Slider manuel (flèches ‹ › + points)',
+            'grid'   => 'Grille / mosaïque',
+            'thumbs' => 'Bandeau + miniatures',
+        ];
+    }
+
+    /** Valide une clé de style de galerie (repli : 'auto'). */
+    public static function galleryStyleKey(?string $k): string
+    {
+        $k = (string) $k;
+        return array_key_exists($k, self::galleryStyles()) ? $k : 'auto';
+    }
+
+    /** Transforme une chaîne « a, b , c » en liste propre ['a','b','c'] (dédupliquée). */
+    public static function tagsToList(?string $raw): array
+    {
+        $out = [];
+        foreach (explode(',', (string) $raw) as $t) {
+            $t = trim($t);
+            if ($t !== '' && !in_array($t, $out, true)) {
+                $out[] = $t;
+            }
+        }
+        return $out;
+    }
+
+    /** Normalise une saisie de tags en chaîne stockable (max 8 tags, 30 car. chacun). */
+    public static function normalizeTags(?string $raw): string
+    {
+        $list = array_slice(self::tagsToList($raw), 0, 8);
+        $list = array_map(fn ($t) => mb_substr($t, 0, 30), $list);
+        return implode(', ', $list);
+    }
+
+    /** Liste de tous les tags utilisés par des articles PUBLIÉS (uniques, triés). */
+    public static function allPublicTags(): array
+    {
+        $rows = Database::pdo()
+            ->query("SELECT tags FROM articles WHERE active = 1 AND tags IS NOT NULL AND tags <> ''")
+            ->fetchAll(PDO::FETCH_COLUMN);
+        $all = [];
+        foreach ($rows as $r) {
+            foreach (self::tagsToList($r) as $t) {
+                $key = mb_strtolower($t);
+                if (!isset($all[$key])) { $all[$key] = $t; }
+            }
+        }
+        $vals = array_values($all);
+        usort($vals, fn ($a, $b) => strcasecmp($a, $b));
+        return $vals;
+    }
+
+    /**
+     * Recherche d'articles PUBLIÉS par texte (titre/contenu/tags) et/ou tag exact.
+     * Le masquage par signalements est filtré par l'appelant (isFlagHidden).
+     */
+    public static function searchPublic(string $q, string $tag): array
+    {
+        $q   = trim($q);
+        $tag = trim($tag);
+        $where = ['active = 1'];
+        $args  = [];
+        if ($q !== '') {
+            $where[] = '(title LIKE ? OR content LIKE ? OR tags LIKE ?)';
+            $like = '%' . $q . '%';
+            $args[] = $like; $args[] = $like; $args[] = $like;
+        }
+        if ($tag !== '') {
+            $where[] = 'tags LIKE ?';
+            $args[] = '%' . $tag . '%';
+        }
+        $sql = 'SELECT * FROM articles WHERE ' . implode(' AND ', $where) . ' ORDER BY created_at DESC LIMIT 100';
+        $stmt = Database::pdo()->prepare($sql);
+        $stmt->execute($args);
+        $rows = $stmt->fetchAll();
+        // Filtrage TAG exact (le LIKE est large : on revérifie l'appartenance réelle).
+        if ($tag !== '') {
+            $needle = mb_strtolower($tag);
+            $rows = array_values(array_filter($rows, function ($a) use ($needle) {
+                foreach (self::tagsToList($a['tags'] ?? '') as $t) {
+                    if (mb_strtolower($t) === $needle) { return true; }
+                }
+                return false;
+            }));
+        }
+        return $rows;
+    }
+
     /** Tous les articles, du plus récent au plus ancien. */
     public static function all(): array
     {
@@ -14,11 +110,15 @@ class Article
             ->fetchAll();
     }
 
-    /** Articles de premier niveau (sans parent), du plus récent au plus ancien. */
+    /**
+     * Articles de premier niveau (sans parent).
+     * Ordre : position manuelle croissante (petit = en premier), puis du plus
+     * récent au plus ancien pour ceux qui partagent la même position (0 = défaut).
+     */
     public static function roots(): array
     {
         return Database::pdo()
-            ->query('SELECT * FROM articles WHERE parent_id IS NULL ORDER BY created_at DESC')
+            ->query('SELECT * FROM articles WHERE parent_id IS NULL ORDER BY position ASC, created_at DESC')
             ->fetchAll();
     }
 
@@ -88,8 +188,8 @@ class Article
     public static function create(array $data): int
     {
         $stmt = Database::pdo()->prepare(
-            'INSERT INTO articles (title, content, image, template, active, parent_id, author_id, author_name, access_password)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO articles (title, content, image, template, active, parent_id, author_id, author_name, access_password, position, gallery_style, tags)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $data['title'],
@@ -101,6 +201,9 @@ class Article
             $data['author_id']   ?? null,
             $data['author_name'] ?? '',
             $data['access_password'] ?? null,
+            isset($data['position']) ? (int) $data['position'] : 0,
+            self::galleryStyleKey($data['gallery_style'] ?? 'auto'),
+            self::normalizeTags($data['tags'] ?? '') ?: null,
         ]);
         return (int) Database::pdo()->lastInsertId();
     }
@@ -136,17 +239,32 @@ class Article
         $template = $data['template'] ?? 'standard';
         $active   = isset($data['active']) ? (int) $data['active'] : 1;
         $parent   = !empty($data['parent_id']) ? (int) $data['parent_id'] : null;
+        $position = isset($data['position']) ? (int) $data['position'] : 0;
+        $gallery  = self::galleryStyleKey($data['gallery_style'] ?? 'auto');
+        $tags     = self::normalizeTags($data['tags'] ?? '') ?: null;
         if (array_key_exists('image', $data)) {
             $stmt = Database::pdo()->prepare(
-                'UPDATE articles SET title = ?, content = ?, template = ?, active = ?, parent_id = ?, image = ?, updated_at = NOW() WHERE id = ?'
+                'UPDATE articles SET title = ?, content = ?, template = ?, active = ?, parent_id = ?, position = ?, gallery_style = ?, tags = ?, image = ?, updated_at = NOW() WHERE id = ?'
             );
-            $stmt->execute([$data['title'], $data['content'], $template, $active, $parent, $data['image'], $id]);
+            $stmt->execute([$data['title'], $data['content'], $template, $active, $parent, $position, $gallery, $tags, $data['image'], $id]);
         } else {
             $stmt = Database::pdo()->prepare(
-                'UPDATE articles SET title = ?, content = ?, template = ?, active = ?, parent_id = ?, updated_at = NOW() WHERE id = ?'
+                'UPDATE articles SET title = ?, content = ?, template = ?, active = ?, parent_id = ?, position = ?, gallery_style = ?, tags = ?, updated_at = NOW() WHERE id = ?'
             );
-            $stmt->execute([$data['title'], $data['content'], $template, $active, $parent, $id]);
+            $stmt->execute([$data['title'], $data['content'], $template, $active, $parent, $position, $gallery, $tags, $id]);
         }
+    }
+
+    /**
+     * Applique une même mise en page (template) à TOUS les articles existants.
+     * Action ponctuelle « style général » : écrase le modèle individuel de chaque
+     * article. Retourne le nombre d'articles modifiés.
+     */
+    public static function setTemplateForAll(string $template): int
+    {
+        $stmt = Database::pdo()->prepare('UPDATE articles SET template = ?, updated_at = NOW()');
+        $stmt->execute([$template]);
+        return $stmt->rowCount();
     }
 
     /** Définit l'état publié (active) sans toucher au reste de l'article. */
@@ -205,7 +323,28 @@ class Article
                 ORDER BY aq.position ASC, aq.id ASC';
         $stmt = Database::pdo()->prepare($sql);
         $stmt->execute([$articleId]);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+
+        // ANTI-DOUBLON D'AFFICHAGE : on ne montre qu'UN seul quiz par titre, même
+        // si plusieurs quiz du même intitulé sont liés à l'article. En cas de
+        // doublon, on garde celui qui a une image ; à défaut, le plus récent (id).
+        $byTitle = [];
+        foreach ($rows as $q) {
+            $key = mb_strtolower(trim((string) ($q['title'] ?? '')));
+            if (!isset($byTitle[$key])) {
+                $byTitle[$key] = $q;
+                continue;
+            }
+            $cur       = $byTitle[$key];
+            $qHasImg   = !empty($q['image']);
+            $curHasImg = !empty($cur['image']);
+            if ($qHasImg !== $curHasImg) {
+                if ($qHasImg) { $byTitle[$key] = $q; }            // l'image l'emporte
+            } elseif ((int) $q['id'] > (int) $cur['id']) {
+                $byTitle[$key] = $q;                               // sinon, le plus récent
+            }
+        }
+        return array_values($byTitle);
     }
 
     /** Remplace la liste des questionnaires associés à un article. */

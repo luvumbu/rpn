@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPN — Dossier de présentation & offre (entreprise)</title>
+<style>
+    :root { --noir:#14110f; --rouge:#e63946; --vert:#2a9d4a; --or:#f4c14b;
+        --bg:#fbfbfd; --card:#fff; --line:#e7e7ee; --text:#23232b; --muted:#6b7280; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    .bar { height:6px; background:linear-gradient(90deg,var(--rouge) 0 33%,var(--noir) 33% 66%,var(--vert) 66% 100%); }
+    .toolbar { max-width:980px; margin:14px auto 0; padding:0 22px; text-align:right; }
+    .toolbar button { font:inherit; font-weight:700; cursor:pointer; border:none; border-radius:10px;
+        background:var(--noir); color:#fff; padding:10px 18px; }
+    .toolbar button:hover { filter:brightness(1.15); }
+    .cover { background:var(--noir); color:#fff; padding:60px 24px; text-align:center;
+        background-image:radial-gradient(circle at 15% 0%,rgba(230,57,70,.30),transparent 45%),radial-gradient(circle at 85% 120%,rgba(42,157,74,.30),transparent 48%); }
+    .logo { width:72px; height:72px; margin:0 auto 18px; border-radius:20px; display:flex; align-items:center; justify-content:center;
+        font-weight:800; font-size:26px; color:var(--noir); background:var(--or); }
+    .cover h1 { font-size:34px; letter-spacing:.5px; } .cover h1 b { color:var(--or); }
+    .cover .sub { color:rgba(255,255,255,.82); margin-top:12px; font-size:16px; max-width:640px; margin-inline:auto; }
+    .cover .meta { margin-top:22px; font-size:13px; color:rgba(255,255,255,.6); }
+    .wrap { max-width:980px; margin:0 auto; padding:34px 22px 60px; }
+    h2 { font-size:23px; color:var(--noir); margin:38px 0 8px; }
+    h2 .e { margin-right:8px; }
+    p.lead { color:var(--muted); margin-bottom:14px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 22px; margin-bottom:16px; border-left:5px solid var(--or); }
+    .feat { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; }
+    .feat .f { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+    .feat .f h3 { font-size:15.5px; color:var(--noir); margin-bottom:4px; }
+    .feat .f p { font-size:13.5px; color:var(--muted); }
+    table { width:100%; border-collapse:collapse; margin:8px 0; font-size:14px; }
+    th, td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { background:#faf7ef; color:var(--noir); font-size:12.5px; text-transform:uppercase; letter-spacing:.4px; }
+    td.num { text-align:right; white-space:nowrap; font-weight:700; }
+    tr:last-child td { border-bottom:none; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:700; background:rgba(244,193,75,.22); color:#8a6d1f; }
+    .reco { background:#eefaf0; border:1px solid #b7e3c2; border-left:5px solid var(--vert); border-radius:14px; padding:18px 22px; margin:8px 0 16px; }
+    .reco b { color:#1d7a37; }
+    .big2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin:6px 0; }
+    .box { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; text-align:center; }
+    .box .big { font-size:24px; font-weight:800; color:var(--noir); }
+    .box .lbl { font-size:12.5px; color:var(--muted); margin-top:2px; }
+    .steps { counter-reset:s; list-style:none; padding:0; }
+    .steps li { position:relative; padding:10px 0 10px 44px; border-bottom:1px solid var(--line); }
+    .steps li:last-child { border-bottom:none; }
+    .steps li::before { counter-increment:s; content:counter(s); position:absolute; left:0; top:10px; width:30px; height:30px;
+        border-radius:50%; background:var(--noir); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .contact { background:var(--noir); color:#fff; border-radius:16px; padding:22px 24px; margin-top:8px; }
+    .contact b { color:var(--or); }
+    .ph { background:#fff8e6; border:1px dashed #e0c768; border-radius:8px; padding:1px 7px; color:#8a6d1f; font-size:13px; }
+    .disclaimer { background:#fff8e6; border:1px solid #f0dca0; border-radius:12px; padding:14px 16px; font-size:13px; color:#6b5b16; margin-top:24px; }
+    footer { text-align:center; padding:24px; color:var(--muted); font-size:13px; }
+    @media print {
+        .toolbar { display:none; }
+        body { background:#fff; }
+        .card, .feat .f, .box { break-inside:avoid; }
+        h2 { break-after:avoid; }
+    }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="toolbar"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
+
+<section class="cover">
+    <div class="logo">RPN</div>
+    <h1>Plateforme communautaire <b>RPN</b></h1>
+    <p class="sub">Dossier de présentation &amp; proposition de service — solution web clé en main pour animer, former et fédérer une communauté.</p>
+    <p class="meta">Préparé pour : <span class="ph">[Nom de l'entreprise]</span> · Par : <span class="ph">[Ton nom]</span> · 2026</p>
+</section>
+
+<div class="wrap">
+
+    <h2><span class="e">🎯</span>1. En bref</h2>
+    <div class="card">
+        <p>RPN est une <b>plateforme web complète</b>, déjà développée et opérationnelle, qui réunit en un seul outil : publication d'articles, questionnaires interactifs, agenda &amp; rendez-vous, messagerie privée avec salons visio, carte de la communauté et espace d'administration. Elle est <b>prête à l'emploi</b> — vous l'utilisez immédiatement, hébergée et maintenue, <b>sans aucun développement à financer</b>.</p>
+    </div>
+
+    <h2><span class="e">🧩</span>2. Ce que la plateforme sait faire</h2>
+    <div class="feat">
+        <div class="f"><h3>📰 Articles &amp; contenus</h3><p>Éditeur riche, modèles de mise en page, galeries d'images, pièces jointes, tags &amp; recherche, avis et discussions.</p></div>
+        <div class="f"><h3>❓ Questionnaires (QCM)</h3><p>Création de quiz, une question à la fois, retour immédiat, effets, image par question, seuil de réussite, chrono.</p></div>
+        <div class="f"><h3>📅 Agenda &amp; rendez-vous</h3><p>Créneaux, réservations, géolocalisation, export .ics, rappels automatiques avant chaque rendez-vous.</p></div>
+        <div class="f"><h3>✉️ Messagerie &amp; visio</h3><p>Messages privés en temps réel, partage de fichiers, et <b>salons visio</b> (audio, vidéo, partage d'écran).</p></div>
+        <div class="f"><h3>👥 Communauté</h3><p>Annuaire des membres, carte de la diaspora, classement &amp; niveaux (gamification) pour l'engagement.</p></div>
+        <div class="f"><h3>🔐 Espace administrateur</h3><p>Gestion des membres, statistiques d'usage, paramètres, thèmes &amp; identité visuelle, sécurité.</p></div>
+        <div class="f"><h3>📲 Application installable (PWA)</h3><p>S'installe sur mobile et PC, fonctionne hors-ligne, notifications — sans passer par les stores.</p></div>
+        <div class="f"><h3>🛡️ Sécurité</h3><p>Connexion Google + email, protection anti-bruteforce, requêtes sécurisées, uploads cloisonnés.</p></div>
+    </div>
+
+    <h2><span class="e">💎</span>3. La valeur que vous recevez</h2>
+    <div class="big2">
+        <div class="box"><div class="big">16 000 – 42 000 €</div><div class="lbl">Valeur de la plateforme déjà construite</div></div>
+        <div class="box"><div class="big">255 – 560 h</div><div class="lbl">de développement déjà réalisées</div></div>
+        <div class="box"><div class="big">0 €</div><div class="lbl">à investir au départ</div></div>
+    </div>
+    <p class="lead">Vous accédez immédiatement à un outil qui coûterait <b>plusieurs dizaines de milliers d'euros</b> et des mois de travail à faire développer — sans ce risque ni cette attente.</p>
+
+    <h2><span class="e">📦</span>4. Notre offre (abonnement mensuel clé en main)</h2>
+    <p class="lead">Vous ne payez ni développement ni serveur : un abonnement unique couvre l'<b>hébergement</b>, la <b>maintenance</b>, la <b>sécurité</b> et le <b>support</b>.</p>
+    <div class="card">
+        <table>
+            <tr><th>Formule</th><th>Inclus</th><th class="num">Prix / mois</th></tr>
+            <tr><td><b>🟢 Essentiel</b></td><td>Hébergement + maintenance + corrections + support par email</td><td class="num">250 – 400 €</td></tr>
+            <tr><td><b>🟡 Pro</b> <span class="pill">recommandé</span></td><td>+ sauvegardes gérées + évolutions mineures + support prioritaire + salons visio</td><td class="num">500 – 900 €</td></tr>
+            <tr><td><b>🔴 Premium</b></td><td>Grosse communauté + engagement de service (SLA) + évolutions régulières + visio à votre marque</td><td class="num">1 200 – 2 500 €</td></tr>
+        </table>
+        <p class="lead" style="margin-top:10px;">Mise en route unique (paramétrage, mise en ligne, formation) : <b>500 – 2 000 €</b>.</p>
+    </div>
+    <div class="reco">
+        <b>Recommandation pour démarrer :</b> formule <b>Pro à 500 – 700 €/mois</b>, engagement 12 mois. Vous disposez d'une plateforme complète, hébergée et maintenue, pour le prix d'un service mensuel — sans investissement initial.
+    </div>
+
+    <p class="lead" style="margin-top:18px;"><b>🤝 Tarif solidaire — associations &amp; organismes à but non lucratif</b></p>
+    <div class="card" style="border-left-color:var(--vert);">
+        <p class="lead">Parce que les associations ont des moyens limités, nous appliquons un tarif réduit (mêmes prestations) :</p>
+        <table>
+            <tr><th>Formule association</th><th>Inclus</th><th class="num">Prix / mois</th></tr>
+            <tr><td><b>🟢 Asso Essentiel</b></td><td>Hébergement + maintenance + corrections + support par email</td><td class="num">120 – 250 €</td></tr>
+            <tr><td><b>🟡 Asso Pro</b> <span class="pill">recommandé</span></td><td>+ sauvegardes + évolutions mineures + support prioritaire + salons visio</td><td class="num">300 – 500 €</td></tr>
+        </table>
+        <p class="lead" style="margin-top:8px;">Mise en route <b>réduite (250 – 800 €)</b>, voire <b>offerte</b> pour un engagement de 12 mois. Sur justificatif (statuts de l'association / numéro RNA ou équivalent).</p>
+    </div>
+
+    <h2><span class="e">✅</span>5. Ce qui est inclus chaque mois</h2>
+    <div class="card">
+        <table>
+            <tr><td>🖥️ Hébergement &amp; nom de domaine</td><td>✔️</td></tr>
+            <tr><td>🛠️ Maintenance, mises à jour &amp; correctifs de sécurité</td><td>✔️</td></tr>
+            <tr><td>💾 Sauvegardes régulières des données</td><td>✔️ (Pro &amp; Premium)</td></tr>
+            <tr><td>🎧 Support &amp; assistance</td><td>✔️</td></tr>
+            <tr><td>🚀 Petites évolutions / ajustements</td><td>✔️ (Pro &amp; Premium)</td></tr>
+            <tr><td>🎥 Salons visio (réunions en ligne)</td><td>✔️</td></tr>
+        </table>
+    </div>
+
+    <h2><span class="e">🧭</span>6. Comment on démarre</h2>
+    <ol class="steps">
+        <li><b>Échange</b> — on cale vos besoins et la formule adaptée.</li>
+        <li><b>Mise en route</b> — installation, votre logo/identité, vos premiers contenus.</li>
+        <li><b>Formation courte</b> — prise en main de l'espace admin.</li>
+        <li><b>Lancement</b> — la plateforme est en ligne pour vos membres.</li>
+        <li><b>Suivi mensuel</b> — maintenance, support et évolutions.</li>
+    </ol>
+
+    <h2><span class="e">📬</span>7. Contact</h2>
+    <div class="contact">
+        Intéressé ? Reprenons contact pour personnaliser l'offre.<br>
+        <b>Nom :</b> <span class="ph">[Ton nom]</span> &nbsp;·&nbsp; <b>Email :</b> <span class="ph">[ton-email]</span> &nbsp;·&nbsp; <b>Téléphone :</b> <span class="ph">[ton-téléphone]</span>
+    </div>
+
+    <div class="disclaimer">
+        ⚠️ Montants indicatifs (marché francophone 2026), à ajuster selon le nombre d'utilisateurs, le niveau de service garanti et les évolutions souhaitées. Une proposition contractuelle détaillée (prestations, délais, propriété, durée d'engagement) sera fournie avant tout démarrage. <b>Pense à remplacer les champs <span class="ph">[entre crochets]</span> par tes informations avant l'envoi.</b>
+    </div>
+</div>
+<footer>RPN — Institut Sankofa · Dossier de présentation &amp; proposition · 2026</footer>
+</body>
+</html>

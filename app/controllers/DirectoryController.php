@@ -21,7 +21,7 @@ class DirectoryController
             return;
         }
         $out = [];
-        foreach (User::searchProfiles($q) as $u) {       // discoverable = 1 uniquement
+        foreach (User::searchProfiles($q, Session::isAdmin()) as $u) { // admin : tout le monde ; sinon trouvables
             $uid = (int) $u['id'];
             if ($uid === $meId) {
                 continue;
@@ -49,8 +49,8 @@ class DirectoryController
         $q       = trim((string) ($_GET['q'] ?? ''));
         $meId    = (int) (Session::user()['id'] ?? 0);
         // Recherche LARGE : nom, matière, pays, ville, adresse, code.
-        // (searchProfiles ne renvoie QUE les profils visibles « discoverable ».)
-        $results = User::searchProfiles($q);
+        // Un admin recherche TOUT LE MONDE ; un membre ne voit que les profils « trouvables ».
+        $results = User::searchProfiles($q, Session::isAdmin());
 
         // Mes coordonnées (pour calculer la distance « toi ↔ lui »).
         $me     = $meId > 0 ? User::findById($meId) : null;

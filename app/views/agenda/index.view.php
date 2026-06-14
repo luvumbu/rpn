@@ -682,6 +682,8 @@ $delaiOpts = [
         <?php if (!empty($notice)): ?><div class="flash ok"><?= htmlspecialchars($notice) ?></div><?php endif; ?>
         <?php if (!empty($error)): ?><div class="flash err"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
+        <?= meet_link_widget() ?>
+
         <div class="tabs">
             <button type="button" class="tab<?= $activeTab === 'find' ? ' active' : '' ?>" data-tab="find">🔎 Trouver un cours</button>
             <button type="button" class="tab<?= $activeTab === 'cal' ? ' active' : '' ?>" data-tab="cal">🗓️ Calendrier</button>

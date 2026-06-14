@@ -13,12 +13,36 @@ class NotificationController
         }
     }
 
+    /**
+     * Crée les rappels d'agenda dus pour ce membre : pour chaque rendez-vous
+     * qu'il a réservé et qui commence dans l'heure (pas encore rappelé), on ajoute
+     * une notification et on marque le rappel comme envoyé (pas de doublon).
+     * Appelé à chaque sondage / ouverture de la page notifications.
+     */
+    private function pushDueReminders(int $uid): void
+    {
+        if ($uid <= 0) {
+            return;
+        }
+        foreach (AppointmentBooking::dueReminders($uid, 60) as $rdv) {
+            $heure = date('H:i', strtotime((string) $rdv['start_at']));
+            Notification::add(
+                $uid,
+                '⏰ Rappel : « ' . $rdv['title'] . ' » commence bientôt (à ' . $heure . ').',
+                '⏰',
+                'agenda/event?id=' . (int) $rdv['id']
+            );
+            AppointmentBooking::markReminded((int) $rdv['id'], $uid);
+        }
+    }
+
     /** Liste des notifications du membre ; les marque toutes comme lues. */
     public function index(): void
     {
         $this->guard();
         $uid = (int) (Session::user()['id'] ?? 0);
 
+        $this->pushDueReminders($uid);
         $items = Notification::forUser($uid);
         // Vu = lu : on remet le compteur à zéro à la consultation.
         Notification::markAllRead($uid);
@@ -43,6 +67,7 @@ class NotificationController
             return;
         }
         $uid   = (int) (Session::user()['id'] ?? 0);
+        $this->pushDueReminders($uid); // crée les rappels d'agenda dus avant de renvoyer les non-lues
         $items = Notification::unreadForUser($uid, 10);
         $maxId = 0;
         foreach ($items as $it) {

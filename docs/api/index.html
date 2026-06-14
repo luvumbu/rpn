@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API RPN — Documentation complète</title>
+<style>
+  :root { --accent:#f4c14b; --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e6e8ec; --muted:#9aa3b2;
+          --green:#16a34a; --red:#dc2626; --blue:#3b82f6; --amber:#f59e0b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt);
+         font-family:"Poppins",system-ui,Segoe UI,Roboto,sans-serif; line-height:1.65; }
+  .layout { display:grid; grid-template-columns:280px 1fr; min-height:100vh; }
+  /* Sommaire */
+  nav.toc { position:sticky; top:0; align-self:start; height:100vh; overflow:auto;
+            background:var(--card); border-right:1px solid var(--line); padding:24px 18px; }
+  nav.toc h1 { font-size:18px; margin:0 0 4px; color:var(--accent); }
+  nav.toc .sub { color:var(--muted); font-size:12.5px; margin-bottom:18px; }
+  nav.toc a { display:block; color:var(--txt); text-decoration:none; padding:7px 10px; border-radius:8px;
+              font-size:14px; opacity:.85; }
+  nav.toc a:hover { background:rgba(244,193,75,.12); opacity:1; }
+  nav.toc .grp { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+                 margin:16px 10px 4px; }
+  /* Contenu */
+  main { padding:40px 48px 80px; max-width:920px; }
+  section { scroll-margin-top:20px; margin-bottom:48px; }
+  h2 { font-size:24px; border-bottom:2px solid var(--accent); padding-bottom:8px; margin-top:0; }
+  h3 { font-size:18px; color:var(--accent); margin-top:28px; }
+  h4 { font-size:15px; color:var(--muted); margin:18px 0 6px; }
+  p, li { font-size:14.5px; }
+  code { background:#0b0d12; border:1px solid var(--line); padding:1px 6px; border-radius:5px;
+         font-family:"JetBrains Mono",Consolas,monospace; font-size:13px; color:#ffd87a; }
+  pre { background:#0b0d12; border:1px solid var(--line); border-radius:10px; padding:16px 18px;
+        overflow:auto; }
+  pre code { background:none; border:none; padding:0; color:#d7dce5; font-size:12.8px; line-height:1.55; }
+  table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; }
+  th, td { border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top; }
+  th { background:#1d212a; color:var(--accent); }
+  tr:nth-child(even) td { background:rgba(255,255,255,.015); }
+  .box { border-left:4px solid var(--muted); background:var(--card); border-radius:8px;
+         padding:12px 16px; margin:16px 0; font-size:14px; }
+  .box.green { border-color:var(--green); }
+  .box.red   { border-color:var(--red); }
+  .box.blue  { border-color:var(--blue); }
+  .box.amber { border-color:var(--amber); }
+  .pill { display:inline-block; padding:1px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+  .get  { background:rgba(59,130,246,.18); color:#93c5fd; }
+  .post { background:rgba(22,163,74,.18);  color:#86efac; }
+  .hd { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .muted { color:var(--muted); }
+  a.up { color:var(--accent); }
+  hr { border:none; border-top:1px solid var(--line); margin:40px 0; }
+  @media (max-width:860px){ .layout{ grid-template-columns:1fr; } nav.toc{ position:static; height:auto; }
+    main{ padding:28px 20px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <h1>📡 API RPN</h1>
+  <div class="sub">Documentation complète — articles &amp; quiz par clé API</div>
+  <div class="grp">Démarrer</div>
+  <a href="#apercu">Aperçu &amp; quick start</a>
+  <a href="#fonctionnement">1. Fonctionnement</a>
+  <a href="#routes">2. Routes &amp; lien article↔quiz</a>
+  <div class="grp">Exploitation</div>
+  <a href="#blocages">3. Pourquoi ça bloque</a>
+  <a href="#securite">4. Sécurité</a>
+  <div class="grp">Technique</div>
+  <a href="#mvc">5. Architecture MVC</a>
+  <a href="#tests">6. Tests</a>
+</nav>
+
+<main>
+
+<!-- ============ APERÇU ============ -->
+<section id="apercu">
+  <h2>API RPN — Aperçu</h2>
+  <p>L'<strong>API JSON</strong> de RPN permet de piloter le site à distance : créer des
+  <strong>articles</strong> et des <strong>questionnaires (quiz)</strong>, sans passer par
+  l'interface web. Elle sert par exemple à demander à un assistant de rédiger un cours et de
+  le publier directement, avec son quiz associé.</p>
+  <div class="box">
+    <strong>Base URL (production)</strong> : <code>https://bokonzi.com/rpn</code><br>
+    <strong>Authentification</strong> : clé API dans l'en-tête <code>X-API-Key</code>
+  </div>
+
+  <h3>En 30 secondes</h3>
+<pre><code># 1. Tester que l'API répond (public)
+curl https://bokonzi.com/rpn/api/ping
+# → {"ok":true,"service":"RPN API","date":"…"}
+
+# 2. Créer un article (clé requise)
+curl -X POST https://bokonzi.com/rpn/api/article \
+  -H "X-API-Key: VOTRE_CLE" -H "Content-Type: application/json" \
+  -d '{"title":"Mon article","content":"&lt;p&gt;Bonjour&lt;/p&gt;"}'
+
+# 3. Créer un quiz lié à l'article 15
+curl -X POST https://bokonzi.com/rpn/api/quiz \
+  -H "X-API-Key: VOTRE_CLE" -H "Content-Type: application/json" \
+  -d '{"title":"Mon quiz","article_id":15,"questions":[
+        {"body":"2+2 ?","type":"single","options":[
+          {"label":"4","correct":true},{"label":"5","correct":false}]}]}'</code></pre>
+
+  <div class="box amber"><strong>La clé API</strong> — référence : réglage <code>api_key</code>
+  (régénérable depuis <code>admin/settings</code>) ; à défaut, la constante <code>API_KEY</code>
+  de <code>config/config.php</code>. <strong>Régénérer la clé révoque immédiatement l'ancienne.</strong></div>
+</section>
+
+<hr>
+
+<!-- ============ 1. FONCTIONNEMENT ============ -->
+<section id="fonctionnement">
+  <h2>1. Comment l'API fonctionne</h2>
+  <p>Chaque appel passe par le routeur (<code>index.php</code> + <code>config/routes.php</code>)
+  puis le contrôleur <code>ApiController</code>, qui hérite du socle commun <code>ApiKernel</code>.
+  Le cycle d'une écriture est toujours le même :</p>
+<pre><code>Requête HTTP
+   │
+   ▼
+1. readInput()   → lit le corps (JSON ou formulaire)
+2. requireKey()  → vérifie la clé API   ──►  401 si absente / invalide  (STOP)
+3. validation    → champs requis ?       ──►  422 si non  (STOP, rien créé)
+4. nettoyage     → strip_tags / Html::clean (anti-XSS)
+5. écriture      → modèles en requêtes préparées (PDO)
+   │
+   ▼
+Réponse JSON  { ok:true, … }  (201 Created)</code></pre>
+
+  <h3>Authentification</h3>
+  <p>La clé est transmise (par priorité) : en-tête <code>X-API-Key</code> <em>(recommandé)</em>,
+  champ <code>key</code> du corps JSON, <code>$_POST</code>, ou <code>?key=</code>. Comparaison
+  par <code>hash_equals</code> (temps constant).</p>
+
+  <h3>Format des réponses</h3>
+  <table>
+    <tr><th>Cas</th><th>Forme</th></tr>
+    <tr><td>Succès</td><td><code>{ "ok": true, … }</code> + code <strong>200</strong> (ping) ou <strong>201</strong> (création)</td></tr>
+    <tr><td>Erreur</td><td><code>{ "ok": false, "error": "message" }</code> + code 401 / 422 / 404 / 500</td></tr>
+  </table>
+
+  <h3>Les points d'entrée</h3>
+
+  <div class="hd"><span class="pill get">GET</span> <code>/rpn/api/ping</code> <span class="muted">— public, ne modifie rien</span></div>
+<pre><code>{ "ok": true, "service": "RPN API", "date": "2026-06-11T09:15:55+02:00" }</code></pre>
+
+  <div class="hd"><span class="pill post">POST</span> <code>/rpn/api/article</code> <span class="muted">— clé requise</span></div>
+  <table>
+    <tr><th>Champ</th><th>Type</th><th>Obl.</th><th>Détail</th></tr>
+    <tr><td><code>title</code></td><td>string</td><td>✅</td><td>titre (≤ 255)</td></tr>
+    <tr><td><code>content</code></td><td>string (HTML)</td><td>✅</td><td>filtré par <code>Html::clean</code></td></tr>
+    <tr><td><code>template</code></td><td>string</td><td></td><td>mise en page (défaut <code>standard</code>)</td></tr>
+    <tr><td><code>active</code></td><td>0/1</td><td></td><td>1 = publié (défaut), 0 = brouillon</td></tr>
+    <tr><td><code>author_name</code></td><td>string</td><td></td><td>défaut <code>RPN</code></td></tr>
+    <tr><td><code>parent_id</code></td><td>int</td><td></td><td>rattache à un article parent</td></tr>
+    <tr><td><code>image_url</code> / <code>gallery_urls</code></td><td>string / array</td><td></td><td>images téléchargées depuis des URLs</td></tr>
+    <tr><td><code>cover</code> / <code>photos[]</code></td><td>fichier</td><td></td><td>uploads directs (multipart)</td></tr>
+  </table>
+<pre><code>{ "ok": true, "id": 16, "active": 1, "template": "standard",
+  "url": "https://bokonzi.com/rpn/article?id=16" }</code></pre>
+
+  <div class="hd"><span class="pill post">POST</span> <code>/rpn/api/quiz</code> <span class="muted">— clé requise</span></div>
+  <table>
+    <tr><th>Champ</th><th>Type</th><th>Obl.</th><th>Détail</th></tr>
+    <tr><td><code>title</code></td><td>string</td><td>✅</td><td>titre (≤ 200)</td></tr>
+    <tr><td><code>questions</code></td><td>array</td><td>✅</td><td>voir ci-dessous</td></tr>
+    <tr><td><code>description</code></td><td>string</td><td></td><td>présentation</td></tr>
+    <tr><td><code>active</code></td><td>0/1</td><td></td><td>1 = publié (défaut)</td></tr>
+    <tr><td><code>article_id</code></td><td>int</td><td></td><td>rattache le quiz à cet article</td></tr>
+    <tr><td><code>max_attempts</code></td><td>int</td><td></td><td>0 = illimité (défaut)</td></tr>
+  </table>
+  <p>Chaque <strong>question</strong> :</p>
+<pre><code>{
+  "body": "Énoncé de la question",
+  "type": "single",            // 'single' (1 bonne réponse) ou 'multiple'
+  "options": [
+    { "label": "Réponse A", "correct": true },
+    { "label": "Réponse B", "correct": false }
+  ]
+}</code></pre>
+  <div class="box">Une question est <strong>ignorée</strong> si : énoncé vide, <strong>moins de 2 options</strong>,
+  ou <strong>aucune bonne réponse</strong>. Si au final aucune question valide → <code>422</code> et le quiz est annulé.</div>
+<pre><code>{ "ok": true, "quiz_id": 9, "questions": 12, "options": 48,
+  "linked_article": 14, "active": 1,
+  "url": "https://bokonzi.com/rpn/quiz/show?id=9" }</code></pre>
+</section>
+
+<hr>
+
+<!-- ============ 2. ROUTES ============ -->
+<section id="routes">
+  <h2>2. Routes (« liens ») &amp; lien article ↔ quiz</h2>
+  <table>
+    <tr><th>Méthode</th><th>Lien (URL)</th><th>Action</th><th>Auth</th></tr>
+    <tr><td><span class="pill get">GET</span></td><td><code>/rpn/api/ping</code></td><td><code>ApiController::ping</code></td><td>— public</td></tr>
+    <tr><td><span class="pill post">POST</span></td><td><code>/rpn/api/article</code></td><td><code>ApiController::createArticle</code></td><td>clé API</td></tr>
+    <tr><td><span class="pill post">POST</span></td><td><code>/rpn/api/quiz</code></td><td><code>ApiController::createQuiz</code></td><td>clé API</td></tr>
+  </table>
+  <div class="box amber"><strong>Méthode stricte</strong> : <code>api/article</code> et <code>api/quiz</code>
+  n'existent qu'en <strong>POST</strong>. Un <code>GET</code> dessus → page introuvable (voulu).
+  Et les URLs sont <strong>sans <code>.php</code></strong> : <code>/rpn/api/article</code>, pas <code>…article.php</code>.</div>
+
+  <h3>Le lien article ↔ quiz</h3>
+  <p>Un quiz n'appartient pas à un article : le lien passe par une table de jointure, ce qui
+  permet d'associer un quiz à plusieurs articles (ou aucun).</p>
+<pre><code>article_quizzes ( article_id , quiz_id , position )</code></pre>
+  <table>
+    <tr><th>Méthode (modèle <code>Article</code>)</th><th>Rôle</th></tr>
+    <tr><td><code>quizIds($articleId)</code></td><td>ids des quiz déjà liés</td></tr>
+    <tr><td><code>setQuizzes($articleId, $ids)</code></td><td>(re)définit la liste des quiz liés</td></tr>
+    <tr><td><code>quizzesFor($articleId)</code></td><td>quiz <strong>publiés</strong> d'un article (affichage)</td></tr>
+  </table>
+  <p>Quand <code>POST /rpn/api/quiz</code> reçoit un <code>article_id</code> valide, il crée le quiz
+  puis l'ajoute aux liens existants via <code>setQuizzes</code> (les liens en place sont conservés).
+  La page de l'article affiche alors automatiquement le bloc
+  <em>« Réponds au questionnaire ci-dessous »</em>.</p>
+  <div class="box blue">Associer un quiz à n'importe quel article : il suffit de mettre son id dans la requête —
+  <code>{ "title":"…", "article_id": 11, "questions":[…] }</code>.</div>
+</section>
+
+<hr>
+
+<!-- ============ 3. BLOCAGES ============ -->
+<section id="blocages">
+  <h2>3. Pourquoi l'API peut bloquer</h2>
+  <table>
+    <tr><th>Code</th><th><code>error</code></th><th>Cause</th><th>Solution</th></tr>
+    <tr><td><strong>401</strong></td><td>Clé API manquante ou invalide.</td><td>Pas de clé, mauvaise clé, ou clé révoquée</td><td>Envoyer la <strong>bonne</strong> clé dans <code>X-API-Key</code>. Si régénérée, l'ancienne ne marche plus.</td></tr>
+    <tr><td><strong>422</strong></td><td>Champs requis : title et content.</td><td>Article sans titre/contenu</td><td>Fournir <code>title</code> <strong>et</strong> <code>content</code> non vides.</td></tr>
+    <tr><td><strong>422</strong></td><td>Champs requis : title et questions[].</td><td>Quiz sans titre ou sans questions</td><td>Fournir <code>title</code> <strong>et</strong> ≥ 1 question.</td></tr>
+    <tr><td><strong>422</strong></td><td>Aucune question valide …</td><td>Toutes les questions invalides</td><td>Chaque question : énoncé + <strong>≥ 2 options</strong> + <strong>≥ 1 <code>correct</code></strong>.</td></tr>
+    <tr><td><strong>404</strong></td><td><em>(page introuvable)</em></td><td>Mauvaise URL, ou GET sur route POST</td><td>URL exacte sans <code>.php</code>, en <strong>POST</strong>.</td></tr>
+    <tr><td><strong>500</strong></td><td>Erreur serveur …</td><td>Base/​table/​droits/​déploiement partiel</td><td>Voir ci-dessous.</td></tr>
+  </table>
+
+  <div class="box green"><strong>Astuce 401 vs clé OK</strong> : envoie un POST <strong>avec</strong> la clé mais
+  <strong>sans</strong> les champs. Si tu obtiens <strong>422</strong> (pas 401), c'est que la clé est <strong>bonne</strong>.</div>
+
+  <h4>401 — le blocage le plus fréquent</h4>
+  <p>Vérifie dans l'ordre : (1) en-tête bien envoyé ; (2) bonne clé (réglage <code>api_key</code> sinon
+  <code>API_KEY</code>) ; (3) pas régénérée entre-temps (révoque l'ancienne) ; (4) clé copiée
+  <strong>en entier</strong> (une clé tronquée → toujours 401).</p>
+
+  <h4>500 — erreur serveur</h4>
+  <ul>
+    <li>Base de données indisponible ou identifiants <code>config.php</code> erronés.</li>
+    <li>Table manquante (<code>article_quizzes</code>, <code>quizzes</code>…) → importer <code>database/database.sql</code>.</li>
+    <li><strong><code>ApiKernel</code> introuvable</strong> après une mise en ligne partielle :
+        <code>ApiController</code> hérite d'<code>ApiKernel</code> → déployer les <strong>deux</strong> fichiers ensemble.</li>
+    <li>Droits d'écriture insuffisants sur <code>uploads/</code> ou <code>storage/</code>.</li>
+  </ul>
+
+  <div class="box"><strong>Ce qui n'est PAS un blocage :</strong> la page d'un quiz qui demande de se connecter
+  (réponses par membre) ; un quiz en brouillon (<code>active=0</code>) non affiché sous l'article
+  (<code>quizzesFor()</code> ne montre que les quiz publiés).</div>
+</section>
+
+<hr>
+
+<!-- ============ 4. SÉCURITÉ ============ -->
+<section id="securite">
+  <h2>4. Sécurité</h2>
+
+  <h3>On ne peut RIEN modifier sans la clé</h3>
+  <ul>
+    <li><code>requireKey()</code> est appelé <strong>en premier</strong> dans chaque écriture → 401, aucune ligne créée.</li>
+    <li>Comparaison par <code>hash_equals()</code> (temps constant, anti-timing-attack).</li>
+    <li>Clé régénérable depuis <code>admin/settings</code> ; régénérer <strong>révoque</strong> l'ancienne.</li>
+    <li><code>ping</code> est le seul point public et ne modifie rien.</li>
+    <li>Les écritures par l'<strong>interface web</strong> sont protégées par la <strong>session</strong> (canal indépendant).</li>
+  </ul>
+
+  <h3>Pas d'injection SQL</h3>
+  <ul>
+    <li><strong>100 % requêtes préparées</strong> (PDO + paramètres liés) dans les modèles.</li>
+    <li>Seule interpolation : <code>LIMIT $limit</code> dans <code>Article::announcements()</code> — mais
+        <code>$limit</code> est un <strong>int typé et borné</strong> (<code>max(1, min(20, …))</code>). Non injectable.</li>
+    <li><code>ApiKernel</code> ne construit aucune requête SQL : il délègue aux modèles.</li>
+  </ul>
+
+  <h3>Pas d'injection HTML / XSS</h3>
+  <ul>
+    <li>Contenu HTML des articles filtré par <code>Html::clean</code> (liste blanche de balises sûres ;
+        <code>script</code>/<code>style</code>/<code>iframe</code> supprimés ; attributs retirés sauf <code>href</code> sûr).</li>
+    <li>Texte des quiz (titre, énoncés, options, description) stocké <strong>sans balise</strong>
+        (<code>strip_tags</code>) <strong>et</strong> échappé (<code>htmlspecialchars</code>) à l'affichage.</li>
+  </ul>
+
+  <h3>Checklist de revue</h3>
+  <div class="box green">
+    ☑ Écriture impossible sans clé valide (401) — testé &nbsp;·&nbsp;
+    ☑ Comparaison à temps constant (<code>hash_equals</code>) &nbsp;·&nbsp;
+    ☑ Requêtes préparées partout &nbsp;·&nbsp;
+    ☑ HTML filtré / texte quiz échappé &nbsp;·&nbsp;
+    ☑ Validation avant écriture (422 sans effet de bord)
+  </div>
+</section>
+
+<hr>
+
+<!-- ============ 5. MVC ============ -->
+<section id="mvc">
+  <h2>5. Architecture MVC — socle <code>ApiKernel</code></h2>
+  <p>Avant, les actions <code>createArticle</code> et <code>createQuiz</code> recopiaient la même
+  plomberie (parsing, clé, réponse JSON, URL, téléchargement). Désormais tout est regroupé une
+  seule fois dans <code>app/core/ApiKernel.php</code>, dont héritent les contrôleurs d'API.</p>
+<pre><code>ApiKernel (app/core/)          ← logique transversale, une seule fois
+   ▲
+   │ extends
+ApiController (app/controllers/)
+   ├── ping()
+   ├── createArticle()          ← uniquement la logique métier
+   └── createQuiz()</code></pre>
+  <table>
+    <tr><th>Méthode d'<code>ApiKernel</code></th><th>Rôle</th></tr>
+    <tr><td><code>readInput()</code></td><td>lit une fois le corps JSON (idempotent)</td></tr>
+    <tr><td><code>field($k,$def)</code></td><td>champ : corps JSON → <code>$_POST</code> → défaut</td></tr>
+    <tr><td><code>text($k,$max)</code></td><td>texte propre : <code>strip_tags</code> + <code>trim</code> + troncature</td></tr>
+    <tr><td><code>json()</code> / <code>fail()</code></td><td>réponse JSON / erreur normalisée</td></tr>
+    <tr><td><code>requireKey()</code></td><td><strong>sécurité</strong> : exige une clé valide (401 sinon)</td></tr>
+    <tr><td><code>absoluteUrl()</code></td><td>URL absolue vers une route interne</td></tr>
+    <tr><td><code>downloadImage()</code></td><td>télécharge + enregistre une image distante</td></tr>
+  </table>
+
+  <h3>Ajouter un endpoint devient trivial</h3>
+<pre><code>class ApiController extends ApiKernel
+{
+    public function createMachin(): void
+    {
+        $this->readInput();
+        $this->requireKey();                 // sécurité héritée
+        $nom = $this->text('nom', 100);      // parsing hérité
+        if ($nom === '') { $this->fail('nom requis', 422); }
+        // $id = Machin::create([...]);      // modèle (requête préparée)
+        $this->json(['ok' => true, 'id' => $id,
+            'url' => $this->absoluteUrl('machin', ['id' => $id])], 201);
+    }
+}</code></pre>
+  <p>Puis une ligne dans <code>config/routes.php</code> :
+  <code>$router-&gt;post('api/machin', 'ApiController', 'createMachin');</code></p>
+
+  <h3>Fichiers concernés</h3>
+  <table>
+    <tr><th>Fichier</th><th>État</th></tr>
+    <tr><td><code>app/core/ApiKernel.php</code></td><td><strong>nouveau</strong> — le socle commun</td></tr>
+    <tr><td><code>app/controllers/ApiController.php</code></td><td><strong>réécrit</strong> — hérite d'<code>ApiKernel</code></td></tr>
+    <tr><td><code>config/routes.php</code></td><td>inchangé (routes API déjà en place)</td></tr>
+  </table>
+  <div class="box amber"><strong>Déploiement :</strong> <code>ApiController</code> hérite d'<code>ApiKernel</code> →
+  mettre les <strong>deux</strong> fichiers en ligne <strong>ensemble</strong>, sinon « class ApiKernel not found » (500).</div>
+</section>
+
+<hr>
+
+<!-- ============ 6. TESTS ============ -->
+<section id="tests">
+  <h2>6. Tests</h2>
+
+  <h3>Tests unitaires (sans base de données)</h3>
+  <p>Fichier <code>tests/ApiKernelTest.php</code> — vérifie la logique pure du socle avec des stubs.</p>
+<pre><code>php tests/ApiKernelTest.php
+# → Résultat : 10 réussi(s), 0 échec(s)</code></pre>
+  <p class="muted">Testés : <code>field()</code>, <code>text()</code> (anti-XSS d'entrée), <code>absoluteUrl()</code>,
+  et la sécurité de la clé (absente / mauvaise / presque correcte → 401 ; bonne → acceptée).</p>
+
+  <h3>Tests d'intégration (contre le serveur)</h3>
+  <p>Fichier <code>tests/api_integration.ps1</code> — frappe l'API réelle <strong>sans créer de données</strong>
+  (seulement des cas 401 / 422 + le ping).</p>
+<pre><code>powershell -File tests/api_integration.ps1
+# ou : powershell -File tests/api_integration.ps1 -Base https://bokonzi.com/rpn -Key VOTRE_CLE
+# → Résultat : 6 reussi(s), 0 echec(s)</code></pre>
+
+  <table>
+    <tr><th>Moment</th><th>Test</th></tr>
+    <tr><td>Après modif de <code>ApiKernel</code> / <code>ApiController</code></td><td>unitaires + <code>php -l</code></td></tr>
+    <tr><td><strong>Après</strong> déploiement FTP</td><td>intégration (<code>api_integration.ps1</code>) → doit rester <strong>vert</strong></td></tr>
+  </table>
+</section>
+
+<p class="muted" style="margin-top:40px; font-size:12.5px;">
+  Documentation API RPN — générée le 2026-06-11. Équivalent HTML du dossier
+  <code>docs/api/</code> (README + 01→06).
+</p>
+
+</main>
+</div>
+</body>
+</html>

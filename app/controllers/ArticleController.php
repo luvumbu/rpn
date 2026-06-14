@@ -102,6 +102,35 @@ class ArticleController
     }
 
     /**
+     * Recherche d'articles : /rpm/articles/search?q=…&tag=…
+     * PUBLIQUE : ne renvoie que des articles publiés et non masqués par signalements.
+     */
+    public function search(): void
+    {
+        $q   = trim((string) ($_GET['q'] ?? ''));
+        $tag = trim((string) ($_GET['tag'] ?? ''));
+
+        $results = ($q !== '' || $tag !== '') ? Article::searchPublic($q, $tag) : [];
+        // Masquage par signalements (sauf protégé/annonce).
+        if ($results) {
+            $flags = Article::flagCountsFor(array_map(fn ($a) => (int) $a['id'], $results));
+            $results = array_values(array_filter($results, function ($a) use ($flags) {
+                return !Article::isFlagHidden($a, $flags[(int) $a['id']] ?? 0);
+            }));
+        }
+
+        view('articles/search', [
+            'user'    => Session::user(),
+            'q'       => $q,
+            'tag'     => $tag,
+            'results' => $results,
+            'allTags' => Article::allPublicTags(),
+            'reviews' => $results ? ArticleReview::summaryFor(array_map(fn ($a) => (int) $a['id'], $results)) : [],
+            'views'   => $results ? ArticleView::countsFor(array_map(fn ($a) => (int) $a['id'], $results)) : [],
+        ]);
+    }
+
+    /**
      * Détail d'un article : /rpm/article?id=5
      * Un article PUBLIÉ (active=1) est visible PAR TOUT LE MONDE, même sans connexion.
      * Un brouillon n'est visible que par son auteur ou un admin.
@@ -309,6 +338,7 @@ class ArticleController
             'templates'       => ArticleTemplate::all(),
             'currentTemplate' => ArticleTemplate::key(Settings::get('default_template', 'standard')),
             'active'          => 1,
+            'position'        => 0,
             'parentId'        => $parent ? (int) $parent['id'] : 0,
             'parentTitle'     => $parent['title'] ?? '',
             'parents'         => $this->parentChoices(null),
@@ -358,6 +388,7 @@ class ArticleController
             'images'          => ArticleImage::forArticle((int) $article['id']),
             'files'           => ArticleFile::forArticle((int) $article['id']),
             'active'          => (int) ($article['active'] ?? 1),
+            'position'        => (int) ($article['position'] ?? 0),
             'parentId'        => (int) ($article['parent_id'] ?? 0),
             'parentTitle'     => !empty($article['parent_id']) ? (Article::find((int) $article['parent_id'])['title'] ?? '') : '',
             'parents'         => $this->parentChoices((int) $article['id']),
@@ -413,6 +444,7 @@ class ArticleController
             'template'     => $_POST['template'] ?? 'standard',
             'hasCover'     => !empty($_POST['has_cover']),
             'galleryCount' => (int) ($_POST['gallery_count'] ?? 0),
+            'galleryStyle' => Article::galleryStyleKey($_POST['gallery_style'] ?? 'auto'),
             'docs'         => is_array($docs) ? $docs : [],
         ]);
     }
@@ -438,6 +470,15 @@ class ArticleController
 
         // Publié (visible par tout le monde) ou brouillon (privé).
         $active = isset($_POST['active']) ? 1 : 0;
+
+        // Position manuelle sur l'accueil (petit = en premier ; 0 = défaut).
+        $position = max(0, (int) ($_POST['position'] ?? 0));
+
+        // Style d'affichage des images multiples (galerie) — validé.
+        $galleryStyle = Article::galleryStyleKey($_POST['gallery_style'] ?? 'auto');
+
+        // Tags / catégories (mots-clés séparés par des virgules).
+        $tags = (string) ($_POST['tags'] ?? '');
 
         // Sous-article : rattachement à un article parent (validé).
         $parentId = (int) ($_POST['parent_id'] ?? 0);
@@ -502,18 +543,22 @@ class ArticleController
             Article::update($id, [
                 'title' => $title, 'content' => $content, 'template' => $template,
                 'active' => $active, 'parent_id' => $parentId ?: null, 'image' => $cover,
+                'position' => $position, 'gallery_style' => $galleryStyle, 'tags' => $tags,
             ]);
         } else {
             $me = Session::user();
             $id = Article::create([
-                'title'       => $title,
-                'content'     => $content,
-                'image'       => $cover,
-                'template'    => $template,
-                'active'      => $active,
-                'parent_id'   => $parentId ?: null,
-                'author_id'   => (int) ($me['id'] ?? 0),
-                'author_name' => $me['name'] ?: ($me['email'] ?? ''),
+                'title'         => $title,
+                'content'       => $content,
+                'image'         => $cover,
+                'template'      => $template,
+                'active'        => $active,
+                'parent_id'     => $parentId ?: null,
+                'position'      => $position,
+                'gallery_style' => $galleryStyle,
+                'tags'          => $tags,
+                'author_id'     => (int) ($me['id'] ?? 0),
+                'author_name'   => $me['name'] ?: ($me['email'] ?? ''),
             ]);
         }
 

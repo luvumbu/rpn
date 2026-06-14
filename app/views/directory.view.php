@@ -54,6 +54,8 @@
             <a class="back" href="<?= url('dashboard') ?>">← Tableau de bord</a>
         </div>
 
+        <?= meet_link_widget() ?>
+
         <div class="search">
             <form method="get" action="<?= url('professeurs') ?>">
                 <span class="member-wrap" style="flex:1;min-width:200px;">

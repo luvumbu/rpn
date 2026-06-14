@@ -6,7 +6,7 @@
  *   - depuis une IMAGE envoyée (recadrée au carré + redimensionnée) ;
  *   - depuis un TEXTE (1 à 3 lettres) sur un fond coloré, coins arrondis au choix.
  *
- * Les fichiers écrits à la racine du site (favicon.png, favicon.ico, icon-192.png,
+ * Les fichiers écrits dans assets/ (favicon.png, favicon.ico, icon-192.png,
  * icon-512.png) sont ceux référencés par Theme::favicon() / le manifeste. Un
  * numéro de version (Settings 'favicon_version') force les navigateurs à
  * recharger la nouvelle icône immédiatement.
@@ -14,8 +14,9 @@
 class Favicon
 {
     /** Génère le favicon à partir d'une image envoyée (champ de formulaire). */
-    public static function fromUpload(string $field): void
+    public static function fromUpload(string $field, string $shape = 'square'): void
     {
+        self::ensureGd();
         // On réutilise la validation sûre de Upload (type réel, EXIF, redimension).
         $stored = Upload::image($field, 'branding');
         if (!$stored) {
@@ -24,6 +25,7 @@ class Favicon
         $path = APP_ROOT . '/uploads/branding/' . $stored;
         try {
             $master = self::loadSquare($path);
+            self::applyShapeMask($master, $shape, 512); // découpe arrondie/cercle si demandé
             self::writeAll($master);
             imagedestroy($master);
         } finally {
@@ -31,17 +33,29 @@ class Favicon
         }
     }
 
-    /** Génère le favicon à partir d'un texte court sur fond coloré. */
-    public static function fromText(string $text, string $bg, string $fg, bool $round): void
+    /**
+     * Génère le favicon à partir d'un texte court.
+     *   $shape       : 'square' | 'round' | 'circle' (forme du fond)
+     *   $transparent : true → pas de fond coloré (lettre seule sur transparence)
+     *   $fontStyle   : 'bold' | 'regular' | 'serif' | 'mono'
+     */
+    public static function fromText(string $text, string $bg, string $fg, string $shape = 'round', bool $transparent = false, string $fontStyle = 'bold'): void
     {
+        self::ensureGd();
         $S      = 512;
         $master = self::canvas($S);
 
-        // Fond (rectangle plein ou coins arrondis).
-        [$br, $bgr, $bb] = self::rgb($bg, [20, 17, 15]);
-        $bgCol = imagecolorallocate($master, $br, $bgr, $bb);
-        $radius = $round ? (int) round($S * 0.20) : 0;
-        self::fillRounded($master, 0, 0, $S, $S, $radius, $bgCol);
+        // Fond (sauf si transparent) selon la forme choisie.
+        if (!$transparent) {
+            [$br, $bgr, $bb] = self::rgb($bg, [20, 17, 15]);
+            $bgCol = imagecolorallocate($master, $br, $bgr, $bb);
+            if ($shape === 'circle') {
+                imagefilledellipse($master, (int) ($S / 2), (int) ($S / 2), $S, $S, $bgCol);
+            } else {
+                $radius = $shape === 'round' ? (int) round($S * 0.20) : 0;
+                self::fillRounded($master, 0, 0, $S, $S, $radius, $bgCol);
+            }
+        }
 
         // Texte centré (1 à 3 caractères, en majuscules).
         $txt = mb_strtoupper(mb_substr(trim($text), 0, 3));
@@ -51,7 +65,7 @@ class Favicon
         [$fr, $fgr, $fb] = self::rgb($fg, [244, 193, 75]);
         $fgCol = imagecolorallocate($master, $fr, $fgr, $fb);
 
-        $font = self::fontPath();
+        $font = self::fontPath($fontStyle);
         if ($font) {
             // Cherche la plus grande taille qui tient dans ~75% du carré.
             $max = (int) ($S * 0.74);
@@ -123,14 +137,17 @@ class Favicon
     /** Écrit toutes les tailles à la racine + favicon.ico, puis bump la version. */
     private static function writeAll($master): void
     {
-        $root = APP_ROOT;
-        if (!is_writable($root)) {
-            throw new RuntimeException("Le dossier du site n'est pas accessible en écriture (favicon non enregistré).");
+        $dir = APP_ROOT . '/assets';
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true)) {
+            throw new RuntimeException("Le dossier assets/ est introuvable et n'a pas pu être créé.");
+        }
+        if (!is_writable($dir)) {
+            throw new RuntimeException("Le dossier assets/ n'est pas accessible en écriture (favicon non enregistré).");
         }
 
-        self::writePng($master, $root . '/icon-512.png', 512);
-        self::writePng($master, $root . '/icon-192.png', 192);
-        self::writePng($master, $root . '/favicon.png', 64);
+        self::writePng($master, $dir . '/icon-512.png', 512);
+        self::writePng($master, $dir . '/icon-192.png', 192);
+        self::writePng($master, $dir . '/favicon.png', 64);
 
         // favicon.ico : un PNG 48×48 embarqué (accepté par les navigateurs modernes).
         $ico48 = self::resized($master, 48);
@@ -138,7 +155,7 @@ class Favicon
         imagepng($ico48);
         $png48 = (string) ob_get_clean();
         imagedestroy($ico48);
-        if (@file_put_contents($root . '/favicon.ico', self::ico($png48, 48)) === false) {
+        if (@file_put_contents($dir . '/favicon.ico', self::ico($png48, 48)) === false) {
             throw new RuntimeException("Impossible d'écrire favicon.ico.");
         }
 
@@ -208,23 +225,75 @@ class Favicon
         return [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
     }
 
-    /** Première police TTF disponible (Windows ou Linux), ou null. */
-    private static function fontPath(): ?string
+    /**
+     * Police TTF selon le STYLE demandé (gras, normale, serif, mono), avec repli
+     * sur les autres styles puis sur n'importe quelle police trouvée. null si aucune.
+     */
+    private static function fontPath(string $style = 'bold'): ?string
     {
-        $candidates = [
-            'C:/Windows/Fonts/arialbd.ttf',
-            'C:/Windows/Fonts/arial.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
-            '/usr/share/fonts/dejavu/DejaVuSans.ttf',
-            '/Library/Fonts/Arial.ttf',
+        $sets = [
+            'bold'    => ['C:/Windows/Fonts/arialbd.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf', '/Library/Fonts/Arial Bold.ttf'],
+            'regular' => ['C:/Windows/Fonts/arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/usr/share/fonts/dejavu/DejaVuSans.ttf', '/Library/Fonts/Arial.ttf'],
+            'serif'   => ['C:/Windows/Fonts/timesbd.ttf', 'C:/Windows/Fonts/times.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf'],
+            'mono'    => ['C:/Windows/Fonts/courbd.ttf', 'C:/Windows/Fonts/cour.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'],
         ];
-        foreach ($candidates as $c) {
+        $order = array_merge($sets[$style] ?? [], $sets['bold'], $sets['regular'], $sets['serif'], $sets['mono']);
+        foreach ($order as $c) {
             if (is_file($c)) {
                 return $c;
             }
         }
         return null;
+    }
+
+    /** Vérifie que l'extension GD (traitement d'images) est disponible. */
+    private static function ensureGd(): void
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            throw new RuntimeException("L'extension PHP « GD » n'est pas activée sur le serveur : impossible de générer une image.");
+        }
+    }
+
+    /**
+     * Rend transparent tout ce qui sort de la forme demandée ('round' ou 'circle').
+     * Sert à découper une image carrée en icône arrondie ou ronde. 'square' = rien.
+     */
+    private static function applyShapeMask($im, string $shape, int $S): void
+    {
+        if ($shape !== 'round' && $shape !== 'circle') {
+            return;
+        }
+        imagesavealpha($im, true);
+        imagealphablending($im, false);
+        $clear = imagecolorallocatealpha($im, 0, 0, 0, 127);
+
+        if ($shape === 'circle') {
+            $cx = $S / 2.0; $cy = $S / 2.0; $r = $S / 2.0; $r2 = $r * $r;
+            for ($y = 0; $y < $S; $y++) {
+                for ($x = 0; $x < $S; $x++) {
+                    $dx = $x + 0.5 - $cx; $dy = $y + 0.5 - $cy;
+                    if ($dx * $dx + $dy * $dy > $r2) {
+                        imagesetpixel($im, $x, $y, $clear);
+                    }
+                }
+            }
+        } else { // 'round' : on ne nettoie que les 4 coins, hors de l'arc.
+            $rad  = (int) round($S * 0.20);
+            $rad2 = $rad * $rad;
+            $corners = [[$rad, $rad], [$S - 1 - $rad, $rad], [$rad, $S - 1 - $rad], [$S - 1 - $rad, $S - 1 - $rad]];
+            foreach ($corners as $idx => $c) {
+                $x0 = ($idx % 2 === 0) ? 0 : $S - $rad;
+                $y0 = ($idx < 2) ? 0 : $S - $rad;
+                for ($y = $y0; $y < $y0 + $rad; $y++) {
+                    for ($x = $x0; $x < $x0 + $rad; $x++) {
+                        $dx = $x + 0.5 - $c[0]; $dy = $y + 0.5 - $c[1];
+                        if ($dx * $dx + $dy * $dy > $rad2) {
+                            imagesetpixel($im, $x, $y, $clear);
+                        }
+                    }
+                }
+            }
+        }
+        imagealphablending($im, true);
     }
 }

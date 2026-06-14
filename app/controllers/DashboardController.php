@@ -75,6 +75,19 @@ class DashboardController
         ]);
     }
 
+    /** Classement des membres par points (gamification). */
+    public function leaderboard(): void
+    {
+        if (!Session::has('user')) {
+            redirect('');
+        }
+        view('leaderboard', [
+            'user'    => Session::user(),
+            'ranking' => Level::leaderboard(50),
+            'meId'    => (int) (Session::user()['id'] ?? 0),
+        ]);
+    }
+
     /** Exporte le projet de l'utilisateur connecté (SES articles + SES questionnaires). */
     public function exportMine(): void
     {
@@ -212,20 +225,35 @@ class DashboardController
         if (!Session::has('user')) {
             redirect('');
         }
-        $uid = (int) (Session::user()['id'] ?? 0);
-        if ($uid <= 0) {
+        $u   = Session::user();
+        $uid = (int) ($u['id'] ?? 0);
+        // Super-administrateur connecté par identifiants base de données : id = 0,
+        // pas de ligne dans `users` → sa photo est stockée dans les réglages.
+        $isSuperAdmin = ($uid === 0 && ($u['role'] ?? '') === 'admin');
+        if ($uid <= 0 && !$isSuperAdmin) {
             redirect('dashboard');
         }
-        $me      = User::findById($uid);
-        $current = (string) ($me['picture'] ?? '');
+
+        // Photo actuelle : membre → users.picture ; super-admin → réglage admin_picture.
+        $current = $isSuperAdmin
+            ? (string) Settings::get('admin_picture', '')
+            : (string) (User::findById($uid)['picture'] ?? '');
         $isLocal = $current !== '' && !preg_match('#^https?://#i', $current);
+
+        $store = function (?string $name) use ($isSuperAdmin, $uid): void {
+            if ($isSuperAdmin) {
+                Settings::save(['admin_picture' => $name ?? '']);
+            } else {
+                User::setPicture($uid, $name);
+            }
+        };
 
         // Retrait demandé.
         if (!empty($_POST['remove_photo'])) {
             if ($isLocal) {
                 Upload::delete($current, 'avatars');
             }
-            User::setPicture($uid, null);
+            $store(null);
             $this->refreshSessionPicture(null);
             redirect('dashboard');
         }
@@ -241,13 +269,99 @@ class DashboardController
             if ($isLocal) {
                 Upload::delete($current, 'avatars'); // remplace l'ancienne photo locale
             }
-            User::setPicture($uid, $name);
+            $store($name);
             $this->refreshSessionPicture($name);
         }
         redirect('dashboard');
     }
 
     /** Met à jour la photo dans la session pour un affichage immédiat. */
+    /**
+     * Nom affiché du SUPER-ADMIN (connecté par identifiants base de données, id 0).
+     * Stocké dans les réglages (`admin_name`). Vide = on revient au nom par défaut
+     * (le nom de l'utilisateur de la base).
+     */
+    public function saveAdminName(): void
+    {
+        if (!Session::has('user')) {
+            redirect('');
+        }
+        $u = Session::user();
+        if (!((int) ($u['id'] ?? 0) === 0 && ($u['role'] ?? '') === 'admin')) {
+            redirect('dashboard'); // réservé au super-admin
+        }
+        $name = trim((string) ($_POST['admin_name'] ?? ''));
+        $name = mb_substr($name, 0, 60);
+        Settings::save(['admin_name' => $name]);
+
+        // Rafraîchit la session : nom choisi, ou défaut (utilisateur de la base).
+        $default   = (string) ($_SESSION['db']['user'] ?? 'Administrateur');
+        $u['name'] = $name !== '' ? $name : $default;
+        Session::set('user', $u);
+        Session::set('dash_notice', '✅ Nom affiché mis à jour.');
+        redirect('dashboard');
+    }
+
+    /** Page « Confidentialité & mes données » (RGPD). */
+    public function privacy(): void
+    {
+        if (!Session::has('user')) {
+            redirect('');
+        }
+        view('privacy', [
+            'user'   => Session::user(),
+            'isSuperAdmin' => (int) (Session::user()['id'] ?? 0) === 0,
+            'notice' => Session::get('dash_notice'),
+            'error'  => Session::get('dash_error'),
+        ]);
+        Session::remove('dash_notice');
+        Session::remove('dash_error');
+    }
+
+    /** RGPD — télécharge mes données personnelles (JSON). */
+    public function exportData(): void
+    {
+        if (!Session::has('user')) {
+            redirect('');
+        }
+        $uid = (int) (Session::user()['id'] ?? 0);
+        if ($uid <= 0) {
+            redirect('dashboard'); // super-admin : pas de données membre
+        }
+        $data = User::personalData($uid);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="mes-donnees-rpn.json"');
+        echo $json;
+        exit;
+    }
+
+    /** RGPD — suppression définitive de mon compte. */
+    public function deleteMine(): void
+    {
+        if (!Session::has('user')) {
+            redirect('');
+        }
+        $uid = (int) (Session::user()['id'] ?? 0);
+        if ($uid <= 0) {
+            redirect('dashboard'); // le compte admin technique ne se supprime pas ici
+        }
+        // Confirmation explicite obligatoire (champ saisi).
+        if (strtoupper(trim((string) ($_POST['confirm'] ?? ''))) !== 'SUPPRIMER') {
+            Session::set('dash_error', 'Pour confirmer, écris SUPPRIMER dans le champ.');
+            redirect('profile/privacy');
+        }
+        // Supprime l'avatar local éventuel.
+        $me = User::findById($uid);
+        $pic = (string) ($me['picture'] ?? '');
+        if ($pic !== '' && !preg_match('#^https?://#i', $pic)) {
+            Upload::delete($pic, 'avatars');
+        }
+        User::deleteAccount($uid);
+        Session::destroy();
+        redirect('');
+    }
+
     private function refreshSessionPicture(?string $picture): void
     {
         $user = Session::user();

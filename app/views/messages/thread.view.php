@@ -23,6 +23,22 @@
         .presence.on .ptxt { color:#2a9d4a; }
         .presence.off .ptxt, .presence .ptxt { color:var(--muted); }
         .head a { font-size:13px; color:var(--muted); text-decoration:none; border:1px solid var(--card-border); padding:7px 12px; border-radius:9px; }
+        .meet-btn { flex:0 0 auto; font:inherit; font-size:13px; font-weight:700; cursor:pointer; border:none; border-radius:11px;
+            padding:0 14px; background:rgba(127,127,127,.12); color:var(--accent); white-space:nowrap; }
+        .meet-btn:hover { background:rgba(127,127,127,.22); }
+        /* Pièces jointes dans les bulles */
+        .bubble .msg-img { display:block; margin-top:8px; }
+        .bubble .msg-img img { max-width:220px; max-height:220px; border-radius:10px; display:block; }
+        .bubble .msg-file { display:inline-flex; align-items:center; gap:7px; margin-top:8px; font-weight:600;
+            text-decoration:none; color:inherit; padding:8px 12px; border-radius:10px; background:rgba(127,127,127,.18); }
+        .bubble.mine .msg-file { background:rgba(0,0,0,.14); }
+        .bubble a { color:inherit; text-decoration:underline; }
+        /* Bouton « joindre un fichier » */
+        .attach-btn { display:flex; align-items:center; justify-content:center; width:44px; flex:0 0 44px; cursor:pointer;
+            font-size:20px; border-radius:11px; background:rgba(127,127,127,.12); }
+        .attach-btn:hover { background:rgba(127,127,127,.22); }
+        .attach-btn input { display:none; }
+        .attach-note { font-size:12.5px; color:var(--accent); margin:6px 4px 0; }
         .conv { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
         .bubble { max-width:78%; padding:10px 14px; border-radius:16px; font-size:14.5px; line-height:1.45; word-wrap:break-word; }
         .bubble .when { display:block; font-size:10.5px; opacity:.6; margin-top:4px; }
@@ -54,18 +70,30 @@
             <?php else: ?>
                 <?php foreach ($messages as $m): ?>
                     <div class="bubble <?= (int) $m['sender_id'] === (int) $meId ? 'mine' : 'theirs' ?>">
-                        <?= nl2br(htmlspecialchars($m['body'])) ?>
+                        <?= message_bubble_body($m) ?>
                         <span class="when"><?= date('d/m H\hi', strtotime($m['created_at'])) ?></span>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
 
-        <form class="send" method="post" action="<?= url('messages/send') ?>">
+        <!-- Formulaire séparé pour créer le salon visio (lien Jitsi) -->
+        <form id="meetForm" method="post" action="<?= url('messages/meet') ?>" style="display:none;"
+              onsubmit="return confirm('Créer un lien de salon (visio, audio, partage d\'écran) et l\'envoyer à <?= htmlspecialchars(addslashes($other['name'] ?? 'ce membre')) ?> ?');">
             <input type="hidden" name="to" value="<?= (int) $other['id'] ?>">
-            <textarea name="body" placeholder="Écris ton message…" required></textarea>
+        </form>
+
+        <form class="send" method="post" action="<?= url('messages/send') ?>" enctype="multipart/form-data">
+            <input type="hidden" name="to" value="<?= (int) $other['id'] ?>">
+            <label class="attach-btn" title="Joindre un fichier (image, PDF, document, zip…)">📎
+                <input type="file" name="attachment[]" class="js-autoresize"
+                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.odt,.ods,.odp">
+            </label>
+            <button type="submit" form="meetForm" class="meet-btn" title="Créer un lien de salon visio (type Zoom)">🎥&nbsp;Lien</button>
+            <textarea name="body" placeholder="Écris ton message…"></textarea>
             <button type="submit">Envoyer</button>
         </form>
+        <p class="attach-note" id="attachNote" hidden>📎 <span></span></p>
     </div>
     <script>
     (function () {
@@ -113,5 +141,19 @@
         });
     })();
     </script>
+    <script>
+    // Affiche le nom du fichier joint sélectionné.
+    (function () {
+        var inp = document.querySelector('.send input[type=file]');
+        var note = document.getElementById('attachNote');
+        if (!inp || !note) { return; }
+        inp.addEventListener('change', function () {
+            var f = inp.files && inp.files[0];
+            if (f) { note.hidden = false; note.querySelector('span').textContent = f.name; }
+            else { note.hidden = true; }
+        });
+    })();
+    </script>
+    <?= image_resize_js() ?>
 </body>
 </html>

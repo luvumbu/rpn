@@ -23,13 +23,25 @@ class AuthController
         $state = bin2hex(random_bytes(16));
         Session::set('oauth_state', $state);
 
+        // Tous les articles PUBLICS (publiés, de premier niveau, non masqués par
+        // signalements) — affichés sur la page d'accueil pour tout visiteur.
+        $roots = Article::roots();
+        $flags = Article::flagCountsFor(array_map(fn ($a) => (int) $a['id'], $roots));
+        $publicArticles = array_values(array_filter($roots, function ($a) use ($flags) {
+            return (int) $a['active'] === 1
+                && !Article::isFlagHidden($a, $flags[(int) $a['id']] ?? 0);
+        }));
+
         view('login', [
             'googleLoginUrl' => $this->google->getAuthUrl($state),
             'announcements'  => Article::announcements(5),
+            'articles'       => $publicArticles,
             'error'          => Session::get('auth_error'),
+            'success'        => Session::get('login_success'),
             'old'            => Session::get('auth_old') ?? [],
         ]);
         Session::remove('auth_error');
+        Session::remove('login_success');
         Session::remove('auth_old');
     }
 
@@ -190,6 +202,100 @@ class AuthController
     public function logout(): void
     {
         Session::destroy();
+        redirect('');
+    }
+
+    /** Affiche le formulaire « Mot de passe oublié ». */
+    public function showForgot(): void
+    {
+        if (Session::has('user')) {
+            redirect('dashboard');
+        }
+        view('auth/forgot', [
+            'error'  => Session::get('auth_error'),
+            'notice' => Session::get('auth_notice'),
+        ]);
+        Session::remove('auth_error');
+        Session::remove('auth_notice');
+    }
+
+    /**
+     * Traite la demande : si un compte (avec mot de passe) existe pour cet email,
+     * envoie un lien de réinitialisation. Réponse TOUJOURS générique (on ne révèle
+     * pas si l'email existe).
+     */
+    public function forgot(): void
+    {
+        if (Session::has('user')) {
+            redirect('dashboard');
+        }
+        $email = strtolower(trim((string) ($_POST['email'] ?? '')));
+
+        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $row = User::findByEmail($email);
+            // Uniquement les comptes avec mot de passe (les comptes Google seuls n'en ont pas).
+            if ($row && !empty($row['password'])) {
+                $token  = PasswordReset::create((int) $row['id']);
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host   = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+                $link   = $scheme . '://' . $host . url('reset') . '?token=' . $token;
+                $body = Mailer::template(
+                    'Réinitialisation de ton mot de passe',
+                    '<p>Bonjour,</p>'
+                    . '<p>Tu as demandé à réinitialiser ton mot de passe. Clique sur le bouton ci-dessous (valable 1 heure) :</p>'
+                    . '<p><a href="' . htmlspecialchars($link) . '" style="display:inline-block;background:#f4c14b;color:#14110f;font-weight:bold;text-decoration:none;padding:12px 22px;border-radius:10px;">Réinitialiser mon mot de passe</a></p>'
+                    . '<p style="font-size:12px;color:#6b7280;">Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :<br>' . htmlspecialchars($link) . '</p>'
+                    . '<p style="font-size:12px;color:#6b7280;">Si tu n\'es pas à l\'origine de cette demande, ignore cet e-mail : rien ne sera changé.</p>'
+                );
+                Mailer::send($email, 'Réinitialisation de ton mot de passe', $body);
+            }
+        }
+        Session::set('auth_notice', 'Si un compte existe avec cet e-mail, un lien de réinitialisation vient d\'être envoyé. Vérifie ta boîte de réception (et les spams).');
+        redirect('forgot');
+    }
+
+    /** Affiche le formulaire de nouveau mot de passe (jeton passé dans l'URL). */
+    public function showReset(): void
+    {
+        if (Session::has('user')) {
+            redirect('dashboard');
+        }
+        $token = (string) ($_GET['token'] ?? '');
+        view('auth/reset', [
+            'token' => $token,
+            'valid' => PasswordReset::findValid($token) !== null,
+            'error' => Session::get('auth_error'),
+        ]);
+        Session::remove('auth_error');
+    }
+
+    /** Enregistre le nouveau mot de passe après vérification du jeton. */
+    public function reset(): void
+    {
+        if (Session::has('user')) {
+            redirect('dashboard');
+        }
+        $token = (string) ($_POST['token'] ?? '');
+        $pass  = (string) ($_POST['password'] ?? '');
+        $pass2 = (string) ($_POST['password2'] ?? '');
+
+        $row = PasswordReset::findValid($token);
+        if (!$row) {
+            Session::set('auth_error', 'Lien invalide ou expiré. Refais une demande.');
+            redirect('forgot');
+        }
+        if (mb_strlen($pass) < 6) {
+            Session::set('auth_error', 'Le mot de passe doit faire au moins 6 caractères.');
+            redirect('reset?token=' . urlencode($token));
+        }
+        if ($pass !== $pass2) {
+            Session::set('auth_error', 'Les deux mots de passe ne sont pas identiques.');
+            redirect('reset?token=' . urlencode($token));
+        }
+
+        User::setPassword((int) $row['user_id'], password_hash($pass, PASSWORD_DEFAULT));
+        PasswordReset::markUsed((int) $row['id']);
+        Session::set('login_success', '✅ Ton mot de passe a été modifié. Tu peux te connecter.');
         redirect('');
     }
 }

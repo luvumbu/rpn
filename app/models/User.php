@@ -72,11 +72,13 @@ class User
             );
             $stmt->execute([$g['sub'] ?? '', $g['name'] ?? '', $g['picture'] ?? '', $role, $g['email']]);
         } else {
+            // Visibilité par défaut des nouveaux inscrits (réglage admin).
+            $disc = (int) Settings::get('default_discoverable', 0) === 1 ? 1 : 0;
             $stmt = $pdo->prepare(
-                'INSERT INTO users (google_id, name, email, picture, role, last_login)
-                 VALUES (?, ?, ?, ?, ?, NOW())'
+                'INSERT INTO users (google_id, name, email, picture, role, discoverable, last_login)
+                 VALUES (?, ?, ?, ?, ?, ?, NOW())'
             );
-            $stmt->execute([$g['sub'] ?? '', $g['name'] ?? '', $g['email'], $g['picture'] ?? '', $role]);
+            $stmt->execute([$g['sub'] ?? '', $g['name'] ?? '', $g['email'], $g['picture'] ?? '', $role, $disc]);
         }
 
         return self::findByEmail($g['email']);
@@ -89,12 +91,20 @@ class User
     public static function createMember(string $name, string $email, string $password): ?array
     {
         $hash = password_hash($password, PASSWORD_DEFAULT);
+        // Visibilité par défaut des nouveaux inscrits (réglage admin).
+        $disc = (int) Settings::get('default_discoverable', 0) === 1 ? 1 : 0;
         $stmt = Database::pdo()->prepare(
-            "INSERT INTO users (name, email, role, password, last_login)
-             VALUES (?, ?, 'membre', ?, NOW())"
+            "INSERT INTO users (name, email, role, password, discoverable, last_login)
+             VALUES (?, ?, 'membre', ?, ?, NOW())"
         );
-        $stmt->execute([$name, $email, $hash]);
+        $stmt->execute([$name, $email, $hash, $disc]);
         return self::findByEmail($email);
+    }
+
+    /** Définit un nouveau mot de passe (déjà haché par l'appelant). */
+    public static function setPassword(int $id, string $hash): void
+    {
+        Database::pdo()->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([$hash, $id]);
     }
 
     /** Met à jour la date de dernière connexion. */
@@ -352,20 +362,21 @@ class User
      * Recherche LARGE de membres trouvables : par nom, matière/domaine,
      * adresse ou ville. Sert au « rechercher un profil » des actions rapides.
      */
-    public static function searchProfiles(?string $q = null): array
+    public static function searchProfiles(?string $q = null, bool $includeAll = false): array
     {
         $pdo = Database::pdo();
         $q   = trim((string) $q);
+        // $includeAll = true (admins) : on ignore le filtre « trouvable » et on
+        // peut donc chercher TOUS les membres, visibles ou non.
+        $visible = $includeAll ? '' : 'discoverable = 1';
         if ($q === '') {
-            return $pdo->query("SELECT * FROM users WHERE discoverable = 1 ORDER BY name ASC")->fetchAll();
+            $where = $visible !== '' ? "WHERE $visible" : '';
+            return $pdo->query("SELECT * FROM users $where ORDER BY name ASC")->fetchAll();
         }
         $like = '%' . $q . '%';
-        $stmt = $pdo->prepare(
-            "SELECT * FROM users
-             WHERE discoverable = 1
-               AND (name LIKE ? OR domains LIKE ? OR countries LIKE ? OR address LIKE ? OR default_city LIKE ? OR member_code = ?)
-             ORDER BY name ASC"
-        );
+        $cond = '(name LIKE ? OR domains LIKE ? OR countries LIKE ? OR address LIKE ? OR default_city LIKE ? OR member_code = ?)';
+        $where = $visible !== '' ? "WHERE $visible AND $cond" : "WHERE $cond";
+        $stmt = $pdo->prepare("SELECT * FROM users $where ORDER BY name ASC");
         $stmt->execute([$like, $like, $like, $like, $like, strtoupper($q)]);
         return $stmt->fetchAll();
     }
@@ -382,5 +393,87 @@ class User
     {
         $stmt = Database::pdo()->prepare('DELETE FROM users WHERE id = ?');
         $stmt->execute([$id]);
+    }
+
+    /**
+     * RGPD — suppression complète du compte et des données personnelles.
+     * Les CONTENUS publiés (articles, quiz) sont anonymisés (gardés, mais sans
+     * lien personnel). Les interactions personnelles sont effacées. Les paiements
+     * sont conservés (obligation légale de conservation des justificatifs).
+     */
+    public static function deleteAccount(int $id): void
+    {
+        if ($id <= 0) {
+            return;
+        }
+        $pdo = Database::pdo();
+        $run = function (string $sql, array $args) use ($pdo): void {
+            try { $pdo->prepare($sql)->execute($args); } catch (\Throwable $e) { /* table/colonne absente : ignoré */ }
+        };
+        // Anonymisation des contenus (on conserve le contenu public).
+        $run('UPDATE articles SET author_id = NULL, author_name = ? WHERE author_id = ?', ['Membre supprimé', $id]);
+        $run('UPDATE quizzes  SET author_id = NULL, author_name = ? WHERE author_id = ?', ['Membre supprimé', $id]);
+        // Effacement des données/interactions personnelles.
+        $run('DELETE FROM messages WHERE sender_id = ? OR recipient_id = ?', [$id, $id]);
+        $run('DELETE FROM notifications WHERE user_id = ?', [$id]);
+        $run('DELETE FROM meeting_links WHERE user_id = ?', [$id]);
+        $run('DELETE FROM article_reviews WHERE user_id = ?', [$id]);
+        $run('DELETE FROM article_comments WHERE user_id = ?', [$id]);
+        $run('DELETE FROM article_flags WHERE user_id = ?', [$id]);
+        $run('DELETE FROM article_member_views WHERE user_id = ?', [$id]);
+        $run('DELETE FROM appointment_bookings WHERE user_id = ?', [$id]);
+        $run('DELETE FROM password_resets WHERE user_id = ?', [$id]);
+        // Le compte lui-même.
+        $run('DELETE FROM users WHERE id = ?', [$id]);
+    }
+
+    /**
+     * RGPD — données personnelles d'un membre (pour l'export « télécharger mes données »).
+     * Renvoie un tableau structuré, sans secrets (pas de mot de passe).
+     */
+    public static function personalData(int $id): array
+    {
+        $u = self::findById($id);
+        if (!$u) {
+            return [];
+        }
+        $pdo = Database::pdo();
+        $count = function (string $sql) use ($pdo, $id): int {
+            try { $s = $pdo->prepare($sql); $s->execute([$id]); return (int) $s->fetchColumn(); }
+            catch (\Throwable $e) { return 0; }
+        };
+        $list = function (string $sql) use ($pdo, $id): array {
+            try { $s = $pdo->prepare($sql); $s->execute([$id]); return $s->fetchAll(); }
+            catch (\Throwable $e) { return []; }
+        };
+        return [
+            'profil' => [
+                'id'         => (int) $u['id'],
+                'nom'        => $u['name'] ?? '',
+                'email'      => $u['email'] ?? '',
+                'role'       => $u['role'] ?? 'membre',
+                'photo'      => $u['picture'] ?? '',
+                'domaines'   => $u['domains'] ?? '',
+                'pays'       => $u['countries'] ?? '',
+                'ville'      => $u['default_city'] ?? ($u['address'] ?? ''),
+                'trouvable'  => (int) ($u['discoverable'] ?? 0) === 1,
+                'inscrit_le' => $u['created_at'] ?? '',
+                'derniere_connexion' => $u['last_login'] ?? '',
+            ],
+            'compteurs' => [
+                'articles'      => $count('SELECT COUNT(*) FROM articles WHERE author_id = ?'),
+                'questionnaires'=> $count('SELECT COUNT(*) FROM quizzes WHERE author_id = ?'),
+                'messages'      => $count('SELECT COUNT(*) FROM messages WHERE sender_id = ? OR recipient_id = ?'),
+                'reservations'  => $count('SELECT COUNT(*) FROM appointment_bookings WHERE user_id = ?'),
+                'avis'          => $count('SELECT COUNT(*) FROM article_reviews WHERE user_id = ?'),
+            ],
+            'mes_articles' => array_map(fn ($a) => ['titre' => $a['title'] ?? '', 'cree_le' => $a['created_at'] ?? ''],
+                $list('SELECT title, created_at FROM articles WHERE author_id = ? ORDER BY created_at DESC')),
+            'mes_paiements' => array_map(fn ($p) => [
+                'date' => $p['created_at'] ?? '', 'type' => $p['type'] ?? '',
+                'montant' => number_format(((int) ($p['amount'] ?? 0)) / 100, 2) . ' ' . strtoupper($p['currency'] ?? 'eur'),
+                'statut' => $p['status'] ?? '',
+            ], $list('SELECT created_at, type, amount, currency, status FROM payments WHERE user_id = ? ORDER BY created_at DESC')),
+        ];
     }
 }

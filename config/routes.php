@@ -15,19 +15,29 @@ $router->get('',                'AuthController',      'showLogin');  // accueil
 $router->post('login',          'AuthController',      'login');      // connexion classique (email + mot de passe)
 $router->get('register',        'AuthController',      'showRegister');// formulaire d'inscription (sans Google)
 $router->post('register',       'AuthController',      'register');   // création d'un compte membre
+$router->get('forgot',          'AuthController',      'showForgot'); // mot de passe oublié (formulaire)
+$router->post('forgot',         'AuthController',      'forgot');     // envoi du lien de réinitialisation
+$router->get('reset',           'AuthController',      'showReset');  // formulaire nouveau mot de passe (?token=)
+$router->post('reset',          'AuthController',      'reset');      // enregistre le nouveau mot de passe
 $router->get('dashboard',       'DashboardController', 'index');      // tableau de bord membre
 $router->get('afrique',         'AfriqueController',   'index');      // vitrine des drapeaux d'Afrique (public)
 $router->post('profile/discoverable', 'DashboardController', 'toggleDiscoverable'); // consentement « trouvable »
 $router->post('profile/theme',        'DashboardController', 'saveTheme');          // thème personnel du membre
 $router->post('profile/photo',        'DashboardController', 'savePhoto');          // photo de profil (ajout/changement/retrait)
+$router->post('profile/admin_name',   'DashboardController', 'saveAdminName');      // nom affiché du super-admin
 $router->post('profile/roles',        'DashboardController', 'saveRoles');          // rôle(s) / domaine(s) du membre
 $router->post('profile/countries',    'DashboardController', 'saveCountries');      // pays d'origine du membre
 $router->get('geo/suggest',           'GeoController',        'suggest');           // autocomplétion de villes/adresses (JSON)
 $router->get('profile/export',        'DashboardController', 'exportMine');         // exporter MON projet (.zip)
 $router->get('profile/import',        'DashboardController', 'importPage');         // page d'import (formulaire fiable)
+$router->get('profile/privacy',       'DashboardController', 'privacy');            // RGPD : confidentialité & mes données
+$router->get('profile/data',          'DashboardController', 'exportData');         // RGPD : télécharger mes données (JSON)
+$router->post('profile/delete',       'DashboardController', 'deleteMine');         // RGPD : supprimer mon compte
+$router->get('legal',                 'PageController',      'legal');              // mentions légales & confidentialité
 $router->post('profile/import',       'DashboardController', 'importMine');         // importer (recréé en brouillon, à mon nom)
 $router->post('profile/dismiss_urgent','DashboardController', 'dismissUrgent');      // fermer une alerte urgente
 $router->get('niveaux',         'DashboardController',  'levels');      // page des niveaux (Héritier → Sage)
+$router->get('classement',      'DashboardController',  'leaderboard'); // classement des membres par points
 $router->get('professeurs',     'DirectoryController', 'index');       // recherche de professeurs par matière
 $router->get('professeurs/suggest', 'DirectoryController', 'suggest');  // autocomplétion de membres visibles (JSON)
 $router->get('diaspora',        'DiasporaController',  'index');       // carte interactive de la diaspora
@@ -35,12 +45,25 @@ $router->get('assistant',       'AssistantController', 'index');       // assist
 $router->get('messages',        'MessageController',   'index');       // messagerie : boîte de réception
 $router->get('messages/thread', 'MessageController',   'thread');      // conversation avec un membre (?with=id)
 $router->get('messages/poll',   'MessageController',   'poll');        // sondage temps réel (JSON) d'une conversation
-$router->post('messages/send',  'MessageController',   'send');        // envoyer un message
+$router->post('messages/send',  'MessageController',   'send');        // envoyer un message (texte et/ou fichier)
+$router->post('messages/meet',  'MessageController',   'meet');        // créer un salon visio (lien Jitsi) dans la conversation
+$router->get('meet/list',       'MeetController',       'list');        // mes salons visio enregistrés
+$router->post('meet/save',      'MeetController',       'save');        // enregistrer un lien de salon
+$router->post('meet/rename',    'MeetController',       'rename');      // renommer un salon enregistré
+$router->post('meet/delete',    'MeetController',       'delete');      // retirer un salon enregistré
 $router->get('logout',          'AuthController',      'logout');     // déconnexion
+
+// --- Paiements (Stripe Checkout : dons ponctuels + abonnements) --------------
+$router->get('paiement',          'PaymentController', 'index');     // espace paiement
+$router->post('paiement/checkout','PaymentController', 'checkout');  // crée la session Stripe
+$router->get('paiement/success',  'PaymentController', 'success');   // retour paiement réussi
+$router->get('paiement/cancel',   'PaymentController', 'cancel');    // retour paiement annulé
+$router->post('paiement/webhook', 'PaymentController', 'webhook');   // webhook Stripe (confirmation)
 $router->get('google/callback', 'AuthController',      'callback');   // retour Google OAuth
 
 // --- Articles (lecture + écriture, pour tout membre connecté) -----------------
 $router->get('articles',         'ArticleController', 'index');   // liste
+$router->get('articles/search',  'ArticleController', 'search');  // recherche + filtre par tag
 $router->get('article',          'ArticleController', 'show');    // détail : ?id=5
 $router->get('articles/new',     'ArticleController', 'create');  // formulaire création
 $router->get('articles/edit',    'ArticleController', 'edit');    // formulaire édition : ?id=5
@@ -64,6 +87,7 @@ $router->get('quiz/show',     'QuizController', 'show');    // répondre / voir 
 $router->post('quiz/save',    'QuizController', 'store');   // enregistre (création/édition)
 $router->post('quiz/submit',  'QuizController', 'submit');  // un membre envoie ses réponses
 $router->post('quiz/toggle',  'QuizController', 'toggle');  // publier ⇄ brouillon
+$router->post('quiz/image',   'QuizController', 'setImage'); // photo de couverture (ajout/changement/retrait)
 $router->post('quiz/delete',  'QuizController', 'delete');  // suppression (auteur ou admin)
 
 // --- Agenda / rendez-vous entre membres -------------------------------------
@@ -97,6 +121,9 @@ $router->post('notifications/clear', 'NotificationController', 'clear'); // vide
 // --- API JSON (écriture d'articles à distance, protégée par clé API) --------
 $router->get('api/ping',     'ApiController', 'ping');          // test
 $router->post('api/article', 'ApiController', 'createArticle'); // crée un article
+$router->post('api/quiz',    'ApiController', 'createQuiz');    // crée un questionnaire (+ lien article)
+$router->post('api/quiz/image', 'ApiController', 'setQuizImage'); // pose/remplace la couverture d'un quiz
+$router->post('api/article/image', 'ApiController', 'setArticleImage'); // pose/remplace la couverture d'un article
 
 // --- Page secrète de déblocage des IP ---------------------------------------
 $router->get('unlock',          'UnlockController',    'index');
@@ -105,6 +132,7 @@ $router->get('unlock',          'UnlockController',    'index');
 $router->get('admin/login',     'AdminController', 'showLogin');
 $router->post('admin/login',    'AdminController', 'login');
 $router->get('admin/dashboard', 'AdminController', 'dashboard');
+$router->get('admin/analytics', 'AdminController', 'analytics');   // statistiques d'usage
 $router->get('admin/members',   'AdminController', 'members');
 $router->get('admin/security',  'AdminController', 'security');
 $router->get('admin/settings',  'AdminController', 'settings');
@@ -129,6 +157,8 @@ $router->post('admin/articles/announce', 'AdminArticleController', 'announce'); 
 // Modules de style global des articles (taille du texte, police…)
 $router->get('admin/articles/style',  'AdminArticleController', 'style');
 $router->post('admin/articles/style', 'AdminArticleController', 'saveStyle');
+// Style général : enregistrer le modèle par défaut et/ou l'appliquer à tous les articles
+$router->post('admin/articles/apply_style', 'AdminArticleController', 'applyStyle');
 
 // --- Espace administrateur (actions, formulaires POST) -----------------------
 $router->post('admin/promote',        'AdminController', 'promote');

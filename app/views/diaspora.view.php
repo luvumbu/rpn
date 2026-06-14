@@ -35,6 +35,8 @@
         </div>
         <p class="lead">Du berceau africain aux Amériques, aux Caraïbes et à l'Europe : visualise les grands foyers de la communauté afro-descendante. Les points dorés 🟡 sont les <strong>membres trouvables</strong> de l'Institut Sankofa.</p>
 
+        <?= meet_link_widget() ?>
+
         <div id="map"></div>
 
         <div class="legend">

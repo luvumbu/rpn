@@ -515,32 +515,52 @@ if (!function_exists('image_resize_js')) {
     var inp = e.target;
     if (!inp || !inp.matches || !inp.matches('input[type=file].js-autoresize')) { return; }
     var file = inp.files && inp.files[0];
-    if (!file || !/^image\//.test(file.type)) { return; }
+    if (!file) { return; }
     var autosubmit = inp.hasAttribute('data-autosubmit');
-    var done = function () { if (autosubmit && inp.form) { inp.form.submit(); } };
+    var forceJpeg  = inp.hasAttribute('data-tojpeg');   // force la conversion JPEG (ex. avatars)
+    var submitted  = false;
+    function submitForm() {
+      if (submitted || !autosubmit || !inp.form) { return; }
+      submitted = true;
+      try { if (inp.form.requestSubmit) { inp.form.requestSubmit(); } else { inp.form.submit(); } }
+      catch (e2) { try { inp.form.submit(); } catch (e3) {} }
+    }
+    // Type non reconnu comme image : on laisse PARTIR quand même → le serveur
+    // valide et renvoie un message clair (au lieu d'un échec silencieux).
+    if (!/^image\//.test(file.type)) { submitForm(); return; }
+
+    // Filet de sécurité : si le traitement bloque, on envoie au bout de 5 s.
+    var guard = setTimeout(submitForm, 5000);
+    function finish() { clearTimeout(guard); submitForm(); }
 
     var img = new Image();
     var url = URL.createObjectURL(file);
     img.onload = function () {
       URL.revokeObjectURL(url);
       var w = img.width, h = img.height;
-      if (Math.max(w, h) <= MAXDIM && file.size <= MAXBYTES) { done(); return; }
-      var scale = Math.min(1, MAXDIM / Math.max(w, h));
-      var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
-      var c = document.createElement('canvas'); c.width = cw; c.height = ch;
-      c.getContext('2d').drawImage(img, 0, 0, cw, ch);
-      c.toBlob(function (blob) {
-        if (blob) {
-          try {
-            var name = (file.name || 'image').replace(/\.(png|gif|webp|bmp|heic|heif|tiff?)$/i, '.jpg');
-            var f = new File([blob], name, { type: 'image/jpeg' });
-            var dt = new DataTransfer(); dt.items.add(f); inp.files = dt.files;
-          } catch (err) { /* navigateur sans DataTransfer : on garde l'original */ }
-        }
-        done();
-      }, 'image/jpeg', 0.85);
+      var needResize = Math.max(w, h) > MAXDIM || file.size > MAXBYTES;
+      if (!needResize && !forceJpeg) { finish(); return; }   // déjà bon : on envoie l'original
+      try {
+        var scale = Math.min(1, MAXDIM / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+        var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+        var ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cw, ch);  // fond blanc (JPEG sans transparence)
+        ctx.drawImage(img, 0, 0, cw, ch);
+        c.toBlob(function (blob) {
+          if (blob) {
+            try {
+              var name = (file.name || 'image').replace(/\.(png|gif|webp|bmp|heic|heif|tiff?|jpeg)$/i, '.jpg');
+              if (!/\.jpg$/i.test(name)) { name += '.jpg'; }
+              var f = new File([blob], name, { type: 'image/jpeg' });
+              var dt = new DataTransfer(); dt.items.add(f); inp.files = dt.files;
+            } catch (err) { /* navigateur sans DataTransfer : on garde l'original */ }
+          }
+          finish();
+        }, 'image/jpeg', 0.85);
+      } catch (ec) { finish(); }   // canvas indisponible → on envoie l'original
     };
-    img.onerror = function () { URL.revokeObjectURL(url); done(); };
+    img.onerror = function () { URL.revokeObjectURL(url); finish(); };
     img.src = url;
   });
 })();
@@ -565,6 +585,100 @@ if (!function_exists('math_assets')) {
   onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false,ignoredTags:['script','noscript','style','textarea','pre','code']});"></script>
 <style>.katex-display{margin:1.1em 0;overflow-x:auto;overflow-y:hidden;padding:2px 0}.katex{font-size:1.08em}</style>
 HTML;
+    }
+}
+
+if (!function_exists('meet_link_widget')) {
+    /**
+     * Composant « Créer un lien de salon visio » (type Zoom, via Jitsi Meet),
+     * réutilisable dans toutes les pages communauté. 100 % côté client : un clic
+     * génère un lien de salon unique (meet.jit.si) à copier / ouvrir / partager.
+     * Le CSS + JS ne sont émis qu'UNE fois par page (les boutons, autant de fois).
+     */
+    function meet_link_widget(): string
+    {
+        static $assets = false;
+        $saveUrl = url('meet/save');
+        $listUrl = url('meet/list');
+        $html = '<div class="meet-widget">'
+            . '<button type="button" class="mw-btn" onclick="rpmMeetMake(this)">🎥 Créer un lien de salon (visio)</button>'
+            . ' <a class="mw-mine" href="' . $listUrl . '">📋 Mes salons</a>'
+            . '<div class="mw-box" hidden>'
+            . '<input type="text" class="mw-link" readonly onclick="this.select()" aria-label="Lien du salon">'
+            . '<button type="button" class="mw-copy" onclick="rpmMeetCopy(this)">Copier</button>'
+            . '<a class="mw-open" target="_blank" rel="noopener">Ouvrir →</a>'
+            . '<form class="mw-save" method="post" action="' . $saveUrl . '">'
+            . '<input type="hidden" name="url" class="mw-saveurl">'
+            . '<input type="text" name="label" class="mw-savelabel" maxlength="120" placeholder="Nom (facultatif)">'
+            . '<button type="submit">💾 Enregistrer</button>'
+            . '</form>'
+            . '</div></div>';
+        if (!$assets) {
+            $assets = true;
+            $html .= <<<'HTML'
+<style>
+  .meet-widget { margin:0 0 16px; }
+  .meet-widget .mw-btn { font:inherit; font-size:14px; font-weight:700; cursor:pointer; border:none; border-radius:11px;
+    padding:11px 17px; background:var(--accent); color:var(--accent-ink); }
+  .meet-widget .mw-btn:hover { filter:brightness(1.06); }
+  .meet-widget .mw-box { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px;
+    background:var(--card-bg); border:1px solid var(--accent); border-radius:12px; padding:12px; }
+  .meet-widget .mw-link { flex:1; min-width:180px; padding:10px 12px; border-radius:10px; border:1px solid var(--card-border);
+    background:rgba(127,127,127,.08); color:var(--text); font-family:Consolas,Monaco,monospace; font-size:13px; }
+  .meet-widget .mw-copy, .meet-widget .mw-open { font:inherit; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none;
+    border-radius:10px; padding:10px 14px; white-space:nowrap; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); }
+  .meet-widget .mw-open { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .meet-widget .mw-mine { font-size:13px; font-weight:700; text-decoration:none; color:var(--accent); margin-left:6px; }
+  .meet-widget .mw-mine:hover { text-decoration:underline; }
+  .meet-widget .mw-save { display:flex; gap:8px; align-items:center; flex-wrap:wrap; width:100%; margin-top:4px; }
+  .meet-widget .mw-save input.mw-savelabel { flex:1; min-width:140px; padding:9px 12px; border-radius:10px; border:1px solid var(--card-border);
+    background:rgba(127,127,127,.08); color:var(--text); font:inherit; font-size:13px; }
+  .meet-widget .mw-save button { font:inherit; font-size:13px; font-weight:700; cursor:pointer; border:1px solid var(--card-border);
+    background:var(--card-bg); color:var(--text); border-radius:10px; padding:9px 14px; white-space:nowrap; }
+  .meet-widget .mw-save button:hover { border-color:var(--accent); color:var(--accent); }
+</style>
+<script>
+  function rpmMeetRnd(){ if(window.crypto&&crypto.getRandomValues){var a=new Uint8Array(6),s='';crypto.getRandomValues(a);for(var i=0;i<a.length;i++){s+=('0'+a[i].toString(16)).slice(-2);}return s;} return Math.random().toString(16).slice(2,14); }
+  function rpmMeetMake(btn){ var w=btn.closest('.meet-widget'); var link='https://meet.jit.si/RPN-'+rpmMeetRnd(); var box=w.querySelector('.mw-box'); w.querySelector('.mw-link').value=link; w.querySelector('.mw-open').setAttribute('href',link); var su=w.querySelector('.mw-saveurl'); if(su){su.value=link;} box.hidden=false; var i=w.querySelector('.mw-link'); i.focus(); i.select(); }
+  function rpmMeetCopy(btn){ var inp=btn.closest('.mw-box').querySelector('.mw-link'); inp.select(); var done=function(){var t=btn.textContent;btn.textContent='✓ Copié';setTimeout(function(){btn.textContent=t;},1500);}; if(navigator.clipboard){navigator.clipboard.writeText(inp.value).then(done,function(){document.execCommand('copy');done();});}else{document.execCommand('copy');done();} }
+</script>
+HTML;
+        }
+        return $html;
+    }
+}
+
+if (!function_exists('message_bubble_body')) {
+    /**
+     * Contenu HTML d'une bulle de message : texte (avec liens cliquables) +
+     * pièce jointe éventuelle (aperçu si image, lien de téléchargement sinon).
+     * Partagé entre la vue de conversation et le sondage temps réel.
+     */
+    function message_bubble_body(array $m): string
+    {
+        $out  = '';
+        $body = trim((string) ($m['body'] ?? ''));
+        if ($body !== '') {
+            $safe = nl2br(htmlspecialchars($body));
+            // Rend les URL http(s) cliquables (ex. le lien du salon visio).
+            $safe = preg_replace(
+                '#(https?://[^\s<]+)#',
+                '<a href="$1" target="_blank" rel="noopener">$1</a>',
+                $safe
+            );
+            $out .= $safe;
+        }
+        if (!empty($m['file'])) {
+            $url  = url('uploads/messages/' . rawurlencode((string) $m['file']));
+            $ext  = strtolower(pathinfo((string) $m['file'], PATHINFO_EXTENSION));
+            $name = htmlspecialchars(($m['file_name'] ?? '') !== '' ? (string) $m['file_name'] : (string) $m['file']);
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+                $out .= '<a class="msg-img" href="' . $url . '" target="_blank" rel="noopener"><img src="' . $url . '" alt=""></a>';
+            } else {
+                $out .= '<a class="msg-file" href="' . $url . '" target="_blank" rel="noopener" download>📎 ' . $name . '</a>';
+            }
+        }
+        return $out;
     }
 }
 

@@ -4,16 +4,13 @@
  */
 class MessageController
 {
+    /** Id de l'utilisateur connecté (0 = super-admin, compte technique sans messagerie). */
     private function uid(): int
     {
         if (!Session::has('user')) {
             redirect('');
         }
-        $uid = (int) (Session::user()['id'] ?? 0);
-        if ($uid <= 0) {
-            redirect('dashboard');
-        }
-        return $uid;
+        return (int) (Session::user()['id'] ?? 0);
     }
 
     /** Boîte de réception : liste des conversations. */
@@ -21,14 +18,18 @@ class MessageController
     {
         $uid = $this->uid();
         view('messages/index', [
-            'user'    => Session::user(),
-            'threads' => Message::threads($uid),
+            'user'         => Session::user(),
+            'threads'      => $uid > 0 ? Message::threads($uid) : [],
+            'adminBlocked' => $uid <= 0, // super-admin : pas de messagerie de membre
         ]);
     }
 
     /** Conversation avec un membre (?with=ID). */
     public function thread(): void
     {
+        if ($this->uid() <= 0) {
+            redirect('messages'); // super-admin → page d'info
+        }
         $uid   = $this->uid();
         $with  = (int) ($_GET['with'] ?? 0);
         $other = $with > 0 ? User::findById($with) : null;
@@ -53,7 +54,7 @@ class MessageController
         $with  = (int) ($_GET['with'] ?? 0);
         $other = $with > 0 ? User::findById($with) : null;
         header('Content-Type: application/json; charset=utf-8');
-        if (!$other || $with === $uid) {
+        if ($uid <= 0 || !$other || $with === $uid) {
             echo json_encode(['ok' => false]);
             return;
         }
@@ -63,7 +64,7 @@ class MessageController
         foreach ($msgs as $m) {
             $mine = (int) $m['sender_id'] === $uid;
             $html .= '<div class="bubble ' . ($mine ? 'mine' : 'theirs') . '">'
-                . nl2br(htmlspecialchars($m['body']))
+                . message_bubble_body($m)
                 . '<span class="when">' . date('d/m H\hi', strtotime($m['created_at'])) . '</span></div>';
         }
         echo json_encode([
@@ -74,24 +75,79 @@ class MessageController
         ], JSON_UNESCAPED_UNICODE);
     }
 
-    /** Envoi d'un message (POST). */
+    /** Envoi d'un message (POST) — texte et/ou pièce jointe (image ou document). */
     public function send(): void
     {
         $uid  = $this->uid();
+        if ($uid <= 0) {
+            redirect('messages');
+        }
         $to   = (int) ($_POST['to'] ?? 0);
         $body = (string) ($_POST['body'] ?? '');
         $other = $to > 0 ? User::findById($to) : null;
         if (!$other || $to === $uid) {
             redirect('messages');
         }
-        if (trim($body) === '') {
-            Session::set('msg_error', 'Écris un message avant d\'envoyer.');
+
+        // Pièce jointe facultative : on accepte une image OU un document.
+        $file = null; $fileName = null;
+        try {
+            $imgs = Upload::images('attachment', 'messages');
+            if (!empty($imgs)) {
+                $file     = $imgs[0];
+                $fileName = is_array($_FILES['attachment']['name'] ?? null) ? (string) ($_FILES['attachment']['name'][0] ?? '') : '';
+            } else {
+                $docs = Upload::documents('attachment', 'messages');
+                if (!empty($docs)) {
+                    $file     = $docs[0]['filename'];
+                    $fileName = (string) ($docs[0]['original'] ?? '');
+                }
+            }
+        } catch (\RuntimeException $e) {
+            Session::set('msg_error', '⚠️ Fichier refusé : ' . $e->getMessage());
             redirect('messages/thread?with=' . $to);
         }
-        Message::send($uid, $to, $body);
+
+        if (trim($body) === '' && $file === null) {
+            Session::set('msg_error', 'Écris un message ou joins un fichier avant d\'envoyer.');
+            redirect('messages/thread?with=' . $to);
+        }
+        Message::send($uid, $to, $body, $file, $fileName);
         // Notifie le destinataire.
         $me = Session::user();
         Notification::add($to, 'Nouveau message de ' . ($me['name'] ?? 'un membre'), '✉️', url('messages/thread?with=' . $uid));
+        redirect('messages/thread?with=' . $to);
+    }
+
+    /**
+     * Crée un salon de discussion (visio, type Zoom) via Jitsi Meet et poste le
+     * lien dans la conversation. Aucun serveur vidéo requis : le salon vit sur
+     * meet.jit.si (audio, vidéo, partage d'écran et de fichiers dans le chat).
+     */
+    public function meet(): void
+    {
+        $uid   = $this->uid();
+        if ($uid <= 0) {
+            redirect('messages');
+        }
+        $to    = (int) ($_POST['to'] ?? 0);
+        $other = $to > 0 ? User::findById($to) : null;
+        if (!$other || $to === $uid) {
+            redirect('messages');
+        }
+        $room = 'RPN-' . bin2hex(random_bytes(6));
+        $link = 'https://meet.jit.si/' . $room;
+        $body = "🎥 Salon de discussion : " . $link
+              . "\nClique pour nous rejoindre — visio, audio, partage d'écran et de fichiers.";
+        Message::send($uid, $to, $body);
+
+        $me = Session::user();
+        Notification::add(
+            $to,
+            ($me['name'] ?? 'Un membre') . ' t\'invite à un salon visio 🎥',
+            '🎥',
+            url('messages/thread?with=' . $uid)
+        );
         redirect('messages/thread?with=' . $to);
     }
 }

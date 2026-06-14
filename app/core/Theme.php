@@ -13,6 +13,30 @@ class Theme
         '--or'    => '#f4c14b',
     ];
 
+    /**
+     * INTERFACE DORÉE ADMIN.
+     * Palette « or & noir » réservée aux pages d'administration (/admin/*).
+     * Elle ne figure PAS dans all() : impossible à choisir comme thème de site ;
+     * elle s'impose d'elle-même dès qu'on entre dans l'espace admin, pour que le
+     * statut d'administrateur soit immédiatement reconnaissable. Voir css().
+     */
+    private const ADMIN_VARS = [
+        '--rouge'       => '#e0a64b',
+        '--vert'        => '#caa84a',
+        '--or'          => '#f4d27a',
+        '--bg-base'     => '#0b0a06',
+        '--glow1'       => 'rgba(244,210,122,.22)',
+        '--glow2'       => 'rgba(201,162,39,.16)',
+        '--text'        => '#fbf3da',
+        '--muted'       => 'rgba(251,243,218,.62)',
+        '--card-bg'     => 'rgba(244,210,122,.05)',
+        '--card-border' => 'rgba(212,175,55,.38)',
+        '--card-shadow' => '0 28px 70px rgba(0,0,0,.65)',
+        '--accent'      => '#e8c66b',
+        '--accent-ink'  => '#0b0a06',
+        '--bar'         => 'linear-gradient(90deg,#8a6d1f 0%,#f4d27a 50%,#8a6d1f 100%)',
+    ];
+
     /** Tous les thèmes disponibles. */
     public static function all(): array
     {
@@ -278,6 +302,17 @@ class Theme
         return preg_match('/^#[0-9a-fA-F]{6}$/', $v) ? $v : $default;
     }
 
+    /**
+     * Sommes-nous sur une page d'administration (/admin/*) ?
+     * Sert à imposer l'interface dorée admin, sans toucher aux pages publiques
+     * ni à l'espace membre. La route est déduite de l'URL courante.
+     */
+    public static function isAdminArea(): bool
+    {
+        $route = Router::currentRoute($_SERVER['REQUEST_URI'] ?? '');
+        return $route === 'admin' || strncmp($route, 'admin/', 6) === 0;
+    }
+
     /** Clé du thème actif : préférence PERSO du membre (session) sinon thème du site. */
     public static function key(): string
     {
@@ -293,8 +328,8 @@ class Theme
     /**
      * Balises « application installable » (PWA), communes à toutes les pages :
      * lien du manifeste, couleur de thème, icônes Apple, et enregistrement du
-     * service worker. Couplé à manifest.json + sw.js + icon-192/512.png à la
-     * racine, cela rend RPN installable (mobile/PC) et empaquetable en APK
+     * service worker. Couplé à manifest.json + sw.js + assets/icon-192/512.png,
+     * cela rend RPN installable (mobile/PC) et empaquetable en APK
      * (via PWABuilder). Voir docs/application.html.
      */
     public static function pwa(): string
@@ -302,7 +337,7 @@ class Theme
         $manifest = url('manifest.json');
         $sw       = url('sw.js');
         $scope    = url('');            // /rpm/
-        $icon192  = url('icon-192.png?v=1');
+        $icon192  = url('assets/icon-192.png?v=1');
 
         return '<link rel="manifest" href="' . $manifest . '">'
             . "\n  " . '<meta name="theme-color" content="#14110f">'
@@ -341,7 +376,7 @@ class Theme
         $verUrl    = url('version.json');
         $pollUrl   = url('notifications/poll');
         $notifsUrl = url('notifications');
-        $icon      = url('icon-192.png');
+        $icon      = url('assets/icon-192.png');
         $loggedIn  = \Session::has('user') ? 'true' : 'false';
 
         return <<<HTML
@@ -585,13 +620,13 @@ HTML;
     public static function favicon(): string
     {
         $v      = '?v=' . rawurlencode((string) Settings::get('favicon_version', '1'));
-        $png    = url('favicon.png') . $v;
-        $ico    = url('favicon.ico') . $v;
+        $png    = url('assets/favicon.png') . $v;
+        $ico    = url('assets/favicon.ico') . $v;
         $custom = (int) Settings::get('favicon_custom', 0) === 1;
 
         $out = '<link rel="icon" href="' . $ico . '" sizes="any">';
         if (!$custom) {
-            $out .= '<link rel="icon" href="' . url('favicon.svg') . $v . '" type="image/svg+xml">';
+            $out .= '<link rel="icon" href="' . url('assets/favicon.svg') . $v . '" type="image/svg+xml">';
         }
         $out .= '<link rel="icon" href="' . $png . '" sizes="any" type="image/png">'
               . '<link rel="apple-touch-icon" href="' . $png . '">';
@@ -661,12 +696,53 @@ CSS;
     }
 
     /**
+     * Bandeau d'information cookies (RGPD) : le site n'utilise qu'un cookie de
+     * session nécessaire. Affiché une fois, mémorisé en localStorage. Lien vers
+     * les mentions légales. Pas dans l'iframe d'aperçu.
+     */
+    public static function cookieBanner(): string
+    {
+        $legal = url('legal');
+        return <<<HTML
+<style>
+  #rpm-cookie { position:fixed; left:14px; right:14px; bottom:14px; z-index:9996; margin:0 auto; max-width:680px;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; font-family:inherit; font-size:13.5px;
+    background:var(--card-bg,#1b1714); color:var(--text,#fff); border:1px solid var(--card-border,rgba(244,193,75,.3));
+    border-radius:14px; box-shadow:0 14px 40px rgba(0,0,0,.45); }
+  #rpm-cookie a { color:var(--accent,#f4c14b); font-weight:700; }
+  #rpm-cookie .ok { margin-left:auto; font:inherit; font-weight:700; cursor:pointer; border:none; border-radius:9px;
+    padding:8px 16px; background:var(--accent,#f4c14b); color:var(--accent-ink,#14110f); }
+</style>
+<script>
+(function () {
+  if (window.top !== window.self) { return; }
+  try { if (localStorage.getItem('rpm_cookie_ok')) { return; } } catch (e) {}
+  function add() {
+    if (!document.body || document.getElementById('rpm-cookie')) { return; }
+    var b = document.createElement('div'); b.id = 'rpm-cookie';
+    b.innerHTML = '<span>🍪 Ce site utilise uniquement un cookie de session nécessaire à ton compte (pas de pistage). '
+      + '<a href="$legal">En savoir plus</a>.</span><button type="button" class="ok">OK</button>';
+    document.body.appendChild(b);
+    b.querySelector('.ok').addEventListener('click', function () {
+      try { localStorage.setItem('rpm_cookie_ok', '1'); } catch (e) {}
+      b.remove();
+    });
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', add); } else { add(); }
+})();
+</script>
+HTML;
+    }
+
+    /**
      * Bloc <head> commun : variables CSS du thème actif + polish UX + favicon.
      * (Inclus dans le <head> de toutes les vues via <?= Theme::css() ?>.)
      */
     public static function css(): string
     {
-        $vars = array_merge(self::BASE, self::all()[self::key()]['vars']);
+        // Espace admin → interface dorée imposée. Ailleurs → thème du site/membre.
+        $themeVars = self::isAdminArea() ? self::ADMIN_VARS : self::all()[self::key()]['vars'];
+        $vars = array_merge(self::BASE, $themeVars);
         $lines = '';
         foreach ($vars as $name => $value) {
             $lines .= "      {$name}: {$value};\n";
@@ -674,6 +750,7 @@ CSS;
         return "<style>\n    :root {\n{$lines}    }\n  </style>\n  " . self::ux() . "\n  " . self::favicon()
              . "\n  " . self::pwa()
              . "\n  " . self::appRuntime()
+             . "\n  " . self::cookieBanner()
              . "\n  " . Tour::html()
              . "\n  " . GlobalStyle::fontLink() . "\n  " . GlobalStyle::css();
     }

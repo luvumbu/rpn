@@ -28,6 +28,32 @@ class ArticleStyle
         return max(70, min(200, $v));
     }
 
+    /** Largeurs d'article disponibles : clé => ['label', 'css' (max-width ; '' = laisser le modèle décider)]. */
+    public static function widths(): array
+    {
+        return [
+            'default' => ['label' => 'Selon le modèle (défaut)', 'css' => ''],
+            'narrow'  => ['label' => 'Étroite (680 px)',        'css' => '680px'],
+            'normal'  => ['label' => 'Standard (820 px)',       'css' => '820px'],
+            'wide'    => ['label' => 'Large (1000 px)',         'css' => '1000px'],
+            'xwide'   => ['label' => 'Très large (1280 px)',    'css' => '1280px'],
+            'full'    => ['label' => 'Pleine largeur',          'css' => '100%'],
+        ];
+    }
+
+    /** Clé de largeur choisie (validée). */
+    public static function widthKey(): string
+    {
+        $k = (string) Settings::get('art_width', 'default');
+        return array_key_exists($k, self::widths()) ? $k : 'default';
+    }
+
+    /** Valeur CSS de la largeur choisie ('' = défaut du modèle, pas d'override). */
+    public static function widthCss(): string
+    {
+        return self::widths()[self::widthKey()]['css'] ?? '';
+    }
+
     /** Police personnalisée active ? */
     public static function fontEnabled(): bool
     {
@@ -57,6 +83,12 @@ class ArticleStyle
         if ($family = self::fontFamily()) {
             $decls .= 'font-family:' . $family . ';';
         }
-        return '.article-body{' . $decls . '}';
+        $css = '.article-body{' . $decls . '}';
+
+        // Largeur globale des articles : surclasse la max-width du modèle si définie.
+        if ($w = self::widthCss()) {
+            $css .= '.wrap{max-width:' . $w . ' !important;}';
+        }
+        return $css;
     }
 }

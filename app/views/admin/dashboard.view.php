@@ -30,9 +30,12 @@
         .nav .out { background: rgba(230,57,70,.18); border-color: rgba(230,57,70,.4); }
         .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
         .stat {
+            display: block; text-decoration: none; color: inherit;
             background: var(--card-bg); border: 1px solid var(--card-border);
             border-radius: 18px; padding: 26px; text-align: center; box-shadow: var(--card-shadow);
+            transition: border-color .15s, transform .15s;
         }
+        a.stat:hover { border-color: var(--accent); transform: translateY(-3px); }
         .stat .num { font-size: 40px; font-weight: 800; color: var(--accent); }
         .stat .lbl { color: var(--muted); font-size: 14px; margin-top: 4px; }
         .cta { margin-top: 28px; }
@@ -79,18 +82,9 @@
 </head>
 <body>
     <div class="wrap">
+        <?php view('admin/_nav', ['active' => 'dashboard']); ?>
         <div class="top">
             <h1>Tableau de bord <span>Admin</span></h1>
-            <div class="nav">
-                <a href="<?= url('admin/articles') ?>">📰 Articles</a>
-                <a href="<?= url('admin/members') ?>">👥 Membres</a>
-                <a href="<?= url('admin/security') ?>">🛡️ Sécurité</a>
-                <a href="<?= url('admin/settings') ?>">⚙️ Paramètres</a>
-                <a href="<?= url('admin/style') ?>">🎛️ Style global</a>
-                <a href="<?= url('admin/favicon') ?>">🎨 Favicon</a>
-                <a href="<?= url('quiz') ?>">❓ Questionnaires</a>
-                <a class="out" href="<?= url('admin/logout') ?>">Déconnexion</a>
-            </div>
         </div>
 
         <p class="greet">Bonjour <b><?= htmlspecialchars($user['name'] ?: $user['email']) ?></b> 👋</p>
@@ -100,59 +94,30 @@
         <?php endif; ?>
 
         <div class="cards">
-            <div class="stat"><div class="num"><?= (int) $total ?></div><div class="lbl">Membres au total</div></div>
-            <div class="stat"><div class="num"><?= (int) $membres ?></div><div class="lbl">Membres</div></div>
-            <div class="stat"><div class="num"><?= (int) $admins ?></div><div class="lbl">Administrateurs</div></div>
+            <a class="stat" href="<?= url('admin/members') ?>" title="Gérer les membres"><div class="num"><?= (int) $total ?></div><div class="lbl">Membres au total →</div></a>
+            <a class="stat" href="<?= url('admin/members') ?>" title="Gérer les membres"><div class="num"><?= (int) $membres ?></div><div class="lbl">Membres →</div></a>
+            <a class="stat" href="<?= url('admin/members') ?>" title="Promouvoir / gérer les administrateurs"><div class="num"><?= (int) $admins ?></div><div class="lbl">Administrateurs →</div></a>
         </div>
 
-        <p class="section-title">Utiliser l'application</p>
+        <p class="section-title">🎨 Apparence &amp; style</p>
         <div class="app-links">
-            <a class="app-link" href="<?= url('dashboard') ?>">
-                <span class="i">🏠</span>
-                <span class="t"><b>Espace membre</b><span>Voir et utiliser l'app comme un utilisateur</span></span>
+            <a class="app-link" href="<?= url('admin/settings') ?>#p-theme">
+                <span class="i">🎨</span>
+                <span class="t"><b>Thème &amp; couleurs</b><span>Thème du site, palette personnalisée</span></span>
             </a>
-            <a class="app-link" href="<?= url('articles/new') ?>">
-                <span class="i">✍️</span>
-                <span class="t"><b>Écrire un article</b><span>Créer une nouvelle publication</span></span>
+            <a class="app-link" href="<?= url('admin/settings') ?>#p-style-global">
+                <span class="i">🎛️</span>
+                <span class="t"><b>Style global</b><span>Police, arrondi, ombres, animations</span></span>
             </a>
-            <a class="app-link" href="<?= url('admin/articles') ?>">
-                <span class="i">📝</span>
-                <span class="t"><b>Gérer / modifier les articles</b><span>Éditer, publier, supprimer</span></span>
+            <a class="app-link" href="<?= url('admin/settings') ?>#p-favicon">
+                <span class="i">🖼️</span>
+                <span class="t"><b>Favicon</b><span>Icône de l'onglet et de l'appli</span></span>
             </a>
-            <a class="app-link" href="<?= url('articles') ?>">
+            <a class="app-link" href="<?= url('admin/settings') ?>#p-articles">
                 <span class="i">📰</span>
-                <span class="t"><b>Articles</b><span>Lire, rechercher, parcourir</span></span>
-            </a>
-            <a class="app-link" href="<?= url('agenda') ?>">
-                <span class="i">📅</span>
-                <span class="t"><b>Agenda & rendez-vous</b><span>Créneaux et réservations</span></span>
-            </a>
-            <a class="app-link" href="<?= url('quiz/new') ?>">
-                <span class="i">➕</span>
-                <span class="t"><b>Créer un questionnaire</b><span>Quiz noté, options obligatoire/urgent</span></span>
-            </a>
-            <a class="app-link" href="<?= url('quiz') ?>">
-                <span class="i">❓</span>
-                <span class="t"><b>Questionnaires</b><span>Voir, modifier, supprimer tous les quiz</span></span>
-            </a>
-            <a class="app-link" href="<?= url('docs/index.html') ?>">
-                <span class="i">📖</span>
-                <span class="t"><b>Aide & tutoriels</b><span>Toute la documentation du projet</span></span>
+                <span class="t"><b>Style des articles</b><span>Taille du texte, police des articles</span></span>
             </a>
         </div>
-
-        <div class="cta">
-            <a href="<?= url('admin/members') ?>">Gérer les membres →</a>
-        </div>
-
-        <section class="backup">
-            <h2>📦 Sauvegarde du site (tous les projets)</h2>
-            <p>Télécharge <b>tous</b> les articles, sous-articles et questionnaires (avec questions, images, fichiers et associations) dans un fichier <code>.zip</code>, ou réimporte-les. À l'import, tout revient <b>en brouillon</b>, <b>sans doublon</b>.</p>
-            <div class="backup-actions">
-                <a class="bk-btn export" href="<?= url('admin/articles/export') ?>" download>⬇️ Exporter TOUT le site (.zip)</a>
-                <a class="bk-btn import" href="<?= url('profile/import') ?>">⬆️ Importer un fichier (.zip)</a>
-            </div>
-        </section>
 
         <?php if (!empty($isSuper)): ?>
         <section class="danger">

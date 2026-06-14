@@ -138,6 +138,43 @@ class Quiz
             ->execute([$required ? 1 : 0, $passRequired ? 1 : 0, $id]);
     }
 
+    /**
+     * Options d'affichage d'un quiz (sans toucher au reste) :
+     *  - $oneByOne : afficher les questions une par une
+     *  - $instant  : dire immédiatement si la réponse est bonne ou non
+     *  - $effects  : effets visuels (confettis / secousse) au retour
+     */
+    public static function setModes(int $id, bool $oneByOne, bool $instant, bool $effects): void
+    {
+        Database::pdo()
+            ->prepare('UPDATE quizzes SET one_by_one = ?, instant_feedback = ?, effects = ? WHERE id = ?')
+            ->execute([$oneByOne ? 1 : 0, $instant ? 1 : 0, $effects ? 1 : 0, $id]);
+    }
+
+    /**
+     * Réglages avancés : chrono (secondes), ordre aléatoire, seuil de réussite (%),
+     * et messages personnalisés affichés selon le score (réussite / échec).
+     */
+    public static function setExtra(int $id, int $timeLimit, bool $shuffle, int $passThreshold, ?string $msgPass, ?string $msgFail): void
+    {
+        Database::pdo()->prepare(
+            'UPDATE quizzes SET time_limit = ?, shuffle = ?, pass_threshold = ?, msg_pass = ?, msg_fail = ? WHERE id = ?'
+        )->execute([
+            max(0, $timeLimit), $shuffle ? 1 : 0, max(0, min(100, $passThreshold)),
+            ($msgPass !== null && $msgPass !== '') ? mb_substr($msgPass, 0, 255) : null,
+            ($msgFail !== null && $msgFail !== '') ? mb_substr($msgFail, 0, 255) : null,
+            $id,
+        ]);
+    }
+
+    /** Définit (ou retire avec null) la photo de couverture, sans toucher au reste. */
+    public static function setImage(int $id, ?string $image): void
+    {
+        Database::pdo()
+            ->prepare('UPDATE quizzes SET image = ?, updated_at = NOW() WHERE id = ?')
+            ->execute([$image, $id]);
+    }
+
     /* =====================================================================
      *  QUESTIONNAIRE OBLIGATOIRE (blocage de l'application)
      * ===================================================================== */
@@ -178,7 +215,13 @@ class Quiz
             return false;
         }
         if ((int) ($quiz['pass_required'] ?? 0) === 1) {
-            return (int) $resp['total'] > 0 && (int) $resp['score'] === (int) $resp['total'];
+            $total = (int) $resp['total'];
+            $score = (int) $resp['score'];
+            $threshold = (int) ($quiz['pass_threshold'] ?? 0);
+            if ($threshold > 0) {                              // réussite = score % ≥ seuil
+                return $total > 0 && self::percent($score, $total) >= $threshold;
+            }
+            return $total > 0 && $score === $total;            // sinon : toutes les bonnes réponses
         }
         return true;
     }
@@ -233,14 +276,18 @@ class Quiz
         return $stmt->fetchAll();
     }
 
-    /** Ajoute une question et retourne son id. */
-    public static function addQuestion(int $quizId, string $body, string $type, int $position): int
+    /** Ajoute une question (image + explication facultatives) et retourne son id. */
+    public static function addQuestion(int $quizId, string $body, string $type, int $position, ?string $image = null, ?string $explanation = null): int
     {
         $type = $type === 'multiple' ? 'multiple' : 'single';
         $stmt = Database::pdo()->prepare(
-            'INSERT INTO quiz_questions (quiz_id, body, type, position) VALUES (?, ?, ?, ?)'
+            'INSERT INTO quiz_questions (quiz_id, body, image, explanation, type, position) VALUES (?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$quizId, mb_substr($body, 0, 500), $type, $position]);
+        $stmt->execute([
+            $quizId, mb_substr($body, 0, 500), $image,
+            ($explanation !== null && $explanation !== '') ? mb_substr($explanation, 0, 500) : null,
+            $type, $position,
+        ]);
         return (int) Database::pdo()->lastInsertId();
     }
 

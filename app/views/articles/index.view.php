@@ -213,6 +213,10 @@ $renderCard = function ($a) use ($reviews, $views, $children) {
             <div class="search-bar">
                 <input type="search" id="articleSearch" placeholder="🔎 Rechercher un article par son titre…" autocomplete="off">
             </div>
+            <p style="font-size:13px;color:var(--muted);margin:-6px 2px 14px;">
+                💡 Pour chercher aussi dans le <b>contenu</b> et par <b>tags</b> :
+                <a href="<?= url('articles/search') ?>" style="color:var(--accent);font-weight:700;text-decoration:none;">recherche avancée →</a>
+            </p>
             <?php
                 // On cherche dans tout ce que l'utilisateur peut voir (publics + les siens).
                 $searchable = array_merge($others, $mine);
