@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cours complet — Maths à l'école primaire (animations Canvas)</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <h1>➗ Maths animées</h1>
+    <div class="tag">Cours complet &amp; progressif · primaire</div>
+    <nav>
+      <a class="section-title">Les nombres</a>
+      <a href="#intro">1 · Bienvenue</a>
+      <a href="#compter">2 · Compter</a>
+      <a href="#comparer">3 · Comparer</a>
+      <a href="#droite">4 · La droite numérique</a>
+      <a href="#dizaines">5 · Dizaines &amp; unités</a>
+
+      <a class="section-title">Les 4 opérations</a>
+      <a href="#addition">6 · L'addition</a>
+      <a href="#soustraction">7 · La soustraction</a>
+      <a href="#multiplication">8 · La multiplication</a>
+      <a href="#division">9 · La division</a>
+
+      <a class="section-title">Fractions</a>
+      <a href="#fractions">10 · Les fractions</a>
+
+      <a class="section-title">Géométrie</a>
+      <a href="#formes">11 · Les formes</a>
+      <a href="#perimetre">12 · Le périmètre</a>
+      <a href="#aire">13 · L'aire</a>
+      <a href="#symetrie">14 · La symétrie</a>
+
+      <a class="section-title">Grandeurs &amp; mesures</a>
+      <a href="#mesures">15 · Mesurer une longueur</a>
+      <a href="#heure">16 · Lire l'heure</a>
+      <a href="#monnaie">17 · La monnaie</a>
+
+      <a class="section-title">Jeux &amp; projets</a>
+      <a href="#tables">18 · Table de multiplication</a>
+      <a href="#jeu-calcul">19 · Jeu : calcul mental</a>
+
+      <a class="section-title">Annexe</a>
+      <a href="#memo">📋 Mémo</a>
+    </nav>
+  </aside>
+
+  <!-- ============ CONTENU ============ -->
+  <main class="content">
+
+    <div class="hero">
+      <h1>Les maths du primaire, en images animées</h1>
+      <p class="lead">Chaque notion est expliquée pas à pas avec une petite animation que l'on peut regarder, puis modifier soi-même. On voit les nombres, les formes et les opérations <b>bouger pour de vrai</b>.</p>
+    </div>
+
+    <div class="tip">
+      <b>Comment ça marche ?</b> Chaque encadré contient une animation à gauche et son code à droite. Change un nombre dans le code, puis clique <b>▶ Exécuter</b> (ou <code class="inline">Ctrl + Entrée</code>) pour voir le résultat. <b>↺</b> remet le code d'origine. Les boîtes vertes <b>« À toi de jouer »</b> sont les exercices à faire.
+      <br>Pas besoin de tout comprendre dans le code : l'important est de <b>jouer avec les nombres</b> et de regarder ce qui change.
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 1. BIENVENUE -->
+    <!-- ====================================================== -->
+    <h2 id="intro"><span class="num">1</span> Bienvenue</h2>
+    <p>Les mathématiques racontent des histoires de <b>quantités</b>, de <b>formes</b> et de <b>mesures</b>. Avant de calculer, il faut bien <b>voir</b>. C'est tout l'intérêt de ce cours : chaque idée devient une image qui bouge.</p>
+    <div class="note"><b>Conseil pour les parents et les maîtres :</b> laissez l'enfant prédire ce qui va se passer <i>avant</i> de cliquer sur Exécuter, puis vérifiez ensemble. C'est en se trompant un peu qu'on comprend.</div>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// Un petit bonjour animé : un soleil qui pulse
+let depart = 0;
+loop(t => {
+  if (!depart) depart = t;
+  const r = 40 + Math.sin((t - depart) / 300) * 8;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  ctx.fillStyle = '#f1c40f';
+  ctx.beginPath();
+  ctx.arc(160, 100, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 22px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('Bonjour les maths !', 160, 190);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+
+    <!-- ====================================================== -->
+    <!-- 2. COMPTER -->
+    <!-- ====================================================== -->
+    <h2 id="compter"><span class="num">2</span> Compter</h2>
+    <p>Compter, c'est associer <b>un nombre à une quantité</b> : un jeton, deux jetons, trois jetons… On dit le nombre <b>au fur et à mesure</b> que les objets apparaissent.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-head"><span class="step-num">Étape 1</span> Quatre jetons</div>
+        <p>On dessine 4 jetons et on écrit le nombre dessous. Change le <code class="inline">4</code> pour en dessiner plus ou moins.</p>
+        <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+const n = 4;
+for (let i = 0; i < n; i++) {
+  ctx.fillStyle = '#7c5cff';
+  ctx.beginPath();
+  ctx.arc(50 + i * 60, 80, 22, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+ctx.fillStyle = '#222';
+ctx.font = 'bold 48px Segoe UI';
+ctx.textAlign = 'center';
+ctx.fillText(n, 160, 180);</textarea>
+        <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+      </div>
+
+      <div class="step final">
+        <div class="step-head"><span class="step-num">Étape 2</span> Compter en direct</div>
+        <p>✦ nouveau : les jetons apparaissent un par un et le nombre suit. La boucle recommence de 0 à 5.</p>
+        <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const couleurs = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6'];
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const n = Math.floor((t - depart) / 600) % 6;   // 0,1,2,3,4,5
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  for (let i = 0; i < n; i++) {
+    ctx.fillStyle = couleurs[i % couleurs.length];
+    ctx.beginPath();
+    ctx.arc(50 + i * 55, 80, 20, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 48px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(n, 160, 185);
+});</textarea>
+        <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+      </div>
+    </div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Fais compter le programme <b>jusqu'à 9</b>. Indice : remplace <code class="inline">% 6</code> par <code class="inline">% 10</code> et diminue l'espace <code class="inline">i * 55</code> en <code class="inline">i * 32</code> pour que tout tienne.</p>
+      <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">let depart = 0;
+loop(t => {
+  if (!depart) depart = t;
+  const n = Math.floor((t - depart) / 500) % 6;   // <-- à modifier
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  for (let i = 0; i < n; i++) {
+    ctx.fillStyle = '#38d39f';
+    ctx.beginPath();
+    ctx.arc(35 + i * 55, 90, 14, 0, Math.PI * 2);   // <-- à modifier
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 44px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(n, 160, 185);
+});</textarea>
+        <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 3. COMPARER -->
+    <!-- ====================================================== -->
+    <h2 id="comparer"><span class="num">3</span> Comparer les nombres</h2>
+    <p>Pour savoir quel nombre est le plus grand, on compare <b>deux groupes</b>. On utilise les signes :
+    <code class="inline">&gt;</code> (plus grand que), <code class="inline">&lt;</code> (plus petit que) et <code class="inline">=</code> (égal).
+    Astuce : le bec du signe est <b>tourné vers le plus grand</b>.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">let depart = 0;
+loop(t => {
+  if (!depart) depart = t;
+  // On change les deux nombres toutes les 2 secondes
+  const paires = [[3, 5], [6, 2], [4, 4], [2, 7]];
+  const k = Math.floor((t - depart) / 2000) % paires.length;
+  const a = paires[k][0], b = paires[k][1];
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  // groupe de gauche (rouge)
+  for (let i = 0; i < a; i++) {
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.arc(30 + (i % 3) * 28, 45 + Math.floor(i / 3) * 30, 11, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // groupe de droite (bleu)
+  for (let i = 0; i < b; i++) {
+    ctx.fillStyle = '#3498db';
+    ctx.beginPath();
+    ctx.arc(215 + (i % 3) * 28, 45 + Math.floor(i / 3) * 30, 11, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const signe = a > b ? '>' : (a < b ? '<' : '=');
+  ctx.fillStyle = '#7c5cff';
+  ctx.font = 'bold 60px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(signe, 160, 135);
+
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 24px Segoe UI';
+  ctx.fillText(a, 55, 205);
+  ctx.fillText(b, 250, 205);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Ajoute une nouvelle comparaison dans la liste <code class="inline">paires</code>, par exemple <code class="inline">[8, 1]</code>. Devine le signe avant d'exécuter !</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 4. DROITE NUMÉRIQUE -->
+    <!-- ====================================================== -->
+    <h2 id="droite"><span class="num">4</span> La droite numérique</h2>
+    <p>Les nombres peuvent se ranger sur une <b>droite graduée</b>, dans l'ordre. Avancer d'une case, c'est ajouter 1. La grenouille saute de case en case, de 0 à 10.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const x0 = 25, x1 = 295, y = 110, N = 10;
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const cur = Math.floor((t - depart) / 700) % (N + 1);   // case 0..10
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  // la droite
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x0, y);
+  ctx.lineTo(x1 + 12, y);
+  ctx.stroke();
+
+  // les graduations + nombres
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= N; i++) {
+    const x = x0 + (x1 - x0) * i / N;
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 7);
+    ctx.lineTo(x, y + 7);
+    ctx.stroke();
+    ctx.fillStyle = '#222';
+    ctx.font = '13px Segoe UI';
+    ctx.fillText(i, x, y + 26);
+  }
+
+  // la grenouille
+  const fx = x0 + (x1 - x0) * cur / N;
+  ctx.font = '34px Segoe UI';
+  ctx.fillText('🐸', fx, y - 16);
+
+  ctx.fillStyle = '#27ae60';
+  ctx.font = 'bold 22px Segoe UI';
+  ctx.fillText('Case ' + cur, 160, 55);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Fais une droite qui va <b>jusqu'à 20</b> : change <code class="inline">N = 10</code> en <code class="inline">N = 20</code>. Que se passe-t-il pour l'espace entre les nombres ?</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 5. DIZAINES & UNITÉS -->
+    <!-- ====================================================== -->
+    <h2 id="dizaines"><span class="num">5</span> Dizaines &amp; unités</h2>
+    <p>Un nombre à deux chiffres se décompose en <b>dizaines</b> (paquets de 10) et <b>unités</b> (jetons isolés). Par exemple <b>37 = 3 dizaines + 7 unités</b>. Les barres bleues valent 10, les ronds jaunes valent 1.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">let depart = 0;
+loop(t => {
+  if (!depart) depart = t;
+  const nombres = [13, 24, 37, 42];
+  const k = Math.floor((t - depart) / 2200) % nombres.length;
+  const nb = nombres[k];
+  const d = Math.floor(nb / 10);   // dizaines
+  const u = nb % 10;               // unités
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  // barres de dizaines
+  for (let j = 0; j < d; j++) {
+    ctx.fillStyle = '#2980b9';
+    ctx.fillRect(25 + j * 28, 30, 18, 100);
+  }
+  // unités
+  for (let j = 0; j < u; j++) {
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.arc(165 + (j % 5) * 24, 45 + Math.floor(j / 5) * 24, 9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 19px Segoe UI';
+  ctx.fillText(d + ' dizaines + ' + u + ' unités = ' + nb, 160, 185);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Ajoute le nombre <b>56</b> dans la liste <code class="inline">nombres</code>. Compte d'abord à la main : combien de dizaines ? combien d'unités ?</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 6. ADDITION -->
+    <!-- ====================================================== -->
+    <h2 id="addition"><span class="num">6</span> L'addition</h2>
+    <p>Additionner, c'est <b>réunir</b> deux quantités pour en faire une seule. <code class="inline">3 + 2 = 5</code> : on met les 3 pommes avec les 2 pommes, puis on compte le tout.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-head"><span class="step-num">Étape 1</span> Le résultat affiché</div>
+        <p>Deux groupes de pommes et leur somme. Change <code class="inline">a</code> et <code class="inline">b</code>.</p>
+        <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const a = 3, b = 2;
+
+ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+ctx.fillStyle = '#e74c3c';
+for (let i = 0; i < a; i++) {
+  ctx.beginPath();
+  ctx.arc(35 + i * 34, 75, 14, 0, Math.PI * 2);
+  ctx.fill();
+}
+ctx.fillStyle = '#27ae60';
+for (let i = 0; i < b; i++) {
+  ctx.beginPath();
+  ctx.arc(200 + i * 34, 75, 14, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+ctx.fillStyle = '#222';
+ctx.textAlign = 'center';
+ctx.font = 'bold 32px Segoe UI';
+ctx.fillText(a + ' + ' + b + ' = ' + (a + b), 160, 165);</textarea>
+        <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+      </div>
+
+      <div class="step final">
+        <div class="step-head"><span class="step-num">Étape 2</span> On réunit en direct</div>
+        <p>✦ nouveau : le 2ᵉ groupe glisse vers le premier, puis la réponse apparaît.</p>
+        <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const a = 3, b = 2;
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const p = ((t - depart) % 4000) / 4000;     // 0 -> 1 en boucle
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  // décalage du 2e groupe : il se rapproche
+  const decal = (1 - Math.min(1, p * 2)) * 120;
+
+  ctx.fillStyle = '#e74c3c';
+  for (let i = 0; i < a; i++) {
+    ctx.beginPath();
+    ctx.arc(40 + i * 34, 85, 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#27ae60';
+  for (let i = 0; i < b; i++) {
+    ctx.beginPath();
+    ctx.arc(40 + (a + i) * 34 + decal, 85, 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 30px Segoe UI';
+  const txt = p > 0.5 ? (a + ' + ' + b + ' = ' + (a + b)) : (a + ' + ' + b + ' = ?');
+  ctx.fillText(txt, 160, 175);
+});</textarea>
+        <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+      </div>
+    </div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Calcule <b>6 + 3</b> avec l'animation : mets <code class="inline">a = 6</code> et <code class="inline">b = 3</code>. Compte les pommes pour vérifier la réponse.</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 7. SOUSTRACTION -->
+    <!-- ====================================================== -->
+    <h2 id="soustraction"><span class="num">7</span> La soustraction</h2>
+    <p>Soustraire, c'est <b>enlever</b>. <code class="inline">7 − 3 = 4</code> : on part de 7 ballons, 3 s'envolent, il en reste 4.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const total = 7, enleve = 3;
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const p = ((t - depart) % 4000) / 4000;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  for (let i = 0; i < total; i++) {
+    const x = 40 + (i % 4) * 70;
+    const y = 60 + Math.floor(i / 4) * 60;
+    let oy = 0, alpha = 1;
+
+    // les derniers ballons s'envolent
+    if (i >= total - enleve && p > 0.3) {
+      const q = Math.min(1, (p - 0.3) / 0.4);
+      oy = -q * 130;
+      alpha = 1 - q;
+    }
+
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.fillStyle = '#9b59b6';
+    ctx.beginPath();
+    ctx.arc(x, y + oy, 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 28px Segoe UI';
+  const txt = p > 0.75 ? (total + ' − ' + enleve + ' = ' + (total - enleve))
+                       : (total + ' − ' + enleve + ' = ?');
+  ctx.fillText(txt, 160, 205);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Fais l'opération <b>8 − 5</b> : change <code class="inline">total</code> et <code class="inline">enleve</code>. Combien de ballons restent à la fin ?</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 8. MULTIPLICATION -->
+    <!-- ====================================================== -->
+    <h2 id="multiplication"><span class="num">8</span> La multiplication</h2>
+    <p>Multiplier, c'est <b>répéter</b> le même paquet plusieurs fois. <code class="inline">3 × 4</code>, c'est <b>3 rangées de 4</b>. On range les jetons en <b>tableau</b> (on dit aussi une « disposition rectangulaire ») et on compte le total.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const lignes = 3, colonnes = 4;
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  const total = lignes * colonnes;
+  // les jetons se révèlent un par un
+  const visibles = Math.min(total, Math.floor(((t - depart) % 4500) / 250));
+
+  let c = 0;
+  for (let r = 0; r < lignes; r++) {
+    for (let col = 0; col < colonnes; col++) {
+      if (c < visibles) {
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath();
+        ctx.arc(60 + col * 55, 45 + r * 45, 16, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      c++;
+    }
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 26px Segoe UI';
+  ctx.fillText(lignes + ' × ' + colonnes + ' = ' + total, 160, 200);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Construis le tableau de <b>2 × 5</b>, puis celui de <b>5 × 2</b>. Le résultat change-t-il ? (Indice : non — c'est la <b>commutativité</b> !)</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 9. DIVISION -->
+    <!-- ====================================================== -->
+    <h2 id="division"><span class="num">9</span> La division (le partage)</h2>
+    <p>Diviser, c'est <b>partager en parts égales</b>. <code class="inline">12 ÷ 3 = 4</code> : on distribue 12 bonbons dans 3 assiettes, « une pour toi, une pour toi… ». Chaque assiette reçoit 4 bonbons.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const total = 12, groupes = 3;
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const p = ((t - depart) % 5000) / 5000;
+  const parPart = total / groupes;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  // les 3 assiettes
+  for (let g = 0; g < groupes; g++) {
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(15 + g * 100, 110, 90, 90);
+  }
+
+  const distribues = Math.min(total, Math.floor(p * total * 1.3));
+  for (let i = 0; i < total; i++) {
+    let x, y;
+    if (i < distribues) {
+      const g = i % groupes;              // distribution tournante
+      const idx = Math.floor(i / groupes);
+      x = 15 + g * 100 + 25 + (idx % 2) * 35;
+      y = 130 + Math.floor(idx / 2) * 35;
+    } else {
+      x = 35 + (i % 6) * 35;              // en attente, en haut
+      y = 35 + Math.floor(i / 6) * 35;
+    }
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.arc(x, y, 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 22px Segoe UI';
+  ctx.fillText(total + ' ÷ ' + groupes + ' = ' + parPart, 160, 100);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Partage <b>12 bonbons en 4 assiettes</b> : mets <code class="inline">groupes = 4</code>. Combien chacun en reçoit-il ? Essaie aussi <code class="inline">groupes = 2</code>.</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 10. FRACTIONS -->
+    <!-- ====================================================== -->
+    <h2 id="fractions"><span class="num">10</span> Les fractions</h2>
+    <p>Une fraction décrit une <b>part d'un tout</b>. On partage une pizza en parts égales : le chiffre du bas (le <b>dénominateur</b>) dit en combien de parts, le chiffre du haut (le <b>numérateur</b>) dit combien on en prend.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const parts = 8;
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const remplies = Math.floor((t - depart) / 600) % (parts + 1);  // 0..8
+  const cx = 110, cy = 110, R = 85;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  for (let i = 0; i < parts; i++) {
+    const a0 = (i / parts) * Math.PI * 2 - Math.PI / 2;
+    const a1 = ((i + 1) / parts) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = i < remplies ? '#f39c12' : '#fdeecf';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // la fraction écrite remplies/parts
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 56px Segoe UI';
+  ctx.fillText(remplies, 255, 95);
+  ctx.fillRect(228, 108, 54, 5);
+  ctx.fillText(parts, 255, 175);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Coupe la pizza en <b>4 parts</b> au lieu de 8 : mets <code class="inline">parts = 4</code>. À quoi ressemble la fraction « la moitié » ? (Réponse : 2/4… ou 1/2 !)</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 11. FORMES -->
+    <!-- ====================================================== -->
+    <h2 id="formes"><span class="num">11</span> Les formes géométriques</h2>
+    <p>On reconnaît les figures à leurs <b>côtés</b> et leurs <b>coins</b> : le <b>carré</b> (4 côtés égaux), le <b>rectangle</b> (4 côtés, 2 longueurs), le <b>triangle</b> (3 côtés) et le <b>cercle</b> (tout rond, pas de coin).</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+// carré
+ctx.fillStyle = '#3498db';
+ctx.fillRect(20, 30, 70, 70);
+
+// triangle
+ctx.fillStyle = '#e74c3c';
+ctx.beginPath();
+ctx.moveTo(160, 30);
+ctx.lineTo(125, 100);
+ctx.lineTo(195, 100);
+ctx.closePath();
+ctx.fill();
+
+// cercle
+ctx.fillStyle = '#2ecc71';
+ctx.beginPath();
+ctx.arc(265, 65, 38, 0, Math.PI * 2);
+ctx.fill();
+
+// rectangle
+ctx.fillStyle = '#9b59b6';
+ctx.fillRect(110, 150, 100, 50);
+
+// les noms
+ctx.fillStyle = '#222';
+ctx.textAlign = 'center';
+ctx.font = '15px Segoe UI';
+ctx.fillText('carré', 55, 125);
+ctx.fillText('triangle', 160, 125);
+ctx.fillText('cercle', 265, 125);
+ctx.fillText('rectangle', 160, 215);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Transforme le carré bleu en <b>grand carré</b> : change <code class="inline">fillRect(20, 30, 70, 70)</code> en <code class="inline">fillRect(20, 30, 100, 100)</code>. Un carré a toujours ses 4 côtés <b>égaux</b> !</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 12. PÉRIMÈTRE -->
+    <!-- ====================================================== -->
+    <h2 id="perimetre"><span class="num">12</span> Le périmètre</h2>
+    <p>Le périmètre, c'est la <b>longueur du tour</b> d'une figure. On suit le contour case par case et on additionne. Ici chaque carreau vaut 1 cm.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const cell = 30, ox = 60, oy = 45, L = 5, H = 3;   // rectangle 5 x 3
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  // la grille
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= L; i++) {
+    ctx.beginPath(); ctx.moveTo(ox + i * cell, oy); ctx.lineTo(ox + i * cell, oy + H * cell); ctx.stroke();
+  }
+  for (let j = 0; j <= H; j++) {
+    ctx.beginPath(); ctx.moveTo(ox, oy + j * cell); ctx.lineTo(ox + L * cell, oy + j * cell); ctx.stroke();
+  }
+
+  // le tour, point par point
+  const pts = [];
+  for (let i = 0; i <= L; i++) pts.push([ox + i * cell, oy]);
+  for (let j = 1; j <= H; j++) pts.push([ox + L * cell, oy + j * cell]);
+  for (let i = L - 1; i >= 0; i--) pts.push([ox + i * cell, oy + H * cell]);
+  for (let j = H - 1; j >= 0; j--) pts.push([ox, oy + j * cell]);
+
+  const peri = 2 * (L + H);
+  const seg = Math.floor(((t - depart) % 4500) / 300) % (peri + 1);
+
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let k = 1; k <= Math.min(seg, pts.length - 1); k++) ctx.lineTo(pts[k][0], pts[k][1]);
+  ctx.stroke();
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 19px Segoe UI';
+  ctx.fillText('Périmètre = ' + Math.min(seg, peri) + ' cm   (but : ' + peri + ')', 160, 200);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Fais un <b>carré de 4 cases de côté</b> : mets <code class="inline">L = 4</code> et <code class="inline">H = 4</code>. Calcule son périmètre à la main, puis vérifie avec l'animation.</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 13. AIRE -->
+    <!-- ====================================================== -->
+    <h2 id="aire"><span class="num">13</span> L'aire</h2>
+    <p>L'aire, c'est la <b>surface intérieure</b> : le nombre de carreaux qu'il faut pour remplir la figure. Pour un rectangle, on multiplie <b>largeur × hauteur</b>.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const cell = 32, ox = 75, oy = 25, L = 5, H = 4;
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  const total = L * H;
+  const remplies = Math.min(total, Math.floor(((t - depart) % 5000) / 180));
+
+  for (let j = 0; j < H; j++) {
+    for (let i = 0; i < L; i++) {
+      const n = j * L + i;
+      ctx.fillStyle = n < remplies ? '#2ecc71' : '#fff';
+      ctx.fillRect(ox + i * cell, oy + j * cell, cell, cell);
+      ctx.strokeStyle = '#bbb';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ox + i * cell, oy + j * cell, cell, cell);
+    }
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 18px Segoe UI';
+  ctx.fillText('Aire = ' + Math.min(remplies, total) + ' carreaux   (' + L + ' × ' + H + ' = ' + total + ')', 160, 205);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Change la figure en <code class="inline">L = 6</code>, <code class="inline">H = 3</code>. Combien de carreaux faut-il ? Compare avec <code class="inline">L = 3</code>, <code class="inline">H = 6</code> : même aire ?</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 14. SYMÉTRIE -->
+    <!-- ====================================================== -->
+    <h2 id="symetrie"><span class="num">14</span> La symétrie</h2>
+    <p>Une figure est <b>symétrique</b> quand un côté est le <b>reflet</b> de l'autre, comme dans un miroir. La ligne rouge est <b>l'axe de symétrie</b> : le papillon est pareil à gauche et à droite.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const axe = 160;
+const pts = [[60, 60], [105, 40], [125, 95], [95, 150], [60, 125]];
+
+ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+// l'axe de symétrie
+ctx.strokeStyle = '#e74c3c';
+ctx.lineWidth = 2;
+ctx.setLineDash([6, 6]);
+ctx.beginPath();
+ctx.moveTo(axe, 10);
+ctx.lineTo(axe, 195);
+ctx.stroke();
+ctx.setLineDash([]);
+
+// aile gauche
+ctx.fillStyle = '#3498db';
+ctx.beginPath();
+pts.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+ctx.closePath();
+ctx.fill();
+
+// aile droite : le reflet (x devient 2*axe - x)
+ctx.fillStyle = '#2980b9';
+ctx.beginPath();
+pts.forEach((p, k) => {
+  const x = 2 * axe - p[0];
+  k ? ctx.lineTo(x, p[1]) : ctx.moveTo(x, p[1]);
+});
+ctx.closePath();
+ctx.fill();
+
+ctx.fillStyle = '#222';
+ctx.textAlign = 'center';
+ctx.font = '15px Segoe UI';
+ctx.fillText('axe de symétrie', axe, 212);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Ajoute un point à l'aile gauche dans la liste <code class="inline">pts</code>, par exemple <code class="inline">[80, 80]</code>. Le reflet de droite se met-il à jour tout seul ? Pourquoi ?</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 15. MESURER -->
+    <!-- ====================================================== -->
+    <h2 id="mesures"><span class="num">15</span> Mesurer une longueur</h2>
+    <p>On mesure avec une <b>règle graduée</b>, en plaçant le <b>0</b> au début de l'objet. La longueur est le nombre où s'arrête l'objet. Ici, le crayon rouge change de taille à chaque tour.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">let depart = 0;
+loop(t => {
+  if (!depart) depart = t;
+  const p = ((t - depart) % 4000) / 4000;
+  const longueur = 3 + Math.floor(p * 6);   // de 3 à 8 cm
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  // la règle
+  const ox = 20, oy = 150, cell = 30, n = 9;
+  ctx.fillStyle = '#f6d96b';
+  ctx.fillRect(ox, oy, n * cell, 42);
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = '12px Segoe UI';
+  for (let i = 0; i <= n; i++) {
+    ctx.beginPath();
+    ctx.moveTo(ox + i * cell, oy);
+    ctx.lineTo(ox + i * cell, oy + 12);
+    ctx.stroke();
+    ctx.fillText(i, ox + i * cell, oy + 30);
+  }
+
+  // le crayon mesuré
+  ctx.fillStyle = '#e74c3c';
+  ctx.fillRect(ox, 95, longueur * cell, 24);
+
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 22px Segoe UI';
+  ctx.fillText('Longueur = ' + longueur + ' cm', 160, 55);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Fais un crayon qui mesure <b>toujours 5 cm</b> : remplace la ligne <code class="inline">const longueur = ...</code> par <code class="inline">const longueur = 5;</code>.</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 16. LIRE L'HEURE -->
+    <!-- ====================================================== -->
+    <h2 id="heure"><span class="num">16</span> Lire l'heure</h2>
+    <p>Sur une horloge, la <b>petite aiguille</b> indique les heures, la <b>grande aiguille</b> (rouge) indique les minutes. Ici le temps va plus vite pour bien voir les aiguilles tourner.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">loop(t => {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  const cx = 160, cy = 105, R = 92;
+
+  // le cadran
+  ctx.fillStyle = '#fdfdfd';
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // les chiffres 1 à 12
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '16px Segoe UI';
+  for (let h = 1; h <= 12; h++) {
+    const a = (h / 12) * Math.PI * 2 - Math.PI / 2;
+    ctx.fillText(h, cx + Math.cos(a) * (R - 18), cy + Math.sin(a) * (R - 18));
+  }
+
+  // les aiguilles (le temps est accéléré)
+  const sec = t / 1000;
+  const minute = (sec * 6) % 60;
+  const heure = (sec * 0.5) % 12;
+
+  function aiguille(tour, len, w, col) {
+    const a = tour * Math.PI * 2 - Math.PI / 2;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+    ctx.stroke();
+  }
+  aiguille(heure / 12, 50, 7, '#222');
+  aiguille(minute / 60, 74, 4, '#e74c3c');
+
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.textBaseline = 'alphabetic';
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Ralentis l'horloge pour mieux observer : remplace <code class="inline">sec * 6</code> par <code class="inline">sec * 2</code> et <code class="inline">sec * 0.5</code> par <code class="inline">sec * 0.2</code>.</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 17. MONNAIE -->
+    <!-- ====================================================== -->
+    <h2 id="monnaie"><span class="num">17</span> La monnaie</h2>
+    <p>Pour payer, on additionne la valeur des pièces. Ici les pièces tombent une à une et le <b>total en euros</b> se met à jour. Attention : <code class="inline">0.5 €</code> veut dire 50 centimes.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const pieces = [2, 1, 0.5, 0.2, 0.2];   // en euros
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const n = Math.min(pieces.length, Math.floor(((t - depart) % 5000) / 700));
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    total += pieces[i];
+    ctx.fillStyle = '#d4af37';
+    ctx.beginPath();
+    ctx.arc(45 + i * 58, 90, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#a9821e';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = '#5a4500';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 14px Segoe UI';
+    ctx.fillText(pieces[i] + '€', 45 + i * 58, 95);
+  }
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 26px Segoe UI';
+  ctx.fillText('Total : ' + total.toFixed(2) + ' €', 160, 180);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Compose exactement <b>5 €</b> avec la liste <code class="inline">pieces</code>. Par exemple <code class="inline">[2, 2, 1]</code>. Trouve une autre façon d'arriver à 5 € !</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 18. TABLE DE MULTIPLICATION -->
+    <!-- ====================================================== -->
+    <h2 id="tables"><span class="num">18</span> Table de multiplication interactive</h2>
+    <p>Voici une table de Pythagore. <b>Survole la grille avec la souris</b> : le rectangle vert montre la multiplication, et le résultat s'affiche en bas. Parfait pour découvrir que <code class="inline">a × b</code>, c'est l'aire d'un rectangle !</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const N = 10, cell = 18, ox = 70, oy = 12;
+let hx = -1, hy = -1;
+
+on(canvas, 'mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const mx = (e.clientX - r.left) * canvas.width / r.width;
+  const my = (e.clientY - r.top) * canvas.height / r.height;
+  hx = Math.floor((mx - ox) / cell);
+  hy = Math.floor((my - oy) / cell);
+});
+
+loop(() => {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const dans = (hx >= 0 && hy >= 0 && hx < N && hy < N && i <= hx && j <= hy);
+      ctx.fillStyle = dans ? '#9be7c4' : '#eef3f7';
+      ctx.fillRect(ox + i * cell, oy + j * cell, cell - 2, cell - 2);
+    }
+  }
+
+  ctx.textAlign = 'center';
+  if (hx >= 0 && hy >= 0 && hx < N && hy < N) {
+    ctx.fillStyle = '#222';
+    ctx.font = 'bold 20px Segoe UI';
+    ctx.fillText((hx + 1) + ' × ' + (hy + 1) + ' = ' + ((hx + 1) * (hy + 1)), 160, 210);
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.font = '15px Segoe UI';
+    ctx.fillText('Survole la grille avec la souris', 160, 210);
+  }
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Survole pour trouver <b>7 × 8</b>. Puis cherche le plus grand résultat possible : où se trouve-t-il dans la grille ?</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 19. JEU CALCUL MENTAL -->
+    <!-- ====================================================== -->
+    <h2 id="jeu-calcul"><span class="num">19</span> Jeu : le calcul mental</h2>
+    <p>Un petit jeu pour s'entraîner. Une addition apparaît : <b>calcule dans ta tête</b>, puis <b>clique</b> sur l'écran pour voir la réponse. Clique encore pour une nouvelle question.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">let a = 3, b = 4, montre = false;
+
+function nouvelle() {
+  a = 1 + Math.floor(Math.random() * 9);
+  b = 1 + Math.floor(Math.random() * 9);
+  montre = false;
+}
+
+on(canvas, 'click', () => {
+  if (montre) nouvelle(); else montre = true;
+});
+
+loop(() => {
+  ctx.fillStyle = '#1f2d3d';
+  ctx.fillRect(0, 0, 320, 220);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 46px Segoe UI';
+  ctx.fillText(a + ' + ' + b + ' = ' + (montre ? (a + b) : '?'), 160, 105);
+
+  ctx.fillStyle = '#9be7c4';
+  ctx.font = '16px Segoe UI';
+  ctx.fillText(montre ? 'Clique pour une nouvelle question'
+                      : 'Clique pour voir la réponse', 160, 165);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Transforme le jeu en <b>soustractions</b> : remplace les deux <code class="inline">' + '</code> par <code class="inline">' − '</code> et <code class="inline">(a + b)</code> par <code class="inline">(a - b)</code>. Pour éviter les résultats négatifs, c'est un vrai défi de programmeur !</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- MÉMO -->
+    <!-- ====================================================== -->
+    <h2 id="memo"><span class="num">📋</span> Mémo — les outils de dessin</h2>
+    <p>Pour fabriquer tes propres animations de maths, voici les commandes les plus utiles. Tout se dessine sur <code class="inline">ctx</code> (le « crayon »).</p>
+
+    <table class="api">
+      <tr><th>Commande</th><th>À quoi ça sert</th></tr>
+      <tr><td><code>ctx.fillStyle = '#7c5cff'</code></td><td>Choisir la couleur de remplissage</td></tr>
+      <tr><td><code>ctx.fillRect(x, y, l, h)</code></td><td>Dessiner un rectangle plein (carré, barre…)</td></tr>
+      <tr><td><code>ctx.strokeRect(x, y, l, h)</code></td><td>Dessiner seulement le contour d'un rectangle</td></tr>
+      <tr><td><code>ctx.beginPath()</code> … <code>ctx.fill()</code></td><td>Commencer / remplir une forme libre</td></tr>
+      <tr><td><code>ctx.arc(x, y, r, 0, Math.PI*2)</code></td><td>Dessiner un cercle (rayon r)</td></tr>
+      <tr><td><code>ctx.moveTo / ctx.lineTo</code></td><td>Tracer des segments (triangles, lignes…)</td></tr>
+      <tr><td><code>ctx.fillText(texte, x, y)</code></td><td>Écrire un nombre ou un mot</td></tr>
+      <tr><td><code>loop(t =&gt; { ... })</code></td><td>Animer : la fonction se répète à chaque image</td></tr>
+      <tr><td><code>on(canvas, 'click', fn)</code></td><td>Réagir à la souris (jeux interactifs)</td></tr>
+    </table>
+
+    <div class="tip"><b>Le truc à retenir :</b> pour une animation, on efface tout au début de chaque tour avec <code class="inline">ctx.fillRect(0, 0, 320, 220)</code> en blanc, puis on redessine. La variable <code class="inline">t</code> est le temps qui passe : elle sert à tout faire bouger.</div>
+
+    <footer>
+      Cours de mathématiques animé — école primaire · Inspiré du « Cours complet Canvas ».<br>
+      100&nbsp;% hors-ligne : aucune connexion ni bibliothèque externe. Modifie les exemples sans rien casser, recharge la page pour repartir à zéro.
+    </footer>
+
+  </main>
+</div>
+
+<script src="assets/runner.js"></script>
+</body>
+</html>
