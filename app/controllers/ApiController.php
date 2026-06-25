@@ -191,30 +191,58 @@ class ApiController extends ApiKernel
             Quiz::deleteQuestions($quizId); // on remplace l'ancien jeu de questions
         }
 
-        // Crée questions + options. On ignore les questions invalides
-        // (énoncé vide, moins de 2 options, ou aucune bonne réponse cochée).
+        // Crée questions + options. On ignore les questions invalides.
         // Le texte des questions/options est stocké SANS balise (anti-XSS).
+        // Types acceptés : single | multiple | numeric | text | fill | order | match.
         $qpos = 0; $nQ = 0; $nO = 0;
         foreach ($questions as $q) {
             if (!is_array($q)) { continue; }
             $body = trim(strip_tags((string) ($q['body'] ?? '')));
-            $opts = $q['options'] ?? [];
-            if ($body === '' || !is_array($opts) || count($opts) < 2) { continue; }
-            $type = (($q['type'] ?? 'single') === 'multiple') ? 'multiple' : 'single';
+            if ($body === '') { continue; }
+            $type = Quiz::normalizeType((string) ($q['type'] ?? 'single'));
+            $expl = trim(strip_tags((string) ($q['explanation'] ?? '')));
 
-            $hasCorrect = false;
-            foreach ($opts as $o) {
-                if (is_array($o) && !empty($o['correct'])) { $hasCorrect = true; break; }
+            // ---- Types « à saisir » : pas d'options, une réponse attendue --------
+            if (in_array($type, ['numeric', 'text', 'fill'], true)) {
+                $answer = trim(strip_tags((string) ($q['answer'] ?? '')));
+                if ($type === 'numeric') {
+                    if (Quiz::toNumber($answer) === null) { continue; }
+                } elseif ($type === 'fill') {
+                    $blanks = preg_match_all('/\[[^\]]*\]/', $body);
+                    $parts  = array_filter(array_map('trim', explode('|', $answer)), fn ($v) => $v !== '');
+                    if ($blanks < 1 || count($parts) !== $blanks) { continue; }
+                    $answer = implode('|', $parts);
+                } elseif ($answer === '') {
+                    continue;
+                }
+                $tol = max(0, (float) (Quiz::toNumber((string) ($q['tolerance'] ?? '0')) ?? 0));
+                Quiz::addQuestion($quizId, $body, $type, $qpos++, null, $expl ?: null, $answer, $tol); $nQ++;
+                continue;
             }
-            if (!$hasCorrect) { continue; }
 
-            $qid = Quiz::addQuestion($quizId, $body, $type, $qpos++); $nQ++;
-            $opos = 0;
+            // ---- Types « à options » : single / multiple / order / match ---------
+            $opts = $q['options'] ?? [];
+            if (!is_array($opts) || count($opts) < 2) { continue; }
+
+            $clean = [];
+            $hasCorrect = false; $allPaired = true;
             foreach ($opts as $o) {
                 if (!is_array($o)) { continue; }
                 $label = trim(strip_tags((string) ($o['label'] ?? '')));
                 if ($label === '') { continue; }
-                Quiz::addOption($qid, $label, !empty($o['correct']), $opos++); $nO++;
+                $pair  = trim(strip_tags((string) ($o['pair'] ?? '')));
+                if (!empty($o['correct'])) { $hasCorrect = true; }
+                if ($pair === '') { $allPaired = false; }
+                $clean[] = ['label' => $label, 'correct' => !empty($o['correct']), 'pair' => $pair];
+            }
+            if (count($clean) < 2) { continue; }
+            if (($type === 'single' || $type === 'multiple') && !$hasCorrect) { continue; }
+            if ($type === 'match' && !$allPaired) { continue; }
+
+            $qid = Quiz::addQuestion($quizId, $body, $type, $qpos++, null, $expl ?: null); $nQ++;
+            $opos = 0;
+            foreach ($clean as $o) {
+                Quiz::addOption($qid, $o['label'], $o['correct'], $opos++, $o['pair'] ?: null); $nO++;
             }
         }
 

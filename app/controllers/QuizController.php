@@ -228,10 +228,14 @@ class QuizController
         // (Re)crée les questions et leurs options.
         $qpos = 0;
         foreach ($clean as $q) {
-            $qid = Quiz::addQuestion($id, $q['body'], $q['type'], $qpos++, $q['image'] ?? null, $q['explanation'] ?? null);
+            $qid = Quiz::addQuestion(
+                $id, $q['body'], $q['type'], $qpos++,
+                $q['image'] ?? null, $q['explanation'] ?? null,
+                $q['answer'] ?? null, (float) ($q['tolerance'] ?? 0)
+            );
             $opos = 0;
             foreach ($q['options'] as $opt) {
-                Quiz::addOption($qid, $opt['label'], $opt['correct'], $opos++);
+                Quiz::addOption($qid, $opt['label'], $opt['correct'], $opos++, $opt['pair'] ?? null);
             }
         }
 
@@ -334,36 +338,69 @@ class QuizController
             }
             $body = trim((string) ($q['body'] ?? ''));
             $expl = trim((string) ($q['explanation'] ?? ''));
-            $type = ($q['type'] ?? 'single') === 'multiple' ? 'multiple' : 'single';
-            $rawOpts = is_array($q['opt'] ?? null) ? $q['opt'] : [];
-
-            $options    = [];
-            $correctSeen = false;
-            foreach ($rawOpts as $opt) {
-                if (!is_array($opt)) {
-                    continue;
-                }
-                $label = trim((string) ($opt['label'] ?? ''));
-                if ($label === '') {
-                    continue; // option vide ignorée
-                }
-                $correct = !empty($opt['correct']);
-                // Mode « unique » : une seule bonne réponse autorisée.
-                if ($correct && $type === 'single' && $correctSeen) {
-                    $correct = false;
-                }
-                if ($correct) {
-                    $correctSeen = true;
-                }
-                $options[] = ['label' => $label, 'correct' => $correct];
-            }
-
-            // Une question valide : énoncé + ≥ 2 réponses + ≥ 1 bonne réponse.
-            if ($body === '' || count($options) < 2 || !$correctSeen) {
+            $type = Quiz::normalizeType((string) ($q['type'] ?? 'single'));
+            if ($body === '') {
                 continue;
             }
-            // 'key' = index POST d'origine (sert à retrouver l'image envoyée pour cette question).
-            $out[] = ['key' => $k, 'body' => $body, 'explanation' => $expl, 'type' => $type, 'options' => $options];
+
+            $base = ['key' => $k, 'body' => $body, 'explanation' => $expl, 'type' => $type,
+                     'options' => [], 'answer' => null, 'tolerance' => 0.0];
+
+            // ---- Types « à saisir » : réponse attendue, pas d'options -----------
+            if ($type === 'numeric') {
+                $ans = trim((string) ($q['answer'] ?? ''));
+                if (Quiz::toNumber($ans) === null) { continue; }          // il faut un nombre valide
+                $base['answer']    = $ans;
+                $base['tolerance'] = max(0, (float) Quiz::toNumber((string) ($q['tolerance'] ?? '0')));
+                $out[] = $base;
+                continue;
+            }
+            if ($type === 'text') {
+                $ans = trim((string) ($q['answer'] ?? ''));
+                if ($ans === '') { continue; }                            // au moins une réponse acceptée
+                $base['answer'] = $ans;
+                $out[] = $base;
+                continue;
+            }
+            if ($type === 'fill') {
+                // L'énoncé doit contenir au moins un trou marqué […] ; les réponses
+                // sont séparées par « | » et doivent être aussi nombreuses que les trous.
+                $blanks = preg_match_all('/\[[^\]]*\]/', $body);
+                $ans    = trim((string) ($q['answer'] ?? ''));
+                $parts  = array_filter(array_map('trim', explode('|', $ans)), fn ($v) => $v !== '');
+                if ($blanks < 1 || count($parts) !== $blanks) { continue; }
+                $base['answer'] = implode('|', $parts);
+                $out[] = $base;
+                continue;
+            }
+
+            // ---- Types « à options » : single / multiple / order / match --------
+            $rawOpts = is_array($q['opt'] ?? null) ? $q['opt'] : [];
+            $options = [];
+            $correctSeen = false;
+            foreach ($rawOpts as $opt) {
+                if (!is_array($opt)) { continue; }
+                $label = trim((string) ($opt['label'] ?? ''));
+                if ($label === '') { continue; }
+                $pair = trim((string) ($opt['pair'] ?? ''));
+                $correct = !empty($opt['correct']);
+                if ($correct && $type === 'single' && $correctSeen) { $correct = false; }
+                if ($correct) { $correctSeen = true; }
+                $options[] = ['label' => $label, 'correct' => $correct, 'pair' => $pair];
+            }
+
+            if (count($options) < 2) { continue; }                        // tout type à options : ≥ 2
+
+            if ($type === 'single' || $type === 'multiple') {
+                if (!$correctSeen) { continue; }                          // ≥ 1 bonne réponse cochée
+            } elseif ($type === 'match') {
+                // Chaque ligne doit avoir une cible à associer.
+                foreach ($options as $o) { if ($o['pair'] === '') { continue 2; } }
+            }
+            // ('order' : l'ordre saisi EST la bonne réponse, rien d'autre à valider)
+
+            $base['options'] = $options;
+            $out[] = $base;
         }
         return $out;
     }
@@ -421,6 +458,7 @@ class QuizController
         $questions = Quiz::questions($id);
         $response  = Quiz::responseFor($id, $uid);
         $myAnswers = $response ? Quiz::answersFor((int) $response['id']) : [];
+        $myTexts   = $response ? Quiz::textsFor((int) $response['id']) : [];
 
         // Ce questionnaire bloque-t-il l'accès pour ce membre (obligatoire non terminé) ?
         $mustComplete = !Session::isAdmin()
@@ -450,6 +488,7 @@ class QuizController
             'participants' => Quiz::responseCount($id),
             'response'     => $response,   // null si pas encore répondu
             'myAnswers'    => $myAnswers,  // [question_id => [option_id…]]
+            'myTexts'      => $myTexts,    // [question_id => texte saisi] (numeric/text/fill/match)
             'mustComplete' => $mustComplete,
             'maxAttempts'  => (int) ($quiz['max_attempts'] ?? 0),
             'attemptsUsed' => $response ? (int) $response['attempts'] : 0,
@@ -488,36 +527,60 @@ class QuizController
             redirect('quiz/show?id=' . $id . '#resultats');
         }
 
-        $given = is_array($_POST['answer'] ?? null) ? $_POST['answer'] : [];
+        // Saisies du membre, par famille de champ (selon le type de question).
+        $given      = is_array($_POST['answer'] ?? null)        ? $_POST['answer']        : []; // single/multiple
+        $givenText  = is_array($_POST['answer_text'] ?? null)   ? $_POST['answer_text']   : []; // numeric/text
+        $givenFill  = is_array($_POST['answer_fill'] ?? null)   ? $_POST['answer_fill']   : []; // fill (un champ par trou)
+        $givenOrder = is_array($_POST['answer_order'] ?? null)  ? $_POST['answer_order']  : []; // order (suite d'option_id)
+        $givenMatch = is_array($_POST['answer_match'] ?? null)  ? $_POST['answer_match']  : []; // match (« optId:cible,… »)
+
         $picks = [];
+        $texts = [];
         $score = 0;
 
         foreach ($questions as $q) {
-            $qid       = (int) $q['id'];
-            $optIds    = array_map(fn ($o) => (int) $o['id'], $q['options']);
-            $correctSet = [];
-            foreach ($q['options'] as $o) {
-                if ((int) $o['is_correct'] === 1) {
-                    $correctSet[] = (int) $o['id'];
-                }
+            $qid    = (int) $q['id'];
+            $type   = Quiz::normalizeType((string) $q['type']);
+            $optIds = array_map(fn ($o) => (int) $o['id'], $q['options']);
+
+            $chosen = [];     // option_id (single/multiple/order)
+            $text   = null;   // réponse saisie (numeric/text/fill/match)
+
+            switch ($type) {
+                case 'numeric':
+                case 'text':
+                    $text = trim((string) ($givenText[$qid] ?? ''));
+                    break;
+
+                case 'fill':
+                    $blanks = (array) ($givenFill[$qid] ?? []);
+                    $text = implode('|', array_map(fn ($b) => trim((string) $b), $blanks));
+                    break;
+
+                case 'order':
+                    // « id,id,id » → on ne garde que des option_id réels de CETTE question, sans doublon.
+                    foreach (explode(',', (string) ($givenOrder[$qid] ?? '')) as $v) {
+                        $v = (int) trim($v);
+                        if (in_array($v, $optIds, true) && !in_array($v, $chosen, true)) { $chosen[] = $v; }
+                    }
+                    $text = implode(',', $chosen);
+                    break;
+
+                case 'match':
+                    $text = trim((string) ($givenMatch[$qid] ?? ''));
+                    break;
+
+                default: // single / multiple
+                    foreach ((array) ($given[$qid] ?? []) as $v) {
+                        $v = (int) $v;
+                        if (in_array($v, $optIds, true) && !in_array($v, $chosen, true)) { $chosen[] = $v; }
+                    }
             }
 
-            // Récupère les options cochées par le membre pour cette question.
-            $raw = $given[$qid] ?? [];
-            $chosen = [];
-            foreach ((array) $raw as $v) {
-                $v = (int) $v;
-                if (in_array($v, $optIds, true)) { // on n'accepte que des options réelles
-                    $chosen[] = $v;
-                }
-            }
-            $chosen = array_values(array_unique($chosen));
             $picks[$qid] = $chosen;
+            if ($text !== null && $text !== '') { $texts[$qid] = $text; }
 
-            // Bonne question = exactement le bon ensemble d'options (ni plus, ni moins).
-            sort($chosen);
-            sort($correctSet);
-            if ($chosen === $correctSet && !empty($correctSet)) {
+            if (Quiz::gradeQuestion($q, $chosen, $text)) {
                 $score++;
             }
         }
@@ -529,7 +592,8 @@ class QuizController
             $me['name'] ?: ($me['email'] ?? ''),
             $picks,
             $score,
-            count($questions)
+            count($questions),
+            $texts
         );
 
         // Cas d'un questionnaire OBLIGATOIRE pour un membre (hors admin) : on

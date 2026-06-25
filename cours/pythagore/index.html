@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le théorème de Pythagore — cours animé (Canvas)</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <h1>📐 Pythagore</h1>
+    <div class="tag">Cours complet &amp; animé · collège</div>
+    <nav>
+      <a class="section-title">Découvrir</a>
+      <a href="#intro">1 · Bienvenue</a>
+      <a href="#triangle">2 · Le triangle rectangle</a>
+      <a href="#vocabulaire">3 · Hypoténuse &amp; côtés</a>
+
+      <a class="section-title">Le théorème</a>
+      <a href="#theoreme">4 · L'énoncé</a>
+      <a href="#preuve">5 · La preuve par les carrés</a>
+      <a href="#puzzle">6 · La preuve-puzzle</a>
+
+      <a class="section-title">Calculer</a>
+      <a href="#hypotenuse">7 · Trouver l'hypoténuse</a>
+      <a href="#cote">8 · Trouver un côté de l'angle droit</a>
+
+      <a class="section-title">Aller plus loin</a>
+      <a href="#reciproque">9 · La réciproque</a>
+      <a href="#triplets">10 · Les triplets pythagoriciens</a>
+      <a href="#distance">11 · Distance entre deux points</a>
+
+      <a class="section-title">Réviser</a>
+      <a href="#memo">📋 Mémo des formules</a>
+      <a href="manipuler.html" style="color:#7c5cff;font-weight:700;">🎛️ Manipuler en direct →</a>
+      <a href="qcm.html" style="color:#38d39f;font-weight:700;">✅ Faire le QCM →</a>
+    </nav>
+  </aside>
+
+  <!-- ============ CONTENU ============ -->
+  <main class="content">
+
+    <div class="hero">
+      <h1>Le théorème de Pythagore, en images animées</h1>
+      <p class="lead">Une relation magique entre les trois côtés d'un triangle rectangle. Chaque idée est expliquée pas à pas avec une animation que tu peux <b>regarder</b>, puis <b>modifier toi-même</b>.</p>
+      <img src="assets/pythagore.svg" alt="Triangle rectangle 3-4-5 avec un carré sur chacun de ses côtés : 9 + 16 = 25"
+           style="display:block;width:100%;max-width:560px;margin:18px auto 0;border-radius:10px;">
+    </div>
+
+    <div class="tip">
+      <b>Comment ça marche ?</b> Chaque encadré contient une animation à gauche et son code à droite. Change un nombre dans le code, puis clique <b>▶ Exécuter</b> (ou <code class="inline">Ctrl + Entrée</code>) pour voir le résultat. <b>↺</b> remet le code d'origine.
+      <br>Pas besoin de tout comprendre dans le code : l'important est de <b>jouer avec les nombres</b> et de regarder ce qui change. À la fin, teste-toi avec le <a href="qcm.html"><b>QCM</b></a> !
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 1. BIENVENUE -->
+    <!-- ====================================================== -->
+    <h2 id="intro"><span class="num">1</span> Bienvenue</h2>
+    <p>Il y a plus de 2500 ans, un mathématicien grec nommé <b>Pythagore</b> a mis en lumière une vérité étonnante : dans un triangle qui a un angle droit, les trois côtés sont liés par une <b>relation très simple</b>. Cette relation sert encore aujourd'hui aux architectes, aux marins, aux jeux vidéo… et bientôt à toi !</p>
+    <div class="note"><b>Objectif du cours :</b> savoir <b>reconnaître</b> un triangle rectangle, <b>énoncer</b> le théorème, <b>calculer</b> une longueur manquante et <b>vérifier</b> si un triangle est rectangle.</div>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// Un triangle rectangle qui se dessine tout seul
+let depart = 0;
+loop(t => {
+  if (!depart) depart = t;
+  const p = ((t - depart) % 3000) / 3000;   // 0 -> 1
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 320, 220);
+
+  const A = [60, 180], B = [260, 180], C = [60, 50];
+
+  // le triangle apparaît côté par côté
+  ctx.strokeStyle = '#7c5cff';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(A[0], A[1]);
+  ctx.lineTo(A[0] + (B[0]-A[0]) * Math.min(1, p*3), A[1]);
+  if (p > 0.33) ctx.lineTo(B[0], B[1] + (C[1]-B[1]) * 0); // base
+  ctx.stroke();
+  // les deux autres côtés
+  if (p > 0.33) {
+    ctx.beginPath();
+    ctx.moveTo(B[0], B[1]);
+    const q = Math.min(1, (p-0.33)*3);
+    ctx.lineTo(B[0] + (C[0]-B[0])*q, B[1] + (C[1]-B[1])*q);
+    ctx.stroke();
+  }
+  if (p > 0.66) {
+    ctx.beginPath();
+    ctx.moveTo(A[0], A[1]);
+    ctx.lineTo(A[0], A[1] + (C[1]-A[1]) * Math.min(1,(p-0.66)*3));
+    ctx.stroke();
+  }
+
+  // le petit carré de l'angle droit
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(A[0], A[1]-18, 18, 18);
+
+  ctx.fillStyle = '#222';
+  ctx.font = 'bold 18px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('Un triangle rectangle', 160, 30);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+
+    <!-- ====================================================== -->
+    <!-- 2. TRIANGLE RECTANGLE -->
+    <!-- ====================================================== -->
+    <h2 id="triangle"><span class="num">2</span> Le triangle rectangle</h2>
+    <p>Un triangle est dit <b>rectangle</b> quand l'un de ses angles est un <b>angle droit</b> (90°), comme le coin d'une feuille de papier. On le repère par un <b>petit carré rouge</b>. Pythagore ne parle <b>que</b> de ces triangles-là.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// Change la hauteur du sommet : tant qu'il y a le carré rouge,
+// le triangle reste rectangle.
+const hauteur = 110;   // <-- essaie 60, 150, 200
+
+ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+const A = [60, 190], B = [270, 190], C = [60, 190 - hauteur];
+
+ctx.fillStyle = '#dcd3ff';
+ctx.beginPath();
+ctx.moveTo(A[0], A[1]);
+ctx.lineTo(B[0], B[1]);
+ctx.lineTo(C[0], C[1]);
+ctx.closePath();
+ctx.fill();
+ctx.strokeStyle = '#7c5cff';
+ctx.lineWidth = 3;
+ctx.stroke();
+
+// l'angle droit en A
+ctx.strokeStyle = '#e74c3c';
+ctx.lineWidth = 2;
+ctx.strokeRect(A[0], A[1]-20, 20, 20);
+
+ctx.fillStyle = '#222';
+ctx.font = 'bold 16px Segoe UI';
+ctx.textAlign = 'center';
+ctx.fillText('A', A[0]-12, A[1]+6);
+ctx.fillText('B', B[0]+12, B[1]+6);
+ctx.fillText('C', C[0]-12, C[1]);
+ctx.fillStyle = '#e74c3c';
+ctx.fillText('angle droit en A', 160, 30);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Change <code class="inline">hauteur = 110</code> en <code class="inline">hauteur = 200</code>. Le triangle s'allonge mais l'angle en A reste-t-il droit ? (Oui : le côté vertical et le côté horizontal forment toujours 90°.)</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 3. VOCABULAIRE -->
+    <!-- ====================================================== -->
+    <h2 id="vocabulaire"><span class="num">3</span> Hypoténuse &amp; côtés de l'angle droit</h2>
+    <p>Dans un triangle rectangle, les côtés portent des noms :</p>
+    <ul class="clean">
+      <li>Les <b>deux côtés qui forment l'angle droit</b> s'appellent les <b>côtés de l'angle droit</b> (on dit aussi les « cathètes »).</li>
+      <li>Le <b>plus grand côté</b>, celui qui est <b>en face de l'angle droit</b>, s'appelle l'<b>hypoténuse</b>. C'est toujours le plus long !</li>
+    </ul>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+const A = [60, 185], B = [255, 185], C = [60, 60];
+
+ctx.fillStyle = '#eef3f7';
+ctx.beginPath();
+ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(C[0], C[1]); ctx.closePath();
+ctx.fill();
+
+// côté du bas (côté de l'angle droit)
+ctx.strokeStyle = '#3498db'; ctx.lineWidth = 5;
+ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+// côté de gauche (côté de l'angle droit)
+ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 5;
+ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(C[0], C[1]); ctx.stroke();
+// hypoténuse
+ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 5;
+ctx.beginPath(); ctx.moveTo(B[0], B[1]); ctx.lineTo(C[0], C[1]); ctx.stroke();
+
+// angle droit
+ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2;
+ctx.strokeRect(A[0], A[1]-18, 18, 18);
+
+ctx.font = 'bold 13px Segoe UI';
+ctx.textAlign = 'center';
+ctx.fillStyle = '#3498db'; ctx.fillText('côté', 150, 205);
+ctx.fillStyle = '#2ecc71'; ctx.fillText('côté', 32, 125);
+ctx.fillStyle = '#e67e22'; ctx.fillText('HYPOTÉNUSE', 195, 110);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="warn-box"><b>Le piège classique :</b> l'hypoténuse est <b>toujours en face de l'angle droit</b>, jamais collée à lui. Repère d'abord le petit carré rouge, puis cherche le côté qui ne le touche pas : c'est l'hypoténuse.</div>
+
+
+    <!-- ====================================================== -->
+    <!-- 4. THÉORÈME -->
+    <!-- ====================================================== -->
+    <h2 id="theoreme"><span class="num">4</span> L'énoncé du théorème</h2>
+    <p>Voici la phrase à connaître par cœur :</p>
+    <div class="note" style="font-size:17px;">
+      <b>Théorème de Pythagore.</b> Dans un triangle rectangle, le <b>carré de l'hypoténuse</b> est égal à la <b>somme des carrés des deux autres côtés</b>.
+    </div>
+    <p>Si l'angle droit est en A, et qu'on note l'hypoténuse <code class="inline">BC</code>, alors :</p>
+    <p style="text-align:center;font-size:24px;color:#fff;"><b>BC² = AB² + AC²</b></p>
+    <p>« Mettre au carré » un nombre, c'est le multiplier par lui-même : <code class="inline">5² = 5 × 5 = 25</code>. L'animation montre les trois carrés construits sur les côtés.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// Triangle 3-4-5 (à l'échelle). a² + b² = c²
+const a = 3, b = 4;                 // côtés de l'angle droit
+const c = Math.sqrt(a*a + b*b);     // hypoténuse = 5
+
+ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+ctx.fillStyle = '#222';
+ctx.textAlign = 'center';
+ctx.font = 'bold 22px Segoe UI';
+ctx.fillText(a + '² + ' + b + '² = ' + (a*a) + ' + ' + (b*b), 160, 80);
+ctx.fillText('= ' + (a*a + b*b) + ' = ' + c + '²', 160, 120);
+
+ctx.font = '15px Segoe UI';
+ctx.fillStyle = '#27ae60';
+ctx.fillText("donc l'hypoténuse vaut " + c, 160, 165);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Remplace <code class="inline">a = 3, b = 4</code> par <code class="inline">a = 6, b = 8</code>. Quelle est l'hypoténuse ? (Indice : 36 + 64 = 100, et 10² = 100 !)</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 5. PREUVE PAR LES CARRÉS -->
+    <!-- ====================================================== -->
+    <h2 id="preuve"><span class="num">5</span> La preuve par les carrés</h2>
+    <p>Pourquoi <code class="inline">a² + b²</code> donne-t-il vraiment <code class="inline">c²</code> ? On dessine un <b>vrai carré sur chaque côté</b>. L'aire du carré bleu plus l'aire du carré vert <b>remplit exactement</b> le carré orange posé sur l'hypoténuse. Compte les petits carreaux : 9 + 16 = 25.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// Triangle 3-4-5 avec un carré sur chaque côté
+const u = 22;             // taille d'une unité en pixels
+const ax = 130, ay = 150; // sommet de l'angle droit (A)
+
+ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, 320, 220);
+
+// le triangle
+const A = [ax, ay], B = [ax + 4*u, ay], C = [ax, ay - 3*u];
+ctx.fillStyle = '#dfe7ee';
+ctx.beginPath();
+ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.lineTo(C[0],C[1]); ctx.closePath();
+ctx.fill();
+
+// carré bleu sur le côté vertical (3) -> aire 9
+ctx.fillStyle = 'rgba(52,152,219,.55)';
+ctx.fillRect(ax - 3*u, ay - 3*u, 3*u, 3*u);
+// carré vert sur le côté horizontal (4) -> aire 16
+ctx.fillStyle = 'rgba(46,204,113,.55)';
+ctx.fillRect(ax, ay, 4*u, 4*u);
+
+// carré orange sur l'hypoténuse (5) -> aire 25
+ctx.save();
+ctx.translate(B[0], B[1]);
+const ang = Math.atan2(C[1]-B[1], C[0]-B[0]);
+ctx.rotate(ang);
+ctx.fillStyle = 'rgba(230,126,34,.45)';
+ctx.fillRect(0, 0, 5*u, 5*u);
+ctx.restore();
+
+ctx.fillStyle = '#222';
+ctx.font = 'bold 14px Segoe UI';
+ctx.textAlign = 'center';
+ctx.fillText('9 + 16 = 25', 160, 205);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="tip"><b>L'idée géniale :</b> le théorème n'est pas qu'une formule, c'est une <b>histoire d'aires</b>. L'aire des deux petits carrés, mise bout à bout, est exactement l'aire du grand carré.</div>
+
+
+    <!-- ====================================================== -->
+    <!-- 6. PREUVE-PUZZLE -->
+    <!-- ====================================================== -->
+    <h2 id="puzzle"><span class="num">6</span> La preuve-puzzle (animée)</h2>
+    <p>Voici une démonstration visuelle. Un grand carré contient quatre triangles rectangles identiques. En les <b>déplaçant</b>, la place vide passe d'un seul grand carré (l'hypoténuse au carré) à deux carrés plus petits (les deux côtés au carré). Même surface vide → <b>même aire</b> !</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const a = 70, b = 100, S = a + b;     // côté du grand carré
+const ox = 50, oy = 25;
+let depart = 0;
+
+function tri(x, y, p1, p2, p3) {
+  ctx.fillStyle = '#7c5cff';
+  ctx.beginPath();
+  ctx.moveTo(x+p1[0], y+p1[1]);
+  ctx.lineTo(x+p2[0], y+p2[1]);
+  ctx.lineTo(x+p3[0], y+p3[1]);
+  ctx.closePath(); ctx.fill();
+}
+
+loop(t => {
+  if (!depart) depart = t;
+  const p = (Math.sin((t-depart)/900) + 1) / 2;   // 0 <-> 1 en douceur
+
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,320,220);
+
+  // le grand carré (contour)
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+  ctx.strokeRect(ox, oy, S, S);
+
+  if (p < 0.5) {
+    // disposition 1 : trou = carré sur l'hypoténuse (c²)
+    tri(ox, oy, [0,0],[b,0],[0,a]);
+    tri(ox, oy, [b,0],[S,0],[S,b]);
+    tri(ox, oy, [S,b],[S,S],[a,S]);
+    tri(ox, oy, [a,S],[0,S],[0,a]);
+    ctx.fillStyle = '#e67e22';
+    ctx.textAlign='center'; ctx.font='bold 15px Segoe UI';
+    ctx.fillText('trou = c²', ox+S/2, oy+S/2);
+  } else {
+    // disposition 2 : trou = deux carrés (a² + b²)
+    tri(ox, oy, [0,0],[b,0],[0,a]);
+    tri(ox, oy, [0,a],[b,a],[0,S]);
+    tri(ox, oy, [b,0],[S,0],[b,a]);
+    tri(ox, oy, [b,a],[S,a],[b,S]);
+    ctx.fillStyle = '#3498db';
+    ctx.textAlign='center'; ctx.font='bold 14px Segoe UI';
+    ctx.fillText('a²', ox+b+a/2, oy+a+b/2);
+    ctx.fillText('b²', ox+b/2, oy+a/2);
+  }
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+
+    <!-- ====================================================== -->
+    <!-- 7. CALCULER L'HYPOTÉNUSE -->
+    <!-- ====================================================== -->
+    <h2 id="hypotenuse"><span class="num">7</span> Calculer l'hypoténuse</h2>
+    <p>Quand on connaît les <b>deux côtés de l'angle droit</b>, on trouve l'hypoténuse en 3 étapes :</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-head"><span class="step-num">Étape 1</span> Élever au carré</div>
+        <p>On calcule <code class="inline">a²</code> et <code class="inline">b²</code>, puis on les additionne.</p>
+      </div>
+      <div class="step">
+        <div class="step-head"><span class="step-num">Étape 2</span> La racine carrée</div>
+        <p>L'hypoténuse au carré est connue. Pour avoir l'hypoténuse, on prend la <b>racine carrée</b> (le bouton <code class="inline">√</code> de la calculatrice) : c'est l'opération inverse du carré.</p>
+      </div>
+      <div class="step final">
+        <div class="step-head"><span class="step-num">Étape 3</span> En direct</div>
+        <p>✦ Change <code class="inline">a</code> et <code class="inline">b</code> : le calcul se refait tout seul.</p>
+        <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const a = 3, b = 4;          // les deux côtés de l'angle droit
+const carre = a*a + b*b;     // somme des carrés
+const c = Math.sqrt(carre);  // hypoténuse
+
+ctx.fillStyle = '#fff'; ctx.fillRect(0,0,320,220);
+
+// petit dessin du triangle
+const A=[40,170], B=[40+a*22,170], C=[40,170-b*22];
+ctx.fillStyle='#dcd3ff';
+ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.lineTo(C[0],C[1]);ctx.closePath();ctx.fill();
+ctx.strokeStyle='#7c5cff';ctx.lineWidth=3;ctx.stroke();
+ctx.strokeStyle='#e74c3c';ctx.lineWidth=2;ctx.strokeRect(A[0],A[1]-14,14,14);
+
+ctx.fillStyle = '#222';
+ctx.textAlign = 'left';
+ctx.font = '16px Segoe UI';
+ctx.fillText('c² = ' + a + '² + ' + b + '² = ' + carre, 150, 70);
+ctx.fillText('c = √' + carre, 150, 100);
+ctx.font = 'bold 22px Segoe UI';
+ctx.fillStyle = '#27ae60';
+ctx.fillText('c = ' + c, 150, 135);</textarea>
+        <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+      </div>
+    </div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Une échelle s'appuie contre un mur. Le pied est à <b>a = 5</b> m du mur, elle monte à <b>b = 12</b> m. Quelle est la longueur de l'échelle (l'hypoténuse) ? Mets <code class="inline">a = 5, b = 12</code> et lis le résultat. (Réponse : 13 m.)</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 8. CALCULER UN CÔTÉ -->
+    <!-- ====================================================== -->
+    <h2 id="cote"><span class="num">8</span> Calculer un côté de l'angle droit</h2>
+    <p>Et si on connaît l'<b>hypoténuse</b> et <b>un seul</b> des côtés de l'angle droit ? On utilise une <b>soustraction</b> au lieu d'une addition : <code class="inline">a² = c² − b²</code>, puis racine carrée.</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">const c = 13;   // hypoténuse (le plus grand !)
+const b = 5;    // un côté de l'angle droit
+const carre = c*c - b*b;       // on SOUSTRAIT
+const a = Math.sqrt(carre);    // l'autre côté
+
+ctx.fillStyle = '#fff'; ctx.fillRect(0,0,320,220);
+
+ctx.fillStyle = '#222';
+ctx.textAlign = 'center';
+ctx.font = '17px Segoe UI';
+ctx.fillText('On connaît c = ' + c + ' et b = ' + b, 160, 50);
+ctx.fillText('a² = c² − b² = ' + (c*c) + ' − ' + (b*b) + ' = ' + carre, 160, 95);
+ctx.font = 'bold 24px Segoe UI';
+ctx.fillStyle = '#27ae60';
+ctx.fillText('a = √' + carre + ' = ' + a, 160, 140);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="warn-box"><b>Attention au sens !</b> Pour trouver un côté de l'angle droit, on <b>soustrait</b> (<code class="inline">c² − b²</code>). Pour trouver l'hypoténuse, on <b>additionne</b> (<code class="inline">a² + b²</code>). L'hypoténuse est toujours le plus grand : si tu obtiens un côté plus grand qu'elle, c'est une erreur.</div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Mets <code class="inline">c = 10, b = 6</code>. Combien vaut l'autre côté ? (Réponse : 8, car 100 − 36 = 64 et √64 = 8.)</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 9. RÉCIPROQUE -->
+    <!-- ====================================================== -->
+    <h2 id="reciproque"><span class="num">9</span> La réciproque : ce triangle est-il rectangle ?</h2>
+    <p>Le théorème marche aussi <b>à l'envers</b> ! Si on connaît les trois côtés, on peut <b>vérifier</b> si le triangle a un angle droit :</p>
+    <ul class="clean">
+      <li>On prend le <b>plus grand côté</b> (candidat hypoténuse) et on calcule son carré.</li>
+      <li>On additionne les carrés des deux autres.</li>
+      <li>Si les deux résultats sont <b>égaux</b> → le triangle <b>est rectangle</b>. Sinon, il ne l'est pas.</li>
+    </ul>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// Teste plusieurs triangles : est-il rectangle ?
+const triangles = [[3,4,5], [6,8,10], [5,5,7], [8,15,17]];
+let depart = 0;
+
+loop(t => {
+  if (!depart) depart = t;
+  const k = Math.floor((t-depart)/2500) % triangles.length;
+  let [x,y,z] = triangles[k];
+  // on trie pour que z soit le plus grand
+  const cotes = [x,y,z].sort((m,n)=>m-n);
+  const a=cotes[0], b=cotes[1], c=cotes[2];
+  const gauche = a*a + b*b;
+  const droite = c*c;
+  const rectangle = gauche === droite;
+
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,320,220);
+
+  ctx.fillStyle = '#222';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 20px Segoe UI';
+  ctx.fillText('Côtés : ' + a + ', ' + b + ', ' + c, 160, 55);
+  ctx.font = '16px Segoe UI';
+  ctx.fillText(a + '² + ' + b + '² = ' + gauche, 160, 95);
+  ctx.fillText(c + '² = ' + droite, 160, 122);
+
+  ctx.font = 'bold 22px Segoe UI';
+  ctx.fillStyle = rectangle ? '#27ae60' : '#e74c3c';
+  ctx.fillText(rectangle ? '✓ Rectangle !' : '✗ Pas rectangle', 160, 170);
+});</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Ajoute le triangle <code class="inline">[9,12,15]</code> dans la liste <code class="inline">triangles</code>. Est-il rectangle ? Devine avant d'exécuter ! (Indice : 81 + 144 = 225 = 15².)</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- 10. TRIPLETS -->
+    <!-- ====================================================== -->
+    <h2 id="triplets"><span class="num">10</span> Les triplets pythagoriciens</h2>
+    <p>Certains triangles rectangles ont des côtés qui sont <b>tous des nombres entiers</b>. Ces trios sont appelés des <b>triplets pythagoriciens</b>. Le plus célèbre est <b>(3, 4, 5)</b>. En les multipliant tous par un même nombre, on en fabrique d'autres : <b>(6, 8, 10)</b>, <b>(9, 12, 15)</b>…</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// La "corde à 13 nœuds" des bâtisseurs : 3 + 4 + 5 = 12 intervalles
+const facteur = 1;   // <-- essaie 2, puis 3
+const a = 3*facteur, b = 4*facteur, c = 5*facteur;
+
+ctx.fillStyle = '#fff'; ctx.fillRect(0,0,320,220);
+
+const u = 26 / facteur;            // s'adapte pour rester visible
+const A=[55,180], B=[55+a*u,180], C=[55,180-b*u];
+
+ctx.fillStyle='#dcd3ff';
+ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.lineTo(C[0],C[1]);ctx.closePath();ctx.fill();
+ctx.strokeStyle='#7c5cff';ctx.lineWidth=3;ctx.stroke();
+ctx.strokeStyle='#e74c3c';ctx.lineWidth=2;ctx.strokeRect(A[0],A[1]-15,15,15);
+
+ctx.fillStyle='#222';ctx.font='bold 14px Segoe UI';ctx.textAlign='center';
+ctx.fillText(a+'', (A[0]+B[0])/2, A[1]+18);
+ctx.fillText(b+'', A[0]-15, (A[1]+C[1])/2);
+ctx.fillText(c+'', (B[0]+C[0])/2+12, (B[1]+C[1])/2-5);
+
+ctx.font='bold 18px Segoe UI';
+ctx.fillText('Triplet : (' + a + ', ' + b + ', ' + c + ')', 160, 40);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="tip"><b>Le savais-tu ?</b> Les bâtisseurs d'autrefois utilisaient une <b>corde à nœuds</b> (3 + 4 + 5 = 12 parts) pour tracer des angles droits parfaits sur les chantiers, bien avant les équerres !</div>
+
+    <p>Quelques triplets à connaître : <b>(3,4,5)</b> · <b>(5,12,13)</b> · <b>(8,15,17)</b> · <b>(7,24,25)</b>.</p>
+
+
+    <!-- ====================================================== -->
+    <!-- 11. DISTANCE -->
+    <!-- ====================================================== -->
+    <h2 id="distance"><span class="num">11</span> Application : la distance entre deux points</h2>
+    <p>Pythagore sert à mesurer la distance « à vol d'oiseau » entre deux points. On forme un triangle rectangle : un déplacement <b>horizontal</b>, un déplacement <b>vertical</b>, et l'hypoténuse est la <b>distance directe</b>. C'est exactement ce que calculent les jeux vidéo et le GPS !</p>
+
+    <div class="demo"><div class="stage"><canvas width="320" height="220"></canvas></div><div class="code">
+<textarea spellcheck="false">// Distance entre P(40,180) et Q(?, ?)
+const P = [40, 180];
+const Q = [240, 60];
+const dx = Q[0] - P[0];
+const dy = P[1] - Q[1];           // vers le haut
+const dist = Math.sqrt(dx*dx + dy*dy);
+
+ctx.fillStyle = '#fff'; ctx.fillRect(0,0,320,220);
+
+// les côtés du triangle rectangle
+ctx.strokeStyle = '#3498db'; ctx.lineWidth = 3;
+ctx.beginPath(); ctx.moveTo(P[0],P[1]); ctx.lineTo(Q[0],P[1]); ctx.stroke();  // horizontal
+ctx.strokeStyle = '#2ecc71';
+ctx.beginPath(); ctx.moveTo(Q[0],P[1]); ctx.lineTo(Q[0],Q[1]); ctx.stroke();  // vertical
+ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 4;
+ctx.beginPath(); ctx.moveTo(P[0],P[1]); ctx.lineTo(Q[0],Q[1]); ctx.stroke();  // distance
+
+// les points
+ctx.fillStyle='#7c5cff';
+[P,Q].forEach(pt=>{ctx.beginPath();ctx.arc(pt[0],pt[1],6,0,Math.PI*2);ctx.fill();});
+
+ctx.fillStyle='#222'; ctx.textAlign='center'; ctx.font='13px Segoe UI';
+ctx.fillText('horizontal = ' + dx, (P[0]+Q[0])/2, P[1]+18);
+ctx.save();ctx.translate(Q[0]+16,(P[1]+Q[1])/2);ctx.rotate(Math.PI/2);
+ctx.fillText('vertical = ' + dy, 0, 0);ctx.restore();
+ctx.fillStyle='#e67e22'; ctx.font='bold 16px Segoe UI';
+ctx.fillText('distance ≈ ' + dist.toFixed(1), 130, 90);</textarea>
+      <div class="bar"><button class="run">▶ Exécuter</button><button class="reset">↺</button></div></div></div>
+
+    <div class="exo">
+      <div class="exo-title">✏️ À toi de jouer</div>
+      <p>Déplace le point Q : mets <code class="inline">Q = [280, 60]</code>. Le déplacement horizontal augmente, donc la distance aussi. Essaie de placer Q pour obtenir une distance « ronde ».</p>
+    </div>
+
+
+    <!-- ====================================================== -->
+    <!-- MÉMO -->
+    <!-- ====================================================== -->
+    <h2 id="memo"><span class="num">📋</span> Mémo — les formules de Pythagore</h2>
+    <p>Tout le cours tient dans ce tableau. L'angle droit est en A, l'hypoténuse est <b>BC</b>.</p>
+
+    <table class="api">
+      <tr><th>Situation</th><th>Formule à utiliser</th></tr>
+      <tr><td>Énoncé du théorème</td><td><code>BC² = AB² + AC²</code></td></tr>
+      <tr><td>Calculer l'hypoténuse</td><td><code>BC = √(AB² + AC²)</code></td></tr>
+      <tr><td>Calculer un côté de l'angle droit</td><td><code>AB = √(BC² − AC²)</code></td></tr>
+      <tr><td>Vérifier (réciproque)</td><td>rectangle si <code>grand² = petit² + moyen²</code></td></tr>
+      <tr><td>Mettre au carré</td><td><code>n² = n × n</code></td></tr>
+      <tr><td>Racine carrée (inverse du carré)</td><td><code>√(n²) = n</code></td></tr>
+    </table>
+
+    <div class="tip"><b>Les 3 réflexes :</b> ① repérer l'angle droit et l'hypoténuse ; ② addition pour l'hypoténuse, soustraction pour un côté ; ③ ne jamais oublier la racine carrée à la fin.</div>
+
+    <p style="text-align:center;margin-top:30px;">
+      <a href="qcm.html" style="display:inline-block;background:#38d39f;color:#0f1419;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:17px;">✅ Je teste mes connaissances : faire le QCM →</a>
+    </p>
+
+    <footer>
+      Cours de mathématiques animé — le théorème de Pythagore · niveau collège (4ᵉ).<br>
+      100&nbsp;% hors-ligne : aucune connexion ni bibliothèque externe. Modifie les exemples sans rien casser, recharge la page pour repartir à zéro.
+    </footer>
+
+  </main>
+</div>
+
+<script src="assets/runner.js"></script>
+</body>
+</html>

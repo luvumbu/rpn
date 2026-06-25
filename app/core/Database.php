@@ -509,6 +509,11 @@ class Database
         self::ensureColumn('quizzes', 'msg_fail', "VARCHAR(255) DEFAULT NULL AFTER `msg_pass`");       // message si échoué
         self::ensureColumn('quiz_questions', 'image', "VARCHAR(255) DEFAULT NULL AFTER `body`"); // image propre à chaque question
         self::ensureColumn('quiz_questions', 'explanation', "VARCHAR(500) DEFAULT NULL AFTER `image`"); // explication « pourquoi »
+        // Types interactifs enrichis : réponse à saisir (numeric/text/fill), ordre, association.
+        self::ensureColumn('quiz_questions', 'answer', "VARCHAR(500) DEFAULT NULL AFTER `explanation`");   // réponse attendue (numeric/text/fill)
+        self::ensureColumn('quiz_questions', 'tolerance', "FLOAT NOT NULL DEFAULT 0 AFTER `answer`");      // marge acceptée (numeric)
+        self::ensureColumn('quiz_options', 'pair', "VARCHAR(300) DEFAULT NULL AFTER `label`");             // cible d'association (match)
+        self::ensureColumn('quiz_answers', 'answer_text', "VARCHAR(500) DEFAULT NULL AFTER `option_id`");  // réponse saisie/ordonnée/associée du membre
         self::ensureColumn('quiz_responses', 'attempts', "INT NOT NULL DEFAULT 1 AFTER `total`");
 
         // Migration ponctuelle : « une question à la fois » devient le défaut.

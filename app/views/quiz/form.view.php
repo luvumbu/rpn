@@ -37,13 +37,15 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
     foreach ($old['q'] as $q) {
         $opts = [];
         foreach ((array) ($q['opt'] ?? []) as $o) {
-            $opts[] = ['label' => (string) ($o['label'] ?? ''), 'correct' => !empty($o['correct'])];
+            $opts[] = ['label' => (string) ($o['label'] ?? ''), 'correct' => !empty($o['correct']), 'pair' => (string) ($o['pair'] ?? '')];
         }
         $initial[] = [
             'body'        => (string) ($q['body'] ?? ''),
-            'type'        => ($q['type'] ?? 'single') === 'multiple' ? 'multiple' : 'single',
+            'type'        => Quiz::normalizeType((string) ($q['type'] ?? 'single')),
             'image'       => (string) ($q['existing_image'] ?? ''),
             'explanation' => (string) ($q['explanation'] ?? ''),
+            'answer'      => (string) ($q['answer'] ?? ''),
+            'tolerance'   => (string) ($q['tolerance'] ?? ''),
             'options'     => $opts,
         ];
     }
@@ -51,9 +53,17 @@ if ($old && !empty($old['q']) && is_array($old['q'])) {
     foreach ($questions as $q) {
         $opts = [];
         foreach ($q['options'] as $o) {
-            $opts[] = ['label' => (string) $o['label'], 'correct' => (int) $o['is_correct'] === 1];
+            $opts[] = ['label' => (string) $o['label'], 'correct' => (int) $o['is_correct'] === 1, 'pair' => (string) ($o['pair'] ?? '')];
         }
-        $initial[] = ['body' => (string) $q['body'], 'type' => (string) $q['type'], 'image' => (string) ($q['image'] ?? ''), 'explanation' => (string) ($q['explanation'] ?? ''), 'options' => $opts];
+        $initial[] = [
+            'body'        => (string) $q['body'],
+            'type'        => Quiz::normalizeType((string) $q['type']),
+            'image'       => (string) ($q['image'] ?? ''),
+            'explanation' => (string) ($q['explanation'] ?? ''),
+            'answer'      => (string) ($q['answer'] ?? ''),
+            'tolerance'   => ($q['tolerance'] ?? '') !== '' && (float) $q['tolerance'] != 0 ? (string) (float) $q['tolerance'] : '',
+            'options'     => $opts,
+        ];
     }
 }
 // URL de base des images de questions (pour l'aperçu côté JS).
@@ -134,6 +144,17 @@ $qImgBase = url('uploads/quizzes/');
         .add-q { width:100%; font:inherit; font-size:15px; font-weight:700; cursor:pointer;
             border:2px dashed var(--card-border); background:transparent; color:var(--accent); border-radius:14px; padding:16px; }
         .add-q:hover { border-color:var(--accent); }
+
+        /* Sélecteur de type + blocs conditionnels */
+        .qtype-sel { width:100%; padding:11px 13px; border-radius:11px; border:1px solid var(--card-border);
+            background:rgba(127,127,127,.08); color:var(--text); font-family:inherit; font-size:14.5px; font-weight:600; margin-bottom:12px; }
+        .qtype-sel:focus { outline:none; border-color:var(--accent); }
+        .blk-input { margin:2px 0 12px; }
+        .blk-tol { margin-top:10px; }
+        .opt .opair { flex:1; }
+        .opt .ord-handle { cursor:grab; user-select:none; font-size:18px; color:var(--muted); flex:0 0 auto; padding:0 2px; }
+        .opt.drag-over { border-top:2px solid var(--accent); }
+        .opt[draggable=true] { background:rgba(127,127,127,.06); }
 
         .pubrow { display:flex; align-items:center; gap:10px; margin:4px 0 0; }
         .pubrow input { width:18px; height:18px; accent-color:var(--accent); }
@@ -291,10 +312,18 @@ $qImgBase = url('uploads/quizzes/');
                 <span class="qnum">Q1</span>
                 <input type="text" class="qbody" placeholder="Énoncé de la question…">
             </div>
-            <div class="qmode">
-                <label><input type="radio" class="qtype" value="single" checked> 🔘 Une seule bonne réponse</label>
-                <label><input type="radio" class="qtype" value="multiple"> ☑️ Plusieurs bonnes réponses</label>
-            </div>
+
+            <label class="lbl">Type de question</label>
+            <select class="qtype-sel">
+                <option value="single">🔘 QCM — une seule bonne réponse</option>
+                <option value="multiple">☑️ QCM — plusieurs bonnes réponses</option>
+                <option value="numeric">🔢 Réponse chiffrée à saisir (avec tolérance)</option>
+                <option value="text">⌨️ Réponse texte à saisir</option>
+                <option value="fill">✍️ Texte à trous</option>
+                <option value="order">🔀 Remettre dans l'ordre</option>
+                <option value="match">🔗 Associer par paires</option>
+            </select>
+
             <div class="qimg-row">
                 <label class="qimg-pick">🖼️ <span class="qimg-label">Ajouter une image</span>
                     <input type="file" class="qimg js-autoresize" accept="image/jpeg,image/png,image/gif,image/webp">
@@ -305,19 +334,37 @@ $qImgBase = url('uploads/quizzes/');
                 </span>
                 <input type="hidden" class="qimg-existing">
             </div>
-            <p class="hint">Coche la (ou les) bonne(s) réponse(s) à gauche de chaque proposition. L'image (facultative) s'affiche au-dessus des réponses.</p>
-            <div class="opts"></div>
-            <div class="btn-line">
-                <button type="button" class="mini add-opt">➕ Ajouter une réponse</button>
+
+            <!-- Bloc « réponse à saisir » : numeric / text / fill -->
+            <div class="blk-input" hidden>
+                <p class="hint blk-fill-hint" hidden>✍️ Dans l'énoncé ci-dessus, marque chaque trou entre crochets, ex : <b>« La diagonale mesure [5] cm »</b>. Indique ci-dessous les réponses des trous, séparées par <b>|</b>, dans l'ordre.</p>
+                <label class="lbl blk-ans-lbl">Réponse attendue</label>
+                <input type="text" class="qanswer" placeholder="Ex : 5">
+                <div class="blk-tol" hidden>
+                    <label class="lbl">Tolérance acceptée (±)</label>
+                    <input type="text" class="qtol" placeholder="0 (réponse exacte)">
+                </div>
             </div>
-            <input type="text" class="qexplain" placeholder="💡 Explication (facultatif) — montrée après la réponse / dans le corrigé" style="margin-top:10px;">
+
+            <!-- Bloc « options » : single / multiple / order / match -->
+            <div class="blk-options">
+                <p class="hint blk-opt-hint">Coche la (ou les) bonne(s) réponse(s) à gauche de chaque proposition.</p>
+                <div class="opts"></div>
+                <div class="btn-line">
+                    <button type="button" class="mini add-opt">➕ Ajouter une réponse</button>
+                </div>
+            </div>
+
+            <input type="text" class="qexplain" placeholder="💡 Explication (facultatif) — montrée après la réponse / dans le corrigé" style="margin-top:12px;">
         </div>
     </template>
 
     <template id="tpl-option">
         <div class="opt">
             <span class="mark"><input type="checkbox" class="correct" title="Bonne réponse"></span>
+            <span class="ord-handle" title="Glisser pour réordonner" hidden>≡</span>
             <input type="text" class="olabel" placeholder="Une réponse possible…">
+            <input type="text" class="opair" placeholder="à associer à…" hidden>
             <button type="button" class="rm" title="Supprimer cette réponse">✕</button>
         </div>
     </template>
@@ -333,17 +380,63 @@ $qImgBase = url('uploads/quizzes/');
         var INITIAL = <?= json_encode($initial, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         var QIMG_BASE = <?= json_encode($qImgBase, JSON_UNESCAPED_SLASHES) ?>;
 
+        var INPUT_TYPES = ['numeric', 'text', 'fill'];
+
         function renumber() {
             var qs = box.querySelectorAll('.question');
             qs.forEach(function (q, i) { q.querySelector('.qnum').textContent = 'Q' + (i + 1); });
         }
 
-        // Applique le mode (single/multiple) : cases à cocher qui se comportent
-        // comme des radios en mode « une seule bonne réponse ».
-        function applyMode(qEl) {
-            var multiple = qEl.querySelector('.qtype[value="multiple"]').checked;
-            var marks = qEl.querySelectorAll('.correct');
-            marks.forEach(function (cb) { cb.dataset.mode = multiple ? 'multiple' : 'single'; });
+        // Affiche/masque les sous-champs d'UNE option selon le type de question.
+        function applyOptType(opt, type) {
+            var mark    = opt.querySelector('.mark');
+            var correct = opt.querySelector('.correct');
+            var handle  = opt.querySelector('.ord-handle');
+            var pair    = opt.querySelector('.opair');
+            var isQcm   = (type === 'single' || type === 'multiple');
+            mark.style.display = isQcm ? '' : 'none';
+            correct.disabled   = !isQcm;
+            handle.hidden       = (type !== 'order');
+            opt.setAttribute('draggable', type === 'order' ? 'true' : 'false');
+            pair.hidden         = (type !== 'match');
+            pair.disabled       = (type !== 'match');
+            opt.querySelector('.olabel').disabled = false;
+            correct.dataset.mode = (type === 'multiple') ? 'multiple' : 'single';
+        }
+
+        // Applique le type à toute la question : blocs visibles, champs actifs, libellés.
+        function applyType(qEl) {
+            var type = qEl.querySelector('.qtype-sel').value;
+            qEl.dataset.type = type;
+            var isInput = INPUT_TYPES.indexOf(type) !== -1;
+
+            var blkInput = qEl.querySelector('.blk-input');
+            var blkOpts  = qEl.querySelector('.blk-options');
+            blkInput.hidden = !isInput;
+            blkOpts.hidden  = isInput;
+
+            var qa = qEl.querySelector('.qanswer'), qt = qEl.querySelector('.qtol');
+            qa.disabled = !isInput;
+            qt.disabled = (type !== 'numeric');
+            qEl.querySelector('.blk-tol').hidden       = (type !== 'numeric');
+            qEl.querySelector('.blk-fill-hint').hidden = (type !== 'fill');
+
+            var lbl = qEl.querySelector('.blk-ans-lbl');
+            if (type === 'numeric') { lbl.textContent = 'Réponse attendue (un nombre)'; qa.placeholder = 'Ex : 13'; }
+            else if (type === 'text') { lbl.textContent = 'Réponse(s) acceptée(s) — variantes séparées par |'; qa.placeholder = "Ex : hypoténuse|l'hypoténuse"; }
+            else if (type === 'fill') { lbl.textContent = "Réponses des trous — séparées par | (dans l'ordre)"; qa.placeholder = 'Ex : 5|13'; }
+
+            var optHint = qEl.querySelector('.blk-opt-hint');
+            if (type === 'order') { optHint.innerHTML = '🔀 Saisis les éléments <b>dans le bon ordre</b> (de haut en bas). Ils seront mélangés pour le membre. Glisse ≡ pour réordonner.'; }
+            else if (type === 'match') { optHint.innerHTML = "🔗 Pour chaque élément de gauche, indique l'élément de droite à associer."; }
+            else { optHint.textContent = 'Coche la (ou les) bonne(s) réponse(s) à gauche de chaque proposition.'; }
+
+            if (isInput) {
+                // Bloc options inactif : on désactive ses champs pour qu'ils ne soient pas envoyés.
+                blkOpts.querySelectorAll('input').forEach(function (i) { i.disabled = true; });
+            } else {
+                qEl.querySelectorAll('.opt').forEach(function (o) { applyOptType(o, type); });
+            }
         }
 
         function addOption(qEl, data) {
@@ -353,13 +446,16 @@ $qImgBase = url('uploads/quizzes/');
 
             var label = node.querySelector('.olabel');
             var cb    = node.querySelector('.correct');
+            var pair  = node.querySelector('.opair');
             label.name = 'q[' + qIndex + '][opt][' + optIndex + '][label]';
             cb.name    = 'q[' + qIndex + '][opt][' + optIndex + '][correct]';
             cb.value   = '1';
+            pair.name  = 'q[' + qIndex + '][opt][' + optIndex + '][pair]';
 
             if (data) {
                 label.value = data.label || '';
                 cb.checked  = !!data.correct;
+                pair.value  = data.pair || '';
             }
 
             // En mode « single », cocher une bonne réponse décoche les autres.
@@ -380,7 +476,36 @@ $qImgBase = url('uploads/quizzes/');
             });
 
             qEl.querySelector('.opts').appendChild(node);
-            applyMode(qEl);
+            applyOptType(node, qEl.dataset.type || 'single');
+        }
+
+        // Glisser-déposer pour réordonner les options (type « order »).
+        function setupDrag(qEl) {
+            var opts = qEl.querySelector('.opts');
+            var dragged = null;
+            opts.addEventListener('dragstart', function (e) {
+                var t = e.target.closest('.opt');
+                if (!t || qEl.dataset.type !== 'order') { return; }
+                dragged = t; t.style.opacity = '.5';
+            });
+            opts.addEventListener('dragend', function () {
+                if (dragged) { dragged.style.opacity = ''; }
+                dragged = null;
+                opts.querySelectorAll('.opt').forEach(function (o) { o.classList.remove('drag-over'); });
+            });
+            opts.addEventListener('dragover', function (e) {
+                if (!dragged) { return; }
+                e.preventDefault();
+                var t = e.target.closest('.opt');
+                opts.querySelectorAll('.opt').forEach(function (o) { o.classList.remove('drag-over'); });
+                if (t && t !== dragged) { t.classList.add('drag-over'); }
+            });
+            opts.addEventListener('drop', function (e) {
+                if (!dragged) { return; }
+                e.preventDefault();
+                var t = e.target.closest('.opt');
+                if (t && t !== dragged) { opts.insertBefore(dragged, t); }
+            });
         }
 
         function addQuestion(data) {
@@ -388,23 +513,28 @@ $qImgBase = url('uploads/quizzes/');
             var index = (qCounter++);
             node.dataset.index = index;
             node.dataset.optCounter = 0;
+            node.dataset.type = (data && data.type) || 'single';
 
             var body = node.querySelector('.qbody');
             body.name = 'q[' + index + '][body]';
             if (data && data.body) { body.value = data.body; }
 
             var explain = node.querySelector('.qexplain');
-            if (explain) {
-                explain.name = 'q[' + index + '][explanation]';
-                if (data && data.explanation) { explain.value = data.explanation; }
-            }
+            explain.name = 'q[' + index + '][explanation]';
+            if (data && data.explanation) { explain.value = data.explanation; }
 
-            var types = node.querySelectorAll('.qtype');
-            types.forEach(function (r) {
-                r.name = 'q[' + index + '][type]';
-                if (data && data.type === r.value) { r.checked = true; }
-                r.addEventListener('change', function () { applyMode(node); });
-            });
+            // Sélecteur de type.
+            var sel = node.querySelector('.qtype-sel');
+            sel.name = 'q[' + index + '][type]';
+            if (data && data.type) { sel.value = data.type; }
+            sel.addEventListener('change', function () { applyType(node); });
+
+            // Réponse à saisir (numeric/text/fill) + tolérance (numeric).
+            var qa = node.querySelector('.qanswer'), qt = node.querySelector('.qtol');
+            qa.name = 'q[' + index + '][answer]';
+            qt.name = 'q[' + index + '][tolerance]';
+            if (data && data.answer) { qa.value = data.answer; }
+            if (data && data.tolerance) { qt.value = data.tolerance; }
 
             // Image de la question : champ fichier + conservation/retrait de l'existante.
             var fileInp  = node.querySelector('.qimg');
@@ -439,6 +569,7 @@ $qImgBase = url('uploads/quizzes/');
             });
 
             box.appendChild(node);
+            setupDrag(node);
 
             // Options : celles fournies, sinon 2 vides par défaut.
             if (data && data.options && data.options.length) {
@@ -446,7 +577,7 @@ $qImgBase = url('uploads/quizzes/');
             } else {
                 addOption(node); addOption(node);
             }
-            applyMode(node);
+            applyType(node);
             renumber();
         }
 
@@ -459,18 +590,28 @@ $qImgBase = url('uploads/quizzes/');
             addQuestion();
         }
 
-        // Garde-fou avant envoi : au moins une question avec une bonne réponse.
+        // Une question est-elle complète, selon son type ? (garde-fou avant envoi)
+        function questionOk(q) {
+            var type = q.dataset.type || 'single';
+            var hasBody = q.querySelector('.qbody').value.trim() !== '';
+            if (!hasBody) { return false; }
+            if (type === 'numeric') { var v = q.querySelector('.qanswer').value.trim().replace(',', '.'); return v !== '' && !isNaN(parseFloat(v)); }
+            if (type === 'text')    { return q.querySelector('.qanswer').value.trim() !== ''; }
+            if (type === 'fill')    { return /\[[^\]]*\]/.test(q.querySelector('.qbody').value) && q.querySelector('.qanswer').value.trim() !== ''; }
+            var labels = Array.prototype.filter.call(q.querySelectorAll('.olabel'), function (i) { return i.value.trim() !== ''; });
+            if (labels.length < 2) { return false; }
+            if (type === 'order') { return true; }
+            if (type === 'match') { return Array.prototype.every.call(q.querySelectorAll('.opt'), function (o) {
+                return o.querySelector('.olabel').value.trim() !== '' && o.querySelector('.opair').value.trim() !== ''; }); }
+            // single / multiple : au moins une bonne réponse cochée
+            return Array.prototype.some.call(q.querySelectorAll('.correct'), function (c) { return c.checked; });
+        }
+
         document.getElementById('quizForm').addEventListener('submit', function (e) {
-            var ok = false;
-            box.querySelectorAll('.question').forEach(function (q) {
-                var hasBody = q.querySelector('.qbody').value.trim() !== '';
-                var hasCorrect = Array.prototype.some.call(q.querySelectorAll('.correct'), function (c) { return c.checked; });
-                var enough = q.querySelectorAll('.olabel').length >= 2;
-                if (hasBody && hasCorrect && enough) { ok = true; }
-            });
+            var ok = Array.prototype.some.call(box.querySelectorAll('.question'), questionOk);
             if (!ok) {
                 e.preventDefault();
-                alert('Ajoute au moins une question complète : un énoncé, 2 réponses et au moins une bonne réponse cochée.');
+                alert('Ajoute au moins une question complète selon son type (énoncé + réponse(s) attendue(s)).');
             }
         });
     })();

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QCM — Le théorème de Pythagore</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  /* ---------- Spécifique au QCM ---------- */
+  .quiz-wrap { max-width: 760px; margin: 0 auto; padding: 40px 24px 120px; }
+  .progress {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg); padding: 14px 0 12px; margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .progress .bar-bg { height: 10px; background: var(--panel-2); border-radius: 20px; overflow: hidden; }
+  .progress .bar-fill { height: 100%; width: 0; background: linear-gradient(90deg,#7c5cff,#38d39f); transition: width .4s ease; }
+  .progress .meta { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .score-live { color: var(--accent-2); font-weight: 700; }
+
+  .q-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px; margin: 18px 0;
+  }
+  .q-num { color: var(--accent); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .q-text { font-size: 18px; color: #fff; margin: 6px 0 4px; font-weight: 600; }
+  .q-sub { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+  .q-sub code { color: var(--accent-2); }
+
+  .options { display: grid; gap: 10px; }
+  .opt {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--panel-2); border: 2px solid var(--border);
+    border-radius: 9px; padding: 12px 16px; cursor: pointer;
+    font-size: 15px; color: var(--text); transition: border-color .15s, background .15s;
+    text-align: left; width: 100%;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt .mark {
+    width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;
+  }
+  .opt.correct { border-color: var(--accent-2); background: rgba(56,211,159,.14); }
+  .opt.correct .mark { background: var(--accent-2); color: #0f1419; border-color: var(--accent-2); }
+  .opt.wrong { border-color: var(--warn); background: rgba(255,107,107,.12); }
+  .opt.wrong .mark { background: var(--warn); color: #fff; border-color: var(--warn); }
+  .opt:disabled { cursor: default; }
+
+  .explain {
+    margin-top: 12px; font-size: 14px; border-left: 4px solid var(--accent-2);
+    background: rgba(56,211,159,.07); border-radius: 6px; padding: 10px 14px; display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: #fff; }
+  .explain code { color: var(--accent-2); background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  .explain.bad { border-left-color: var(--warn); background: rgba(255,107,107,.07); }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+  .btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 9px;
+    padding: 12px 22px; font-weight: 800; font-size: 15px; cursor: pointer; text-decoration: none;
+    display: inline-block;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .btn:disabled { opacity: .4; cursor: default; }
+
+  .result {
+    text-align: center; background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 34px 24px; margin: 24px 0; display: none;
+  }
+  .result.show { display: block; }
+  .result .big { font-size: 52px; font-weight: 900; color: #fff; margin: 4px 0; }
+  .result .emoji { font-size: 56px; }
+  .result .msg { color: var(--muted); font-size: 17px; margin: 8px 0 20px; }
+  .result .ring { color: var(--accent-2); }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .topbar a { color: var(--accent); text-decoration: none; font-size: 14px; }
+  .topbar h1 { font-size: 26px; color: #fff; margin: 0; }
+</style>
+</head>
+<body>
+<div class="quiz-wrap">
+
+  <div class="topbar">
+    <h1>📐 QCM — Le théorème de Pythagore</h1>
+    <a href="index.html">← Revoir le cours</a>
+  </div>
+  <p class="muted">10 questions à choix unique. Clique sur ta réponse : la correction et l'explication s'affichent aussitôt. Bonne chance !</p>
+
+  <div class="progress">
+    <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
+    <div class="meta">
+      <span id="answered">0 / 10 répondues</span>
+      <span class="score-live" id="scoreLive">Score : 0</span>
+    </div>
+  </div>
+
+  <div id="quiz"></div>
+
+  <div class="result" id="result">
+    <div class="emoji" id="rEmoji">🎉</div>
+    <div class="big"><span class="ring" id="rScore">0</span> / 10</div>
+    <div class="msg" id="rMsg"></div>
+    <div class="actions" style="justify-content:center;">
+      <button class="btn" onclick="location.reload()">↻ Recommencer</button>
+      <a class="btn ghost" href="index.html">📖 Relire le cours</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ======================================================
+   Banque de questions du QCM Pythagore
+   correct = index de la bonne réponse (0-based)
+   ====================================================== */
+const QUESTIONS = [
+  {
+    q: "Dans un triangle rectangle, comment s'appelle le plus grand côté, celui qui est en face de l'angle droit ?",
+    options: ["Un côté de l'angle droit", "L'hypoténuse", "La cathète", "La médiane"],
+    correct: 1,
+    why: "L'<b>hypoténuse</b> est toujours le côté situé en face de l'angle droit, et c'est le plus long du triangle."
+  },
+  {
+    q: "Que dit le théorème de Pythagore pour un triangle rectangle d'hypoténuse BC et d'angle droit en A ?",
+    options: ["BC = AB + AC", "BC² = AB² − AC²", "BC² = AB² + AC²", "BC² = AB × AC"],
+    correct: 2,
+    why: "Le carré de l'hypoténuse égale la <b>somme des carrés</b> des deux autres côtés : <code>BC² = AB² + AC²</code>."
+  },
+  {
+    q: "Un triangle rectangle a deux côtés de l'angle droit qui mesurent 3 et 4. Combien mesure l'hypoténuse ?",
+    options: ["5", "7", "12", "25"],
+    correct: 0,
+    why: "<code>3² + 4² = 9 + 16 = 25</code>, et <code>√25 = 5</code>. C'est le célèbre triangle 3-4-5."
+  },
+  {
+    q: "Pour calculer l'hypoténuse à partir des deux côtés de l'angle droit, quelle opération fait-on à la fin ?",
+    options: ["On divise par 2", "On prend la racine carrée", "On multiplie par 2", "Rien, le carré est la réponse"],
+    correct: 1,
+    why: "On obtient d'abord <b>l'hypoténuse au carré</b>. Pour avoir l'hypoténuse, on prend la <b>racine carrée</b> (inverse du carré)."
+  },
+  {
+    q: "On connaît l'hypoténuse (c = 13) et un côté de l'angle droit (b = 5). Quelle formule donne l'autre côté a ?",
+    options: ["a = √(13² + 5²)", "a = √(13² − 5²)", "a = 13² − 5²", "a = 13 − 5"],
+    correct: 1,
+    why: "Pour trouver un côté de l'angle droit, on <b>soustrait</b> : <code>a² = c² − b² = 169 − 25 = 144</code>, donc <code>a = 12</code>."
+  },
+  {
+    q: "Quelle est la valeur de 6² + 8² ?",
+    options: ["48", "100", "28", "196"],
+    correct: 1,
+    why: "<code>6² = 36</code> et <code>8² = 64</code>, donc <code>36 + 64 = 100</code> (l'hypoténuse vaut alors 10)."
+  },
+  {
+    q: "Un triangle a pour côtés 5, 5 et 7. Est-il rectangle ?",
+    options: ["Oui", "Non", "Seulement si on l'agrandit", "Impossible à savoir"],
+    correct: 1,
+    why: "On teste le plus grand : <code>5² + 5² = 50</code> mais <code>7² = 49</code>. Comme <code>50 ≠ 49</code>, il <b>n'est pas</b> rectangle."
+  },
+  {
+    q: "Lequel de ces trios est un triplet pythagoricien (triangle rectangle à côtés entiers) ?",
+    options: ["(2, 3, 4)", "(5, 12, 13)", "(4, 5, 6)", "(7, 8, 9)"],
+    correct: 1,
+    why: "<code>5² + 12² = 25 + 144 = 169 = 13²</code>. Donc (5, 12, 13) est bien un triplet pythagoricien."
+  },
+  {
+    q: "L'angle droit, sur un dessin de triangle rectangle, est repéré par…",
+    options: ["une flèche", "un petit carré", "un point rouge", "une lettre H"],
+    correct: 1,
+    why: "Un <b>petit carré</b> placé dans le coin indique l'angle de 90°. L'hypoténuse est le côté qui ne le touche pas."
+  },
+  {
+    q: "Une échelle a son pied à 6 m du mur et touche le mur à 8 m de hauteur. Quelle est la longueur de l'échelle ?",
+    options: ["10 m", "14 m", "48 m", "2 m"],
+    correct: 0,
+    why: "L'échelle est l'hypoténuse : <code>√(6² + 8²) = √(36 + 64) = √100 = 10</code> m."
+  }
+];
+
+const TOTAL = QUESTIONS.length;
+let answeredCount = 0;
+let score = 0;
+const answered = new Array(TOTAL).fill(false);
+
+const quizEl = document.getElementById('quiz');
+
+QUESTIONS.forEach((item, qi) => {
+  const card = document.createElement('div');
+  card.className = 'q-card';
+
+  const letters = ['A', 'B', 'C', 'D'];
+  let optsHtml = '';
+  item.options.forEach((opt, oi) => {
+    optsHtml += `<button class="opt" data-q="${qi}" data-o="${oi}">
+        <span class="mark">${letters[oi]}</span><span>${opt}</span>
+      </button>`;
+  });
+
+  card.innerHTML = `
+    <div class="q-num">Question ${qi + 1} / ${TOTAL}</div>
+    <div class="q-text">${item.q}</div>
+    <div class="options">${optsHtml}</div>
+    <div class="explain" id="exp-${qi}"></div>
+  `;
+  quizEl.appendChild(card);
+});
+
+quizEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.opt');
+  if (!btn) return;
+  const qi = +btn.dataset.q;
+  const oi = +btn.dataset.o;
+  if (answered[qi]) return;            // déjà répondu : on ignore
+
+  answered[qi] = true;
+  answeredCount++;
+
+  const item = QUESTIONS[qi];
+  const card = btn.closest('.q-card');
+  const allOpts = card.querySelectorAll('.opt');
+  allOpts.forEach(o => o.disabled = true);
+
+  const good = oi === item.correct;
+  if (good) score++;
+
+  // marquer la bonne réponse et, le cas échéant, la mauvaise choisie
+  allOpts[item.correct].classList.add('correct');
+  allOpts[item.correct].querySelector('.mark').textContent = '✓';
+  if (!good) {
+    btn.classList.add('wrong');
+    btn.querySelector('.mark').textContent = '✕';
+  }
+
+  // explication
+  const exp = document.getElementById('exp-' + qi);
+  exp.classList.add('show');
+  exp.classList.toggle('bad', !good);
+  exp.innerHTML = (good ? '<b>✓ Bravo !</b> ' : '<b>✗ Pas tout à fait.</b> ') + item.why;
+
+  // mise à jour de la progression
+  document.getElementById('answered').textContent = answeredCount + ' / ' + TOTAL + ' répondues';
+  document.getElementById('scoreLive').textContent = 'Score : ' + score;
+  document.getElementById('barFill').style.width = (answeredCount / TOTAL * 100) + '%';
+
+  if (answeredCount === TOTAL) showResult();
+});
+
+function showResult() {
+  const res = document.getElementById('result');
+  document.getElementById('rScore').textContent = score;
+
+  let emoji, msg;
+  if (score === TOTAL)      { emoji = '🏆'; msg = "Sans-faute ! Tu maîtrises parfaitement le théorème de Pythagore."; }
+  else if (score >= 8)      { emoji = '🎉'; msg = "Excellent ! Quelques détails à revoir, mais c'est presque parfait."; }
+  else if (score >= 6)      { emoji = '👍'; msg = "Bien joué ! Relis le mémo pour consolider les points manqués."; }
+  else if (score >= 4)      { emoji = '💪'; msg = "C'est un début. Reprends le cours, puis retente le QCM."; }
+  else                      { emoji = '📚'; msg = "Pas de panique : relis tranquillement le cours et reviens t'entraîner."; }
+
+  document.getElementById('rEmoji').textContent = emoji;
+  document.getElementById('rMsg').textContent = msg;
+  res.classList.add('show');
+  res.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+</script>
+</body>
+</html>

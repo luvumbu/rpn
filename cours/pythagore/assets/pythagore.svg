@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" width="760" height="420" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#241b3e"/>
+      <stop offset="1" stop-color="#0f1419"/>
+    </linearGradient>
+    <linearGradient id="hyp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e67e22"/>
+      <stop offset="1" stop-color="#d35400"/>
+    </linearGradient>
+  </defs>
+
+  <!-- fond -->
+  <rect width="760" height="420" rx="18" fill="url(#bg)"/>
+
+  <!-- titre -->
+  <text x="40" y="58" fill="#ffffff" font-size="34" font-weight="800">Théorème de Pythagore</text>
+  <text x="40" y="90" fill="#9aa7b4" font-size="18">Dans un triangle rectangle :
+    <tspan fill="#38d39f" font-weight="700"> c² = a² + b²</tspan>
+  </text>
+
+  <!-- ===== schéma : triangle 3-4-5 avec carrés sur les côtés =====
+       angle droit au point A. 1 unité = 28 px
+       A = (320, 300)  B = (320 + 4*28, 300) = (432, 300)
+       C = (320, 300 - 3*28) = (320, 216) -->
+  <g transform="translate(40, 30)">
+
+    <!-- carré sur le côté b (horizontal = 4) : aire 16, vert, sous la base -->
+    <rect x="320" y="300" width="112" height="112" fill="#2ecc71" fill-opacity="0.25" stroke="#2ecc71" stroke-width="2"/>
+    <text x="376" y="362" fill="#2ecc71" font-size="22" font-weight="800" text-anchor="middle">b² = 16</text>
+
+    <!-- carré sur le côté a (vertical = 3) : aire 9, bleu, à gauche -->
+    <rect x="236" y="216" width="84" height="84" fill="#3498db" fill-opacity="0.28" stroke="#3498db" stroke-width="2"/>
+    <text x="278" y="264" fill="#5dade2" font-size="20" font-weight="800" text-anchor="middle">a² = 9</text>
+
+    <!-- carré sur l'hypoténuse (5) : aire 25, orange, incliné -->
+    <!-- hypoténuse de B(432,300) à C(320,216). vecteur (-112,-84), normal sortant (-84,112)*...
+         on construit le carré vers l'extérieur (haut-droite) -->
+    <polygon points="432,300 320,216 404,104 516,188"
+             fill="url(#hyp)" fill-opacity="0.32" stroke="#e67e22" stroke-width="2"/>
+    <text x="418" y="206" fill="#e67e22" font-size="22" font-weight="800" text-anchor="middle"
+          transform="rotate(-36.87 418 206)">c² = 25</text>
+
+    <!-- le triangle rectangle (rempli) -->
+    <polygon points="320,300 432,300 320,216" fill="#7c5cff" fill-opacity="0.85" stroke="#b9a8ff" stroke-width="2.5"/>
+
+    <!-- petit carré de l'angle droit en A(320,300) -->
+    <rect x="320" y="280" width="20" height="20" fill="none" stroke="#ff6b6b" stroke-width="2.5"/>
+
+    <!-- étiquettes des côtés -->
+    <text x="376" y="318" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle">4</text>
+    <text x="305" y="262" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle">3</text>
+    <text x="392" y="252" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle"
+          transform="rotate(-36.87 392 252)">5</text>
+
+    <!-- sommets -->
+    <circle cx="320" cy="300" r="4.5" fill="#ffffff"/>
+    <circle cx="432" cy="300" r="4.5" fill="#ffffff"/>
+    <circle cx="320" cy="216" r="4.5" fill="#ffffff"/>
+    <text x="312" y="318" fill="#ffffff" font-size="15" text-anchor="end">A</text>
+    <text x="442" y="318" fill="#ffffff" font-size="15">B</text>
+    <text x="310" y="212" fill="#ffffff" font-size="15" text-anchor="end">C</text>
+  </g>
+
+  <!-- égalité résumée en bas à gauche -->
+  <g transform="translate(40, 300)">
+    <text x="0" y="0" fill="#ffffff" font-size="26" font-weight="800">9 + 16 = 25</text>
+    <text x="0" y="34" fill="#9aa7b4" font-size="16">l'aire des deux petits carrés</text>
+    <text x="0" y="56" fill="#9aa7b4" font-size="16">remplit exactement le grand.</text>
+  </g>
+</svg>

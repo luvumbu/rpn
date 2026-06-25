@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manipuler Pythagore — figures interactives</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .manip { display:grid; grid-template-columns: minmax(0,1fr) 280px; gap:0;
+    border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin:18px 0 30px; background:var(--panel); }
+  .manip .stage { background:#151b24; display:flex; align-items:center; justify-content:center; padding:18px; border-right:1px solid var(--border); }
+  .manip canvas { background:#fff; border-radius:6px; box-shadow:0 6px 20px rgba(0,0,0,.4); max-width:100%; touch-action:none; cursor:grab; }
+  .manip .panel-info { padding:18px 20px; display:flex; flex-direction:column; gap:10px; }
+  .readout { font-size:15px; }
+  .readout b { color:#fff; }
+  .readout .val { color:var(--accent-2); font-weight:800; font-variant-numeric:tabular-nums; }
+  .verdict { font-weight:800; font-size:16px; padding:8px 12px; border-radius:8px; text-align:center; }
+  .verdict.ok { background:rgba(56,211,159,.15); color:var(--accent-2); border:1px solid var(--accent-2); }
+  .verdict.no { background:rgba(255,107,107,.12); color:#ff9b9b; border:1px solid var(--warn); }
+  .hintline { font-size:13px; color:var(--muted); }
+  @media (max-width:760px){ .manip { grid-template-columns:1fr; } .manip .stage { border-right:none; border-bottom:1px solid var(--border); } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h1>🎛️ Manipuler</h1>
+    <div class="tag">Pythagore en direct · attrape et déplace</div>
+    <nav>
+      <a class="section-title">Figures</a>
+      <a href="#triangle">1 · Le triangle vivant</a>
+      <a href="#verifier">2 · Est-il rectangle ?</a>
+      <a href="#distance">3 · La distance</a>
+      <a class="section-title">Le reste</a>
+      <a href="index.html">📖 Le cours</a>
+      <a href="qcm.html" style="color:#38d39f;font-weight:700;">✅ Le QCM →</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="hero">
+      <h1>Manipule Pythagore avec tes doigts</h1>
+      <p class="lead">Ici, rien à coder : <b>attrape les points</b> et déplace-les. Les longueurs, les carrés et l'égalité <b>a² + b² = c²</b> se recalculent en temps réel.</p>
+    </div>
+
+    <div class="tip"><b>Comment faire ?</b> Clique (ou touche) un <b>gros point coloré</b> et fais-le glisser. Les nombres à droite suivent le mouvement.</div>
+
+    <!-- 1. TRIANGLE VIVANT -->
+    <h2 id="triangle"><span class="num">1</span> Le triangle vivant</h2>
+    <p>Déplace le sommet <b>B</b> (en bas) et le sommet <b>C</b> (en haut). L'angle droit reste en A. Regarde les trois carrés grandir et l'égalité se vérifier toute seule.</p>
+    <div class="manip">
+      <div class="stage"><canvas id="cv1" width="420" height="320"></canvas></div>
+      <div class="panel-info">
+        <div class="readout"><b>a</b> (vertical) = <span class="val" id="r1a">0</span></div>
+        <div class="readout"><b>b</b> (horizontal) = <span class="val" id="r1b">0</span></div>
+        <div class="readout"><b>c</b> (hypoténuse) = <span class="val" id="r1c">0</span></div>
+        <hr style="border-color:var(--border);width:100%;">
+        <div class="readout">a² + b² = <span class="val" id="r1sum">0</span></div>
+        <div class="readout">c² = <span class="val" id="r1c2">0</span></div>
+        <div class="verdict ok" id="r1v">a² + b² = c² ✓</div>
+        <div class="hintline">Les carrés des côtés sont dessinés à l'échelle : l'orange (sur c) a toujours l'aire des deux autres réunis.</div>
+      </div>
+    </div>
+
+    <!-- 2. EST-IL RECTANGLE -->
+    <h2 id="verifier"><span class="num">2</span> Est-il rectangle ?</h2>
+    <p>Ce triangle-là n'a pas forcément d'angle droit. Déplace librement le sommet <b>S</b> : l'outil teste si <b>le plus grand côté au carré</b> égale la somme des deux autres au carré. Trouve une position où il devient rectangle !</p>
+    <div class="manip">
+      <div class="stage"><canvas id="cv2" width="420" height="320"></canvas></div>
+      <div class="panel-info">
+        <div class="readout">côtés : <span class="val" id="r2sides">–</span></div>
+        <div class="readout">grand² = <span class="val" id="r2big">0</span></div>
+        <div class="readout">somme des 2 autres² = <span class="val" id="r2oth">0</span></div>
+        <div class="verdict no" id="r2v">Pas rectangle</div>
+        <div class="hintline">L'angle le plus proche de 90° est surligné. Quand l'écart est minuscule, le triangle est (presque) rectangle.</div>
+      </div>
+    </div>
+
+    <!-- 3. DISTANCE -->
+    <h2 id="distance"><span class="num">3</span> La distance entre deux points</h2>
+    <p>Déplace <b>P</b> et <b>Q</b>. Le trajet horizontal et vertical forme un triangle rectangle, et la ligne directe (l'hypoténuse) est la <b>distance</b> — exactement le calcul du GPS.</p>
+    <div class="manip">
+      <div class="stage"><canvas id="cv3" width="420" height="320"></canvas></div>
+      <div class="panel-info">
+        <div class="readout">Δ horizontal = <span class="val" id="r3dx">0</span></div>
+        <div class="readout">Δ vertical = <span class="val" id="r3dy">0</span></div>
+        <div class="readout"><b>distance PQ</b> = <span class="val" id="r3d">0</span></div>
+        <div class="hintline">distance = √(Δhoriz² + Δvert²)</div>
+      </div>
+    </div>
+
+    <p style="text-align:center;margin-top:30px;">
+      <a href="qcm.html" style="display:inline-block;background:#38d39f;color:#0f1419;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:17px;">✅ Je teste : faire le QCM →</a>
+    </p>
+
+    <footer>
+      Manipulables interactifs — théorème de Pythagore · 100 % hors-ligne, souris &amp; tactile.
+    </footer>
+  </main>
+</div>
+
+<script>
+/* Petit moteur de points déplaçables, partagé par les trois figures. */
+function draggable(canvas, points, draw) {
+  const ctx = canvas.getContext('2d');
+  let active = null;
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: (t.clientX - r.left) * canvas.width / r.width,
+             y: (t.clientY - r.top) * canvas.height / r.height };
+  }
+  function hit(p) {
+    return points.find(pt => pt.drag !== false && Math.hypot(pt.x - p.x, pt.y - p.y) < 22);
+  }
+  function down(e) { const p = pos(e); active = hit(p); if (active) { e.preventDefault(); } }
+  function move(e) {
+    if (!active) { return; }
+    e.preventDefault();
+    const p = pos(e);
+    active.x = Math.max(16, Math.min(canvas.width - 16, p.x));
+    active.y = Math.max(16, Math.min(canvas.height - 16, p.y));
+    render();
+  }
+  function up() { active = null; }
+
+  canvas.addEventListener('mousedown', down);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+  canvas.addEventListener('touchstart', down, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', up);
+
+  function dot(p, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  function render() {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    draw(ctx, dot);
+  }
+  render();
+  return render;
+}
+
+function fmt(n) { return (Math.round(n * 10) / 10).toString(); }
+
+/* ---- 1. Triangle vivant : angle droit en A, on bouge B et C ---- */
+(function () {
+  const cv = document.getElementById('cv1');
+  const A = { x: 120, y: 250, drag: false };
+  const B = { x: 330, y: 250 };   // même y que A au départ
+  const C = { x: 120, y: 90 };    // même x que A au départ
+  const SC = 28; // pixels par unité d'affichage
+
+  draggable(cv, [A, B, C], function (ctx, dot) {
+    // On force l'angle droit en A : b le long de l'horizontale de A, a le long de la verticale.
+    const b = Math.abs(B.x - A.x) / SC;
+    const a = Math.abs(C.y - A.y) / SC;
+    // On repositionne B et C pour garder l'angle droit visuel.
+    B.y = A.y; C.x = A.x;
+    const Bx = B.x, Cy = C.y;
+    const c = Math.hypot(b, a);
+
+    // carrés (à l'échelle SC)
+    ctx.fillStyle = 'rgba(46,204,113,.30)';
+    ctx.fillRect(Math.min(A.x, Bx), A.y, Math.abs(Bx - A.x), Math.abs(Bx - A.x) * (Bx >= A.x ? 1 : 1));
+    // carré sur b (horizontal), vers le bas
+    ctx.fillStyle = 'rgba(46,204,113,.28)';
+    ctx.fillRect(A.x, A.y, Bx - A.x, Math.abs(Bx - A.x));
+    // carré sur a (vertical), vers la gauche
+    ctx.fillStyle = 'rgba(52,152,219,.28)';
+    ctx.fillRect(A.x - Math.abs(Cy - A.y), Cy, Math.abs(Cy - A.y), Math.abs(Cy - A.y));
+
+    // carré sur l'hypoténuse
+    const hx = Cy - A.y, hy = -(Bx - A.x); // normale ~ (perp)
+    const len = Math.hypot(Bx - A.x, Cy - A.y);
+    if (len > 0) {
+      const nx = (Cy - A.y) / len, ny = -(Bx - A.x) / len;
+      ctx.fillStyle = 'rgba(230,126,34,.26)';
+      ctx.beginPath();
+      ctx.moveTo(Bx, A.y);
+      ctx.lineTo(A.x, Cy);
+      ctx.lineTo(A.x + nx * len, Cy + ny * len);
+      ctx.lineTo(Bx + nx * len, A.y + ny * len);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // triangle
+    ctx.fillStyle = 'rgba(124,92,255,.85)';
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(Bx, A.y); ctx.lineTo(A.x, Cy); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#b9a8ff'; ctx.lineWidth = 2; ctx.stroke();
+
+    // angle droit
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2;
+    const s = 16 * (Bx >= A.x ? 1 : -1), s2 = 16 * (Cy <= A.y ? -1 : 1);
+    ctx.strokeRect(A.x, A.y + (s2 < 0 ? s2 : 0), Math.abs(s), Math.abs(s2));
+
+    dot(B, '#3498db'); dot(C, '#2ecc71');
+    ctx.fillStyle = '#222'; ctx.font = 'bold 13px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText('A', A.x - 12, A.y + 16); ctx.fillText('B', Bx + 12, A.y + 16); ctx.fillText('C', A.x - 12, Cy);
+
+    // lecture
+    document.getElementById('r1a').textContent = fmt(a);
+    document.getElementById('r1b').textContent = fmt(b);
+    document.getElementById('r1c').textContent = fmt(c);
+    const sum = a * a + b * b, c2 = c * c;
+    document.getElementById('r1sum').textContent = fmt(sum);
+    document.getElementById('r1c2').textContent = fmt(c2);
+  });
+})();
+
+/* ---- 2. Est-il rectangle ? on bouge S librement ---- */
+(function () {
+  const cv = document.getElementById('cv2');
+  const P = { x: 90, y: 250, drag: false };
+  const Q = { x: 340, y: 250, drag: false };
+  const S = { x: 230, y: 90 };
+
+  draggable(cv, [P, Q, S], function (ctx, dot) {
+    // longueurs des 3 côtés
+    const ab = Math.hypot(P.x - Q.x, P.y - Q.y);
+    const bc = Math.hypot(Q.x - S.x, Q.y - S.y);
+    const ca = Math.hypot(S.x - P.x, S.y - P.y);
+    const sides = [ab, bc, ca].sort((m, n) => m - n);
+    const big = sides[2] * sides[2];
+    const oth = sides[0] * sides[0] + sides[1] * sides[1];
+    const ratio = Math.abs(big - oth) / big;
+    const rect = ratio < 0.03;
+
+    // triangle
+    ctx.fillStyle = rect ? 'rgba(56,211,159,.20)' : 'rgba(124,92,255,.14)';
+    ctx.beginPath(); ctx.moveTo(P.x, P.y); ctx.lineTo(Q.x, Q.y); ctx.lineTo(S.x, S.y); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = rect ? '#38d39f' : '#7c5cff'; ctx.lineWidth = 3; ctx.stroke();
+
+    dot(S, '#e67e22'); dot(P, '#888'); dot(Q, '#888');
+    ctx.fillStyle = '#222'; ctx.font = 'bold 13px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText('S', S.x, S.y - 14);
+
+    // unités d'affichage (on divise par 28 pour des nombres lisibles)
+    const u = 28;
+    document.getElementById('r2sides').textContent = sides.map(s => fmt(s / u)).join(' · ');
+    document.getElementById('r2big').textContent = fmt(big / (u * u));
+    document.getElementById('r2oth').textContent = fmt(oth / (u * u));
+    const v = document.getElementById('r2v');
+    v.textContent = rect ? '✓ Rectangle !' : 'Pas rectangle';
+    v.className = 'verdict ' + (rect ? 'ok' : 'no');
+  });
+})();
+
+/* ---- 3. Distance entre deux points ---- */
+(function () {
+  const cv = document.getElementById('cv3');
+  const P = { x: 90, y: 250 };
+  const Q = { x: 320, y: 110 };
+  const u = 28;
+
+  draggable(cv, [P, Q], function (ctx, dot) {
+    const dx = Math.abs(Q.x - P.x), dy = Math.abs(Q.y - P.y);
+    const d = Math.hypot(dx, dy);
+
+    // côtés du triangle rectangle
+    ctx.strokeStyle = '#3498db'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(P.x, P.y); ctx.lineTo(Q.x, P.y); ctx.stroke();
+    ctx.strokeStyle = '#2ecc71';
+    ctx.beginPath(); ctx.moveTo(Q.x, P.y); ctx.lineTo(Q.x, Q.y); ctx.stroke();
+    ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(P.x, P.y); ctx.lineTo(Q.x, Q.y); ctx.stroke();
+
+    dot(P, '#7c5cff'); dot(Q, '#7c5cff');
+    ctx.fillStyle = '#222'; ctx.font = 'bold 13px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText('P', P.x - 12, P.y + 4); ctx.fillText('Q', Q.x + 12, Q.y);
+
+    document.getElementById('r3dx').textContent = fmt(dx / u);
+    document.getElementById('r3dy').textContent = fmt(dy / u);
+    document.getElementById('r3d').textContent = fmt(d / u);
+  });
+})();
+</script>
+</body>
+</html>

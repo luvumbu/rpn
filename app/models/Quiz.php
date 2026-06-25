@@ -276,28 +276,51 @@ class Quiz
         return $stmt->fetchAll();
     }
 
-    /** Ajoute une question (image + explication facultatives) et retourne son id. */
-    public static function addQuestion(int $quizId, string $body, string $type, int $position, ?string $image = null, ?string $explanation = null): int
+    /** Les types de questions reconnus. */
+    public const TYPES = ['single', 'multiple', 'numeric', 'text', 'fill', 'order', 'match'];
+
+    /** Normalise une valeur de type (repli sur 'single' si inconnue). */
+    public static function normalizeType(string $type): string
     {
-        $type = $type === 'multiple' ? 'multiple' : 'single';
+        return in_array($type, self::TYPES, true) ? $type : 'single';
+    }
+
+    /**
+     * Ajoute une question et retourne son id.
+     *  - $image / $explanation : facultatifs (comme avant) ;
+     *  - $answer : réponse attendue pour numeric/text/fill (variantes ou trous séparés par « | ») ;
+     *  - $tolerance : marge acceptée pour numeric.
+     */
+    public static function addQuestion(int $quizId, string $body, string $type, int $position, ?string $image = null, ?string $explanation = null, ?string $answer = null, float $tolerance = 0.0): int
+    {
+        $type = self::normalizeType($type);
         $stmt = Database::pdo()->prepare(
-            'INSERT INTO quiz_questions (quiz_id, body, image, explanation, type, position) VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO quiz_questions (quiz_id, body, image, explanation, answer, tolerance, type, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $quizId, mb_substr($body, 0, 500), $image,
             ($explanation !== null && $explanation !== '') ? mb_substr($explanation, 0, 500) : null,
+            ($answer !== null && $answer !== '') ? mb_substr($answer, 0, 500) : null,
+            max(0, $tolerance),
             $type, $position,
         ]);
         return (int) Database::pdo()->lastInsertId();
     }
 
-    /** Ajoute une option (réponse possible) à une question. */
-    public static function addOption(int $questionId, string $label, bool $isCorrect, int $position): void
+    /**
+     * Ajoute une option (réponse possible) à une question.
+     *  - $pair : pour le type 'match', l'étiquette de droite à associer à ce label.
+     */
+    public static function addOption(int $questionId, string $label, bool $isCorrect, int $position, ?string $pair = null): void
     {
         $stmt = Database::pdo()->prepare(
-            'INSERT INTO quiz_options (question_id, label, is_correct, position) VALUES (?, ?, ?, ?)'
+            'INSERT INTO quiz_options (question_id, label, pair, is_correct, position) VALUES (?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$questionId, mb_substr($label, 0, 300), $isCorrect ? 1 : 0, $position]);
+        $stmt->execute([
+            $questionId, mb_substr($label, 0, 300),
+            ($pair !== null && $pair !== '') ? mb_substr($pair, 0, 300) : null,
+            $isCorrect ? 1 : 0, $position,
+        ]);
     }
 
     /** Supprime toutes les questions (et leurs options) d'un questionnaire. */
@@ -337,16 +360,35 @@ class Quiz
         return $stmt->fetch() ?: null;
     }
 
-    /** IDs des options cochées par le membre, indexés par question_id → [option_id…]. */
+    /**
+     * IDs des options cochées par le membre, indexés par question_id → [option_id…].
+     * Les lignes « texte » (option_id = 0, réponse saisie) sont ignorées ici.
+     * Pour 'order', l'ordre d'insertion (position) reflète l'ordre choisi.
+     */
     public static function answersFor(int $responseId): array
     {
         $stmt = Database::pdo()->prepare(
-            'SELECT question_id, option_id FROM quiz_answers WHERE response_id = ?'
+            'SELECT question_id, option_id FROM quiz_answers WHERE response_id = ? ORDER BY id ASC'
         );
         $stmt->execute([$responseId]);
         $out = [];
         foreach ($stmt->fetchAll() as $row) {
+            if ((int) $row['option_id'] === 0) { continue; } // ligne porteuse d'un texte
             $out[(int) $row['question_id']][] = (int) $row['option_id'];
+        }
+        return $out;
+    }
+
+    /** Réponses SAISIES par le membre (numeric/text/fill/order/match), par question_id → texte. */
+    public static function textsFor(int $responseId): array
+    {
+        $stmt = Database::pdo()->prepare(
+            'SELECT question_id, answer_text FROM quiz_answers WHERE response_id = ? AND answer_text IS NOT NULL'
+        );
+        $stmt->execute([$responseId]);
+        $out = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $out[(int) $row['question_id']] = (string) $row['answer_text'];
         }
         return $out;
     }
@@ -388,12 +430,103 @@ class Quiz
         return $total > 0 ? (int) round($score / $total * 100) : 0;
     }
 
+    /* =====================================================================
+     *  NOTATION PAR TYPE (utilisée par submit ET le corrigé)
+     * ===================================================================== */
+
+    /** Normalise un texte pour comparaison : minuscules, sans accent, espaces réduits, ponctuation de fin retirée. */
+    public static function normText(string $s): string
+    {
+        $s = trim(mb_strtolower($s));
+        $from = ['à','â','ä','á','ã','ç','é','è','ê','ë','î','ï','í','ô','ö','ó','õ','ù','û','ü','ú','ñ'];
+        $to   = ['a','a','a','a','a','c','e','e','e','e','i','i','i','o','o','o','o','u','u','u','u','n'];
+        $s = str_replace($from, $to, $s);
+        // Apostrophes et traits d'union traités comme des espaces (tolérance de saisie).
+        $s = str_replace(["'", "\u{2019}", '`', "\u{00b4}", '-', "\u{2013}"], ' ', $s);
+        $s = preg_replace('/\s+/', ' ', $s);
+        return trim((string) $s, " \t\n\r\0\x0B.,;:!?");
+    }
+
+    /** Convertit une saisie en nombre (accepte la virgule décimale), ou null si invalide. */
+    public static function toNumber(string $s): ?float
+    {
+        $s = str_replace([' ', "\u{00a0}"], '', trim($s));
+        $s = str_replace(',', '.', $s);
+        return is_numeric($s) ? (float) $s : null;
+    }
+
+    /**
+     * Une question est-elle réussie ? Logique unique pour tous les types.
+     *  - $chosen   : option_id cochés par le membre (single/multiple/order = ordre choisi).
+     *  - $answerText : texte/sequence saisi par le membre (numeric/text/fill/order/match).
+     * Retourne true si la réponse est entièrement correcte.
+     */
+    public static function gradeQuestion(array $q, array $chosen, ?string $answerText): bool
+    {
+        $type = self::normalizeType((string) ($q['type'] ?? 'single'));
+        $options = $q['options'] ?? self::options((int) $q['id']);
+
+        switch ($type) {
+            case 'numeric': {
+                $expected = self::toNumber((string) ($q['answer'] ?? ''));
+                $got      = self::toNumber((string) $answerText);
+                if ($expected === null || $got === null) { return false; }
+                $tol = (float) ($q['tolerance'] ?? 0);
+                return abs($got - $expected) <= $tol + 1e-9;
+            }
+            case 'text': {
+                // Plusieurs variantes acceptées, séparées par « | ».
+                $variants = array_filter(array_map([self::class, 'normText'], explode('|', (string) ($q['answer'] ?? ''))), fn ($v) => $v !== '');
+                return in_array(self::normText((string) $answerText), $variants, true);
+            }
+            case 'fill': {
+                // Chaque trou (séparé par « | ») doit correspondre, dans l'ordre.
+                $expected = array_map([self::class, 'normText'], explode('|', (string) ($q['answer'] ?? '')));
+                $given    = array_map([self::class, 'normText'], explode('|', (string) $answerText));
+                if (count($given) !== count($expected) || empty($expected)) { return false; }
+                foreach ($expected as $i => $exp) {
+                    if ($exp === '' || ($given[$i] ?? '') !== $exp) { return false; }
+                }
+                return true;
+            }
+            case 'order': {
+                // Ordre correct = options triées par position. Le membre a renvoyé une suite d'option_id.
+                $correct = array_map(fn ($o) => (int) $o['id'], $options); // déjà triées par position dans options()
+                return !empty($correct) && $chosen === $correct;
+            }
+            case 'match': {
+                // answerText = « optId:cible » séparés par des virgules ; chaque cible doit égaler option.pair.
+                if (empty($options)) { return false; }
+                $picked = [];
+                foreach (explode(',', (string) $answerText) as $couple) {
+                    $parts = explode(':', $couple, 2);
+                    if (count($parts) === 2) { $picked[(int) $parts[0]] = self::normText($parts[1]); }
+                }
+                foreach ($options as $o) {
+                    $target = self::normText((string) ($o['pair'] ?? ''));
+                    if ($target === '' || ($picked[(int) $o['id']] ?? '') !== $target) { return false; }
+                }
+                return true;
+            }
+            case 'multiple':
+            case 'single':
+            default: {
+                $correctSet = [];
+                foreach ($options as $o) {
+                    if ((int) $o['is_correct'] === 1) { $correctSet[] = (int) $o['id']; }
+                }
+                $c = $chosen; sort($c); sort($correctSet);
+                return $c === $correctSet && !empty($correctSet);
+            }
+        }
+    }
+
     /**
      * Enregistre la participation d'un membre : crée la ligne de réponse + les
      * options cochées. $picks = [question_id => [option_id, …]]. Remplace la
      * participation précédente mais CUMULE le compteur de tentatives.
      */
-    public static function saveResponse(int $quizId, int $userId, string $userName, array $picks, int $score, int $total): void
+    public static function saveResponse(int $quizId, int $userId, string $userName, array $picks, int $score, int $total, array $texts = []): void
     {
         $pdo = Database::pdo();
 
@@ -411,6 +544,7 @@ class Quiz
         $stmt->execute([$quizId, $userId, mb_substr($userName, 0, 150), $score, $total, $attempts]);
         $rid = (int) $pdo->lastInsertId();
 
+        // Options cochées (single/multiple) ou suite ordonnée (order) : une ligne par option_id.
         $ins = $pdo->prepare(
             'INSERT INTO quiz_answers (response_id, question_id, option_id) VALUES (?, ?, ?)'
         );
@@ -418,6 +552,16 @@ class Quiz
             foreach ((array) $optionIds as $oid) {
                 $ins->execute([$rid, (int) $qid, (int) $oid]);
             }
+        }
+
+        // Réponses saisies (numeric/text/fill/match, et sequence brute pour order) :
+        // une ligne porteuse avec option_id = 0 et le texte.
+        $insTxt = $pdo->prepare(
+            'INSERT INTO quiz_answers (response_id, question_id, option_id, answer_text) VALUES (?, ?, 0, ?)'
+        );
+        foreach ($texts as $qid => $txt) {
+            if ($txt === null || $txt === '') { continue; }
+            $insTxt->execute([$rid, (int) $qid, mb_substr((string) $txt, 0, 500)]);
         }
     }
 }

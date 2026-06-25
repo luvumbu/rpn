@@ -150,6 +150,41 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
         /* Explication d'une question */
         .q-explain { margin-top:12px; padding:11px 14px; font-size:14px; line-height:1.5; border-radius:10px;
             background:rgba(127,127,127,.08); border:1px solid var(--card-border); border-left:3px solid var(--accent); color:var(--text); }
+
+        /* ===== Types interactifs : saisie / trous / ordre / association ===== */
+        .ans-input { width:100%; padding:12px 14px; border-radius:11px; border:1px solid var(--card-border);
+            background:rgba(127,127,127,.08); color:var(--text); font-family:inherit; font-size:16px; }
+        .ans-input:focus { outline:none; border-color:var(--accent); }
+        .ans-num { max-width:220px; }
+        .fill-line { font-size:16px; line-height:2.1; }
+        .fill-blank { display:inline-block; width:90px; padding:5px 8px; margin:0 3px; border-radius:8px;
+            border:1px solid var(--card-border); background:rgba(127,127,127,.08); color:var(--text); font-family:inherit; font-size:15px; text-align:center; }
+        .fill-blank:focus { outline:none; border-color:var(--accent); }
+        .fill-blank.correct { border-color:var(--vert,#2a9d4a); background:rgba(42,157,74,.14); }
+        .fill-blank.wrong { border-color:var(--rouge,#e63946); background:rgba(230,57,70,.12); }
+        /* Liste à remettre dans l'ordre */
+        .order-list { list-style:none; padding:0; margin:0; }
+        .order-item { display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:9px; border-radius:11px;
+            border:1px solid var(--card-border); background:rgba(127,127,127,.06); cursor:grab; }
+        .order-item .grip { font-size:18px; color:var(--muted); flex:0 0 auto; }
+        .order-item .num { font-weight:800; color:var(--accent); flex:0 0 auto; width:22px; }
+        .order-item.drag-over { border-top:2px solid var(--accent); }
+        .order-item.correct { border-color:var(--vert,#2a9d4a); background:rgba(42,157,74,.12); }
+        .order-item.wrong { border-color:var(--rouge,#e63946); background:rgba(230,57,70,.12); }
+        /* Association par paires */
+        .match-row { display:flex; align-items:center; gap:12px; padding:9px 0; flex-wrap:wrap; }
+        .match-left { flex:1; min-width:140px; font-size:15px; font-weight:600;
+            padding:11px 14px; border-radius:11px; border:1px solid var(--card-border); background:rgba(127,127,127,.06); }
+        .match-arrow { color:var(--muted); font-size:18px; }
+        .match-sel { flex:1; min-width:140px; padding:11px 12px; border-radius:11px; border:1px solid var(--card-border);
+            background:rgba(127,127,127,.08); color:var(--text); font-family:inherit; font-size:15px; }
+        .match-sel:focus { outline:none; border-color:var(--accent); }
+        .match-sel.correct { border-color:var(--vert,#2a9d4a); }
+        .match-sel.wrong { border-color:var(--rouge,#e63946); }
+        .ans-recap { margin-top:8px; font-size:14px; }
+        .ans-recap .ok-txt { color:var(--vert,#2a9d4a); font-weight:700; }
+        .ans-recap .ko-txt { color:var(--rouge,#e63946); font-weight:700; }
+        .ans-recap .exp { color:var(--muted); }
         /* Bandeau réussite / échec */
         .pass-banner { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; border-radius:14px; margin-bottom:18px; }
         .pass-banner .pass-ico { font-size:26px; line-height:1; }
@@ -244,24 +279,95 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
                   class="<?= $qStep ? 'step-mode' : '' ?>"
                   data-step="<?= $qStep ? 1 : 0 ?>" data-feedback="<?= $qFeedback ? 1 : 0 ?>" data-fx="<?= $qEffects ? 1 : 0 ?>">
                 <input type="hidden" name="id" value="<?= $qid ?>">
-                <?php foreach ($questions as $i => $q): $type = $q['type']; ?>
-                    <div class="q" data-qi="<?= $i ?>" data-explain="<?= htmlspecialchars((string) ($q['explanation'] ?? '')) ?>">
-                        <div class="qbody"><?= ($i + 1) ?>. <?= htmlspecialchars($q['body']) ?></div>
-                        <div class="qtype"><?= $type === 'multiple' ? '☑️ Plusieurs réponses possibles' : '🔘 Une seule réponse' ?></div>
+                <?php
+                    // Libellés courts pour l'en-tête de chaque question.
+                    $typeLabel = [
+                        'single' => '🔘 Une seule réponse', 'multiple' => '☑️ Plusieurs réponses possibles',
+                        'numeric' => '🔢 Réponse chiffrée à saisir', 'text' => '⌨️ Réponse à saisir',
+                        'fill' => '✍️ Complète les trous', 'order' => '🔀 Remets dans le bon ordre',
+                        'match' => '🔗 Associe chaque élément',
+                    ];
+                ?>
+                <?php foreach ($questions as $i => $q): $type = Quiz::normalizeType((string) $q['type']); $qidN = (int) $q['id']; ?>
+                    <div class="q" data-qi="<?= $i ?>" data-type="<?= $type ?>" data-explain="<?= htmlspecialchars((string) ($q['explanation'] ?? '')) ?>">
+                        <?php if ($type !== 'fill'): ?>
+                            <div class="qbody"><?= ($i + 1) ?>. <?= htmlspecialchars($q['body']) ?></div>
+                        <?php endif; ?>
+                        <div class="qtype"><?= $typeLabel[$type] ?? '🔘 Question' ?></div>
                         <?php if (!empty($q['image'])): ?>
                             <img class="q-image" src="<?= url('uploads/quizzes/' . rawurlencode($q['image'])) ?>" alt="">
                         <?php endif; ?>
-                        <?php foreach ($q['options'] as $o): ?>
-                            <label class="opt">
-                                <?php $fb = $qFeedback ? ' data-correct="' . ((int) $o['is_correct'] === 1 ? '1' : '0') . '"' : ''; ?>
-                                <?php if ($type === 'multiple'): ?>
-                                    <input type="checkbox" name="answer[<?= (int) $q['id'] ?>][]" value="<?= (int) $o['id'] ?>"<?= $fb ?>>
-                                <?php else: ?>
-                                    <input type="radio" name="answer[<?= (int) $q['id'] ?>]" value="<?= (int) $o['id'] ?>"<?= $fb ?>>
-                                <?php endif; ?>
-                                <span class="txt"><?= htmlspecialchars($o['label']) ?></span>
-                            </label>
-                        <?php endforeach; ?>
+
+                        <?php if ($type === 'single' || $type === 'multiple'): ?>
+                            <?php foreach ($q['options'] as $o): ?>
+                                <label class="opt">
+                                    <?php $fb = $qFeedback ? ' data-correct="' . ((int) $o['is_correct'] === 1 ? '1' : '0') . '"' : ''; ?>
+                                    <?php if ($type === 'multiple'): ?>
+                                        <input type="checkbox" name="answer[<?= $qidN ?>][]" value="<?= (int) $o['id'] ?>"<?= $fb ?>>
+                                    <?php else: ?>
+                                        <input type="radio" name="answer[<?= $qidN ?>]" value="<?= (int) $o['id'] ?>"<?= $fb ?>>
+                                    <?php endif; ?>
+                                    <span class="txt"><?= htmlspecialchars($o['label']) ?></span>
+                                </label>
+                            <?php endforeach; ?>
+
+                        <?php elseif ($type === 'numeric'): ?>
+                            <input class="ans-input ans-num" type="text" inputmode="decimal" autocomplete="off"
+                                   name="answer_text[<?= $qidN ?>]" placeholder="Ta réponse (un nombre)…">
+
+                        <?php elseif ($type === 'text'): ?>
+                            <input class="ans-input" type="text" autocomplete="off"
+                                   name="answer_text[<?= $qidN ?>]" placeholder="Ta réponse…">
+
+                        <?php elseif ($type === 'fill'): ?>
+                            <?php
+                                // Découpe l'énoncé sur les [trous] et insère un champ par trou.
+                                $parts = preg_split('/(\[[^\]]*\])/', $q['body'], -1, PREG_SPLIT_DELIM_CAPTURE);
+                            ?>
+                            <div class="qbody"><?= ($i + 1) ?>.</div>
+                            <div class="fill-line">
+                                <?php foreach ($parts as $p): ?>
+                                    <?php if (preg_match('/^\[[^\]]*\]$/', $p)): ?>
+                                        <input class="fill-blank" type="text" autocomplete="off" name="answer_fill[<?= $qidN ?>][]">
+                                    <?php else: ?>
+                                        <?= htmlspecialchars($p) ?>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+
+                        <?php elseif ($type === 'order'): ?>
+                            <?php $shuf = $q['options']; shuffle($shuf); ?>
+                            <input type="hidden" name="answer_order[<?= $qidN ?>]" class="order-input">
+                            <ul class="order-list" data-qid="<?= $qidN ?>">
+                                <?php foreach ($shuf as $o): ?>
+                                    <li class="order-item" draggable="true" data-oid="<?= (int) $o['id'] ?>">
+                                        <span class="grip">≡</span><span class="num"></span>
+                                        <span class="txt"><?= htmlspecialchars($o['label']) ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+
+                        <?php elseif ($type === 'match'): ?>
+                            <?php
+                                $targets = array_map(fn ($o) => (string) $o['pair'], $q['options']);
+                                shuffle($targets);
+                            ?>
+                            <input type="hidden" name="answer_match[<?= $qidN ?>]" class="match-input">
+                            <div class="match-box" data-qid="<?= $qidN ?>">
+                                <?php foreach ($q['options'] as $o): ?>
+                                    <div class="match-row">
+                                        <span class="match-left"><?= htmlspecialchars($o['label']) ?></span>
+                                        <span class="match-arrow">→</span>
+                                        <select class="match-sel" data-oid="<?= (int) $o['id'] ?>">
+                                            <option value="">— choisir —</option>
+                                            <?php foreach ($targets as $t): ?>
+                                                <option value="<?= htmlspecialchars($t) ?>"><?= htmlspecialchars($t) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
                 <div class="actions" id="quizActions">
@@ -309,44 +415,128 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
                 </div>
             <?php endif; ?>
 
+            <?php
+                $typeLabelR = [
+                    'single' => '🔘 Une seule réponse', 'multiple' => '☑️ Plusieurs réponses',
+                    'numeric' => '🔢 Réponse chiffrée', 'text' => '⌨️ Réponse saisie',
+                    'fill' => '✍️ Texte à trous', 'order' => '🔀 Remise en ordre', 'match' => '🔗 Association',
+                ];
+            ?>
             <?php foreach ($questions as $i => $q): ?>
                 <?php
-                    $mine = $myAnswers[(int) $q['id']] ?? [];
-                    // La question est-elle réussie ? (mêmes options que les bonnes réponses)
-                    $correctIds = [];
-                    foreach ($q['options'] as $o) { if ((int) $o['is_correct'] === 1) { $correctIds[] = (int) $o['id']; } }
-                    $mineSorted = $mine; sort($mineSorted);
-                    $corrSorted = $correctIds; sort($corrSorted);
-                    $qok = ($mineSorted === $corrSorted && !empty($corrSorted));
+                    $type = Quiz::normalizeType((string) $q['type']);
+                    $mine = $myAnswers[(int) $q['id']] ?? [];        // option_id (ordre choisi pour 'order')
+                    $myText = $myTexts[(int) $q['id']] ?? '';        // texte saisi
+                    $qok = Quiz::gradeQuestion($q, $mine, $myText);  // notation unique (même logique que submit)
                 ?>
                 <div class="q <?= $qok ? 'qok' : 'qko' ?>">
-                    <div class="qbody"><?= ($i + 1) ?>. <?= htmlspecialchars($q['body']) ?></div>
-                    <div class="qtype"><?= $q['type'] === 'multiple' ? '☑️ Plusieurs réponses' : '🔘 Une seule réponse' ?></div>
+                    <?php if ($type !== 'fill'): ?>
+                        <div class="qbody"><?= ($i + 1) ?>. <?= htmlspecialchars($q['body']) ?></div>
+                    <?php else: ?>
+                        <div class="qbody"><?= ($i + 1) ?>. <?= htmlspecialchars(preg_replace('/\[([^\]]*)\]/', '____', $q['body'])) ?></div>
+                    <?php endif; ?>
+                    <div class="qtype"><?= $typeLabelR[$type] ?? '🔘 Question' ?></div>
                     <?php if (!empty($q['image'])): ?>
                         <img class="q-image" src="<?= url('uploads/quizzes/' . rawurlencode($q['image'])) ?>" alt="">
                     <?php endif; ?>
-                    <?php foreach ($q['options'] as $o): ?>
+
+                    <?php if ($type === 'single' || $type === 'multiple'): ?>
+                        <?php foreach ($q['options'] as $o): ?>
+                            <?php
+                                $oid = (int) $o['id']; $isCorrect = (int) $o['is_correct'] === 1; $chosen = in_array($oid, $mine, true);
+                                $cls = ($chosen && $isCorrect) ? 'correct' : ($chosen ? 'wrong' : ($isCorrect ? 'correct' : ''));
+                            ?>
+                            <div class="opt locked <?= $cls ?>">
+                                <input type="<?= $type === 'multiple' ? 'checkbox' : 'radio' ?>" <?= $chosen ? 'checked' : '' ?> disabled>
+                                <span class="txt"><?= htmlspecialchars($o['label']) ?></span>
+                                <?php if ($chosen && $isCorrect): ?><span class="tag ok">Bonne réponse</span>
+                                <?php elseif ($chosen && !$isCorrect): ?><span class="tag ko">Ton choix · faux</span>
+                                <?php elseif (!$chosen && $isCorrect): ?><span class="tag miss">À cocher</span><?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+
+                    <?php elseif ($type === 'numeric' || $type === 'text'): ?>
                         <?php
-                            $oid       = (int) $o['id'];
-                            $isCorrect = (int) $o['is_correct'] === 1;
-                            $chosen    = in_array($oid, $mine, true);
-                            $cls = '';
-                            if ($chosen && $isCorrect)      { $cls = 'correct'; }
-                            elseif ($chosen && !$isCorrect) { $cls = 'wrong'; }
-                            elseif (!$chosen && $isCorrect) { $cls = 'correct'; }
+                            $expected = $type === 'text'
+                                ? implode(' / ', array_map('trim', explode('|', (string) $q['answer'])))
+                                : (string) $q['answer'];
                         ?>
-                        <div class="opt locked <?= $cls ?>">
-                            <input type="<?= $q['type'] === 'multiple' ? 'checkbox' : 'radio' ?>" <?= $chosen ? 'checked' : '' ?> disabled>
-                            <span class="txt"><?= htmlspecialchars($o['label']) ?></span>
-                            <?php if ($chosen && $isCorrect): ?>
-                                <span class="tag ok">Bonne réponse</span>
-                            <?php elseif ($chosen && !$isCorrect): ?>
-                                <span class="tag ko">Ton choix · faux</span>
-                            <?php elseif (!$chosen && $isCorrect): ?>
-                                <span class="tag miss">À cocher</span>
-                            <?php endif; ?>
+                        <div class="opt locked <?= $qok ? 'correct' : 'wrong' ?>">
+                            <span class="txt"><b>Ta réponse :</b> <?= $myText !== '' ? htmlspecialchars($myText) : '<i>(vide)</i>' ?></span>
+                            <span class="tag <?= $qok ? 'ok' : 'ko' ?>"><?= $qok ? 'Juste' : 'Faux' ?></span>
                         </div>
-                    <?php endforeach; ?>
+                        <?php if (!$qok): ?>
+                            <div class="ans-recap"><span class="exp">Réponse attendue : </span><span class="ok-txt"><?= htmlspecialchars($expected) ?></span></div>
+                        <?php endif; ?>
+
+                    <?php elseif ($type === 'fill'): ?>
+                        <?php
+                            $exp   = array_map('trim', explode('|', (string) $q['answer']));
+                            $given = array_map('trim', explode('|', (string) $myText));
+                            $parts = preg_split('/(\[[^\]]*\])/', $q['body'], -1, PREG_SPLIT_DELIM_CAPTURE);
+                            $bi = 0;
+                        ?>
+                        <div class="fill-line">
+                            <?php foreach ($parts as $p): ?>
+                                <?php if (preg_match('/^\[[^\]]*\]$/', $p)): ?>
+                                    <?php
+                                        $g = $given[$bi] ?? ''; $e = $exp[$bi] ?? '';
+                                        $bok = Quiz::normText($g) === Quiz::normText($e) && $e !== '';
+                                        $bi++;
+                                    ?>
+                                    <input class="fill-blank <?= $bok ? 'correct' : 'wrong' ?>" type="text" value="<?= htmlspecialchars($g) ?>" disabled title="<?= $bok ? '' : 'Attendu : ' . htmlspecialchars($e) ?>">
+                                <?php else: ?>
+                                    <?= htmlspecialchars($p) ?>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php if (!$qok): ?>
+                            <div class="ans-recap"><span class="exp">Attendu : </span><span class="ok-txt"><?= htmlspecialchars(implode(' · ', $exp)) ?></span></div>
+                        <?php endif; ?>
+
+                    <?php elseif ($type === 'order'): ?>
+                        <?php
+                            $correctOrder = array_map(fn ($o) => (int) $o['id'], $q['options']); // positions = bon ordre
+                            $labels = []; foreach ($q['options'] as $o) { $labels[(int) $o['id']] = (string) $o['label']; }
+                            $seq = !empty($mine) ? $mine : $correctOrder;
+                        ?>
+                        <ul class="order-list">
+                            <?php foreach ($seq as $pos => $oid): ?>
+                                <?php $good = isset($correctOrder[$pos]) && $correctOrder[$pos] === (int) $oid; ?>
+                                <li class="order-item <?= $good ? 'correct' : 'wrong' ?>">
+                                    <span class="num"><?= $pos + 1 ?></span>
+                                    <span class="txt"><?= htmlspecialchars($labels[(int) $oid] ?? '?') ?></span>
+                                    <?php if (!$good): ?><span class="tag miss" style="margin-left:auto;">à la place <?= array_search((int) $oid, $correctOrder, true) + 1 ?></span><?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+
+                    <?php elseif ($type === 'match'): ?>
+                        <?php
+                            $picked = [];
+                            foreach (explode(',', (string) $myText) as $couple) {
+                                $pp = explode(':', $couple, 2);
+                                if (count($pp) === 2) { $picked[(int) $pp[0]] = $pp[1]; }
+                            }
+                        ?>
+                        <div class="match-box">
+                            <?php foreach ($q['options'] as $o): ?>
+                                <?php
+                                    $oid = (int) $o['id']; $mineT = $picked[$oid] ?? '';
+                                    $good = Quiz::normText($mineT) === Quiz::normText((string) $o['pair']) && $o['pair'] !== '';
+                                ?>
+                                <div class="match-row">
+                                    <span class="match-left"><?= htmlspecialchars($o['label']) ?></span>
+                                    <span class="match-arrow">→</span>
+                                    <span class="match-sel <?= $good ? 'correct' : 'wrong' ?>" style="display:flex;align-items:center;gap:8px;">
+                                        <?= $mineT !== '' ? htmlspecialchars($mineT) : '<i>(vide)</i>' ?>
+                                        <?php if ($good): ?><span class="tag ok">✓</span><?php else: ?><span class="tag ko">≠ <?= htmlspecialchars($o['pair']) ?></span><?php endif; ?>
+                                    </span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if (trim((string) ($q['explanation'] ?? '')) !== ''): ?>
                         <div class="q-explain">💡 <?= htmlspecialchars($q['explanation']) ?></div>
                     <?php endif; ?>
@@ -440,9 +630,10 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
             }
         }
 
+        function isQcm(q) { var t = q.getAttribute('data-type'); return t === 'single' || t === 'multiple'; }
         function updateNext() {
             var last = cur === n - 1;
-            if (feedback && !done[cur]) {
+            if (feedback && isQcm(qs[cur]) && !done[cur]) {
                 nextBtn.textContent = '✅ Vérifier'; nextBtn.classList.add('verify');
                 nextBtn.style.display = ''; if (submitBtn) { submitBtn.style.display = 'none'; }
             } else if (last) {
@@ -462,7 +653,8 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
         }
         nextBtn.addEventListener('click', function () {
             var q = qs[cur];
-            if (feedback && !done[cur]) {
+            // Retour immédiat : seulement pour les QCM (les autres types sont notés à l'envoi).
+            if (feedback && isQcm(q) && !done[cur]) {
                 if (!selected(q).length) { shake(q); return; }  // on exige une réponse avant de vérifier
                 reveal(q); done[cur] = true; updateNext(); return;
             }
@@ -498,6 +690,73 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
         }
         tick();
         timer = setInterval(tick, 1000);
+    })();
+    </script>
+    <script>
+    // Types « remettre dans l'ordre » et « associer » (mode réponse).
+    (function () {
+        // --- Glisser-déposer pour ordonner ---
+        document.querySelectorAll('.order-list[data-qid]').forEach(function (list) {
+            var hidden = list.closest('.q').querySelector('.order-input');
+            function sync() {
+                var ids = [];
+                list.querySelectorAll('.order-item').forEach(function (it, idx) {
+                    ids.push(it.dataset.oid);
+                    var num = it.querySelector('.num'); if (num) { num.textContent = (idx + 1); }
+                });
+                if (hidden) { hidden.value = ids.join(','); }
+            }
+            var dragged = null;
+            list.addEventListener('dragstart', function (e) {
+                var t = e.target.closest('.order-item'); if (!t) { return; }
+                dragged = t; t.style.opacity = '.5';
+            });
+            list.addEventListener('dragend', function () {
+                if (dragged) { dragged.style.opacity = ''; }
+                dragged = null;
+                list.querySelectorAll('.order-item').forEach(function (o) { o.classList.remove('drag-over'); });
+                sync();
+            });
+            list.addEventListener('dragover', function (e) {
+                if (!dragged) { return; }
+                e.preventDefault();
+                var t = e.target.closest('.order-item');
+                list.querySelectorAll('.order-item').forEach(function (o) { o.classList.remove('drag-over'); });
+                if (t && t !== dragged) { t.classList.add('drag-over'); }
+            });
+            list.addEventListener('drop', function (e) {
+                if (!dragged) { return; }
+                e.preventDefault();
+                var t = e.target.closest('.order-item');
+                if (t && t !== dragged) {
+                    var items = Array.prototype.slice.call(list.querySelectorAll('.order-item'));
+                    if (items.indexOf(dragged) < items.indexOf(t)) { list.insertBefore(dragged, t.nextSibling); }
+                    else { list.insertBefore(dragged, t); }
+                }
+                sync();
+            });
+            // Repli tactile / sans souris : cliquer un élément le descend d'un cran.
+            list.querySelectorAll('.order-item').forEach(function (it) {
+                it.addEventListener('click', function () {
+                    if (it.nextElementSibling) { list.insertBefore(it.nextElementSibling, it); sync(); }
+                });
+            });
+            sync();
+        });
+
+        // --- Association par paires : synchronise les <select> vers le champ caché ---
+        document.querySelectorAll('.match-box[data-qid]').forEach(function (box) {
+            var hidden = box.closest('.q').querySelector('.match-input');
+            function sync() {
+                var pairs = [];
+                box.querySelectorAll('.match-sel').forEach(function (sel) {
+                    if (sel.value !== '') { pairs.push(sel.dataset.oid + ':' + sel.value); }
+                });
+                if (hidden) { hidden.value = pairs.join(','); }
+            }
+            box.querySelectorAll('.match-sel').forEach(function (sel) { sel.addEventListener('change', sync); });
+            sync();
+        });
     })();
     </script>
 </body>
