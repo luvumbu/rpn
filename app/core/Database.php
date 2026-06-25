@@ -292,7 +292,7 @@ class Database
             `id`       INT AUTO_INCREMENT PRIMARY KEY,
             `quiz_id`  INT          NOT NULL,
             `body`     VARCHAR(500) NOT NULL,                        -- l'énoncé de la question
-            `type`     VARCHAR(10)  NOT NULL DEFAULT 'single',       -- 'single' (1 bonne réponse) | 'multiple'
+            `type`     VARCHAR(16)  NOT NULL DEFAULT 'single',       -- single|multiple|numeric|text|fill|order|match|interactive
             `position` INT          NOT NULL DEFAULT 0,
             KEY `idx_quiz` (`quiz_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -509,6 +509,8 @@ class Database
         self::ensureColumn('quizzes', 'msg_fail', "VARCHAR(255) DEFAULT NULL AFTER `msg_pass`");       // message si échoué
         self::ensureColumn('quiz_questions', 'image', "VARCHAR(255) DEFAULT NULL AFTER `body`"); // image propre à chaque question
         self::ensureColumn('quiz_questions', 'explanation', "VARCHAR(500) DEFAULT NULL AFTER `image`"); // explication « pourquoi »
+        // La colonne « type » doit accueillir des valeurs plus longues (ex. 'interactive' = 11 car.).
+        self::ensureColumnType('quiz_questions', 'type', "VARCHAR(16) NOT NULL DEFAULT 'single'", 'varchar(16)');
         // Types interactifs enrichis : réponse à saisir (numeric/text/fill), ordre, association.
         self::ensureColumn('quiz_questions', 'answer', "VARCHAR(500) DEFAULT NULL AFTER `explanation`");   // réponse attendue (numeric/text/fill)
         self::ensureColumn('quiz_questions', 'tolerance', "FLOAT NOT NULL DEFAULT 0 AFTER `answer`");      // marge acceptée (numeric)
@@ -544,6 +546,28 @@ class Database
                 self::$pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
             }
         } catch (PDOException $e) {
+            // Migration non critique : on ignore en cas d'échec.
+        }
+    }
+
+    /**
+     * S'assure qu'une colonne EXISTANTE a le bon type (ex. élargir un VARCHAR).
+     * Ne modifie que si le type actuel ne contient pas $typeNeedle (idempotent,
+     * une seule MODIFY au premier passage). Sans danger.
+     */
+    private static function ensureColumnType(string $table, string $column, string $definition, string $typeNeedle): void
+    {
+        try {
+            $rows = self::$pdo->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $c) {
+                if (strcasecmp((string) $c['Field'], $column) === 0) {
+                    if (stripos((string) $c['Type'], $typeNeedle) === false) {
+                        self::$pdo->exec("ALTER TABLE `$table` MODIFY `$column` $definition");
+                    }
+                    return;
+                }
+            }
+        } catch (\Throwable $e) {
             // Migration non critique : on ignore en cas d'échec.
         }
     }

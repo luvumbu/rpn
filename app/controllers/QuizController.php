@@ -346,6 +346,15 @@ class QuizController
             $base = ['key' => $k, 'body' => $body, 'explanation' => $expl, 'type' => $type,
                      'options' => [], 'answer' => null, 'tolerance' => 0.0];
 
+            // ---- Exercice interactif : on stocke la clé du manipulable choisi ----
+            if ($type === 'interactive') {
+                $widget = trim((string) ($q['answer'] ?? ''));
+                if (!Quiz::isWidget($widget)) { continue; } // clé d'exercice inconnue → ignoré
+                $base['answer'] = $widget;
+                $out[] = $base;
+                continue;
+            }
+
             // ---- Types « à saisir » : réponse attendue, pas d'options -----------
             if ($type === 'numeric') {
                 $ans = trim((string) ($q['answer'] ?? ''));
@@ -537,10 +546,17 @@ class QuizController
         $picks = [];
         $texts = [];
         $score = 0;
+        $graded = 0; // nombre de questions réellement notées (hors exercices interactifs)
 
         foreach ($questions as $q) {
             $qid    = (int) $q['id'];
             $type   = Quiz::normalizeType((string) $q['type']);
+
+            // Exercice interactif : exploration, jamais noté ni compté dans le total.
+            if ($type === 'interactive') {
+                continue;
+            }
+            $graded++;
             $optIds = array_map(fn ($o) => (int) $o['id'], $q['options']);
 
             $chosen = [];     // option_id (single/multiple/order)
@@ -592,7 +608,7 @@ class QuizController
             $me['name'] ?: ($me['email'] ?? ''),
             $picks,
             $score,
-            count($questions),
+            $graded, // total = questions notées (les exercices interactifs sont exclus)
             $texts
         );
 

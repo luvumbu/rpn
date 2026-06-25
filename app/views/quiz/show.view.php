@@ -185,6 +185,14 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
         .ans-recap .ok-txt { color:var(--vert,#2a9d4a); font-weight:700; }
         .ans-recap .ko-txt { color:var(--rouge,#e63946); font-weight:700; }
         .ans-recap .exp { color:var(--muted); }
+        /* Exercice interactif (manipulable) */
+        .interactive-host { background:#fff; border-radius:10px; padding:10px; display:flex; justify-content:center; }
+        .interactive-host canvas { max-width:100%; touch-action:none; cursor:grab; }
+        .inter-note { font-size:13px; color:var(--muted); margin-top:8px; }
+        .inter-ctrl { display:flex; gap:12px; align-items:center; justify-content:center; margin-top:10px; flex-wrap:wrap; font-size:15px; }
+        .inter-ctrl button { font:inherit; font-weight:800; cursor:pointer; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); border-radius:9px; width:38px; height:38px; }
+        .inter-ctrl button:hover { border-color:var(--accent); color:var(--accent); }
+        .inter-val { color:var(--accent); font-weight:800; font-variant-numeric:tabular-nums; }
         /* Bandeau réussite / échec */
         .pass-banner { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; border-radius:14px; margin-bottom:18px; }
         .pass-banner .pass-ico { font-size:26px; line-height:1; }
@@ -285,7 +293,7 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
                         'single' => '🔘 Une seule réponse', 'multiple' => '☑️ Plusieurs réponses possibles',
                         'numeric' => '🔢 Réponse chiffrée à saisir', 'text' => '⌨️ Réponse à saisir',
                         'fill' => '✍️ Complète les trous', 'order' => '🔀 Remets dans le bon ordre',
-                        'match' => '🔗 Associe chaque élément',
+                        'match' => '🔗 Associe chaque élément', 'interactive' => '🧪 Exercice à manipuler',
                     ];
                 ?>
                 <?php foreach ($questions as $i => $q): $type = Quiz::normalizeType((string) $q['type']); $qidN = (int) $q['id']; ?>
@@ -367,6 +375,10 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
                                     </div>
                                 <?php endforeach; ?>
                             </div>
+
+                        <?php elseif ($type === 'interactive'): ?>
+                            <div class="interactive-host" data-widget="<?= htmlspecialchars((string) $q['answer']) ?>"></div>
+                            <div class="inter-note">🧪 Exercice d'exploration — manipule la figure ci-dessus. <b>Non noté</b> : il ne compte pas dans le score.</div>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
@@ -427,9 +439,10 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
                     $type = Quiz::normalizeType((string) $q['type']);
                     $mine = $myAnswers[(int) $q['id']] ?? [];        // option_id (ordre choisi pour 'order')
                     $myText = $myTexts[(int) $q['id']] ?? '';        // texte saisi
-                    $qok = Quiz::gradeQuestion($q, $mine, $myText);  // notation unique (même logique que submit)
+                    // Exercice interactif : non noté → pas de marque juste/faux.
+                    $qok = $type === 'interactive' ? null : Quiz::gradeQuestion($q, $mine, $myText);
                 ?>
-                <div class="q <?= $qok ? 'qok' : 'qko' ?>">
+                <div class="q <?= $qok === null ? '' : ($qok ? 'qok' : 'qko') ?>">
                     <?php if ($type !== 'fill'): ?>
                         <div class="qbody"><?= ($i + 1) ?>. <?= htmlspecialchars($q['body']) ?></div>
                     <?php else: ?>
@@ -535,6 +548,9 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
                                 </div>
                             <?php endforeach; ?>
                         </div>
+                    <?php elseif ($type === 'interactive'): ?>
+                        <div class="interactive-host" data-widget="<?= htmlspecialchars((string) $q['answer']) ?>"></div>
+                        <div class="inter-note">🧪 Exercice d'exploration (non noté).</div>
                     <?php endif; ?>
 
                     <?php if (trim((string) ($q['explanation'] ?? '')) !== ''): ?>
@@ -756,6 +772,109 @@ $asForm      = !$answered || ($showRedo && $canRetry) || $mustComplete; // mode 
             }
             box.querySelectorAll('.match-sel').forEach(function (sel) { sel.addEventListener('change', sync); });
             sync();
+        });
+    })();
+    </script>
+    <script>
+    /* ====== Catalogue des EXERCICES INTERACTIFS intégrés (manipulables Canvas) ====== */
+    (function () {
+        function mkCanvas(host, w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; host.appendChild(c); return c; }
+        function ctrl(host, html) { var d = document.createElement('div'); d.className = 'inter-ctrl'; d.innerHTML = html; host.parentNode.insertBefore(d, host.nextSibling); return d; }
+        function loopOn(fn) { function fr(t) { fn(t / 1000); requestAnimationFrame(fr); } requestAnimationFrame(fr); }
+        function xOf(c, e) { var r = c.getBoundingClientRect(); var t = e.touches ? e.touches[0] : e; return (t.clientX - r.left) * c.width / r.width; }
+
+        var WIDGETS = {
+            // 1) Aire sous la courbe : on glisse les bornes a et b, l'aire se recalcule.
+            integral_area: function (host) {
+                var c = mkCanvas(host, 440, 250), ctx = c.getContext('2d');
+                var ox = 50, oy = 205, sc = 40, f = function (x) { return 0.3 * x * x + 0.4; };
+                var A = { x: ox + 1.2 * sc }, B = { x: ox + 4.2 * sc }, active = null;
+                var info = ctrl(host, 'Aire (∫ₐᵇ f) ≈ <span class="inter-val">0</span>'), val = info.querySelector('.inter-val');
+                function clamp(p) { p.x = Math.max(ox + 8, Math.min(ox + 360, p.x)); }
+                function pick(x) { active = (Math.abs(x - A.x) <= Math.abs(x - B.x)) ? A : B; }
+                c.addEventListener('mousedown', function (e) { pick(xOf(c, e)); });
+                window.addEventListener('mousemove', function (e) { if (active) { active.x = xOf(c, e); clamp(active); } });
+                window.addEventListener('mouseup', function () { active = null; });
+                c.addEventListener('touchstart', function (e) { pick(xOf(c, e)); }, { passive: true });
+                c.addEventListener('touchmove', function (e) { if (active) { active.x = xOf(c, e); clamp(active); } }, { passive: true });
+                c.addEventListener('touchend', function () { active = null; });
+                loopOn(function () {
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 440, 250);
+                    ctx.strokeStyle = '#9aa7b4'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + 380, oy); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox, 28); ctx.stroke();
+                    var a = Math.min(A.x, B.x), b = Math.max(A.x, B.x);
+                    ctx.fillStyle = 'rgba(56,211,159,.30)'; ctx.beginPath(); ctx.moveTo(a, oy);
+                    for (var x = a; x <= b; x += 3) { ctx.lineTo(x, oy - f((x - ox) / sc) * sc * 0.5); }
+                    ctx.lineTo(b, oy); ctx.closePath(); ctx.fill();
+                    ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 3; ctx.beginPath();
+                    for (var x2 = ox + 4, fst = true; x2 <= ox + 380; x2 += 3) { var y = oy - f((x2 - ox) / sc) * sc * 0.5; if (fst) { ctx.moveTo(x2, y); fst = false; } else ctx.lineTo(x2, y); } ctx.stroke();
+                    [[A, 'a'], [B, 'b']].forEach(function (p) {
+                        var u = (p[0].x - ox) / sc; ctx.strokeStyle = '#38d39f'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.moveTo(p[0].x, oy); ctx.lineTo(p[0].x, oy - f(u) * sc * 0.5); ctx.stroke();
+                        ctx.fillStyle = '#38d39f'; ctx.beginPath(); ctx.arc(p[0].x, oy, 7, 0, 7); ctx.fill();
+                        ctx.fillStyle = '#222'; ctx.font = 'bold 14px Segoe UI'; ctx.textAlign = 'center'; ctx.fillText(p[1], p[0].x, oy + 20);
+                    });
+                    var ua = (a - ox) / sc, ub = (b - ox) / sc, area = 0, N = 240;
+                    for (var i = 0; i < N; i++) { var x0 = ua + (ub - ua) * i / N, x1 = ua + (ub - ua) * (i + 1) / N; area += (f(x0) + f(x1)) / 2 * (x1 - x0); }
+                    val.textContent = area.toFixed(2);
+                });
+            },
+            // 2) Rectangles de Riemann : on change le nombre n, l'approximation s'affine.
+            integral_riemann: function (host) {
+                var c = mkCanvas(host, 440, 250), ctx = c.getContext('2d');
+                var ox = 50, oy = 205, sc = 40, f = function (x) { return 0.3 * x * x + 0.5; }, a = 0.5, b = 4.5, n = 4;
+                var info = ctrl(host, '<button type="button" data-d="-1">−</button> n = <span class="inter-val nval">4</span> rectangles <button type="button" data-d="1">+</button> &nbsp;·&nbsp; somme ≈ <span class="inter-val sval">0</span>');
+                var nval = info.querySelector('.nval'), sval = info.querySelector('.sval');
+                info.querySelectorAll('button').forEach(function (btn) { btn.addEventListener('click', function () { n = Math.max(1, Math.min(40, n + parseInt(btn.dataset.d, 10))); nval.textContent = n; }); });
+                loopOn(function () {
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 440, 250);
+                    ctx.strokeStyle = '#9aa7b4'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + 380, oy); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox, 28); ctx.stroke();
+                    var dx = (b - a) / n, sum = 0;
+                    for (var i = 0; i < n; i++) {
+                        var xm = a + (i + 0.5) * dx, h = f(xm);
+                        sum += h * dx;
+                        var px = ox + (a + i * dx) * sc, pw = dx * sc, ph = h * sc * 0.5;
+                        ctx.fillStyle = 'rgba(124,92,255,.28)'; ctx.fillRect(px, oy - ph, pw, ph);
+                        ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 1; ctx.strokeRect(px, oy - ph, pw, ph);
+                    }
+                    ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 3; ctx.beginPath();
+                    for (var x2 = ox + 4, fst = true; x2 <= ox + 380; x2 += 3) { var y = oy - f((x2 - ox) / sc) * sc * 0.5; if (fst) { ctx.moveTo(x2, y); fst = false; } else ctx.lineTo(x2, y); } ctx.stroke();
+                    sval.textContent = sum.toFixed(2);
+                });
+            },
+            // 3) Pente de la tangente (dérivée) : un point glisse sur la courbe.
+            derivative_slope: function (host) {
+                var c = mkCanvas(host, 440, 250), ctx = c.getContext('2d');
+                var ox = 50, oy = 205, sc = 40, f = function (x) { return 0.25 * x * x + 0.5; }, df = function (x) { return 0.5 * x; };
+                var P = { x: ox + 2 * sc }, active = false;
+                var info = ctrl(host, 'pente (f ′) au point = <span class="inter-val">0</span>'), val = info.querySelector('.inter-val');
+                c.addEventListener('mousedown', function (e) { active = true; P.x = xOf(c, e); });
+                window.addEventListener('mousemove', function (e) { if (active) { P.x = Math.max(ox + 10, Math.min(ox + 360, xOf(c, e))); } });
+                window.addEventListener('mouseup', function () { active = false; });
+                c.addEventListener('touchstart', function (e) { active = true; P.x = xOf(c, e); }, { passive: true });
+                c.addEventListener('touchmove', function (e) { if (active) { P.x = Math.max(ox + 10, Math.min(ox + 360, xOf(c, e))); } }, { passive: true });
+                c.addEventListener('touchend', function () { active = false; });
+                loopOn(function () {
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 440, 250);
+                    ctx.strokeStyle = '#9aa7b4'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + 380, oy); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox, 28); ctx.stroke();
+                    ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 3; ctx.beginPath();
+                    for (var x2 = ox + 4, fst = true; x2 <= ox + 380; x2 += 3) { var y = oy - f((x2 - ox) / sc) * sc * 0.5; if (fst) { ctx.moveTo(x2, y); fst = false; } else ctx.lineTo(x2, y); } ctx.stroke();
+                    var u = (P.x - ox) / sc, py = oy - f(u) * sc * 0.5, m = df(u), d = 55;
+                    ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2; ctx.beginPath();
+                    ctx.moveTo(P.x - d, py + m * d * 0.5); ctx.lineTo(P.x + d, py - m * d * 0.5); ctx.stroke();
+                    ctx.fillStyle = '#7c5cff'; ctx.beginPath(); ctx.arc(P.x, py, 7, 0, 7); ctx.fill();
+                    val.textContent = m.toFixed(2);
+                });
+            }
+        };
+        document.querySelectorAll('.interactive-host').forEach(function (h) {
+            var k = h.getAttribute('data-widget');
+            if (WIDGETS[k]) { try { WIDGETS[k](h); } catch (e) { h.innerHTML = '<p style="color:#888;padding:14px;">Exercice indisponible.</p>'; } }
         });
     })();
     </script>

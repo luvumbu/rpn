@@ -202,6 +202,14 @@ class ApiController extends ApiKernel
             $type = Quiz::normalizeType((string) ($q['type'] ?? 'single'));
             $expl = trim(strip_tags((string) ($q['explanation'] ?? '')));
 
+            // ---- Exercice interactif : clé d'un manipulable intégré --------------
+            if ($type === 'interactive') {
+                $widget = trim(strip_tags((string) ($q['answer'] ?? ($q['widget'] ?? ''))));
+                if (!Quiz::isWidget($widget)) { continue; }
+                Quiz::addQuestion($quizId, $body, 'interactive', $qpos++, null, $expl ?: null, $widget, 0); $nQ++;
+                continue;
+            }
+
             // ---- Types « à saisir » : pas d'options, une réponse attendue --------
             if (in_array($type, ['numeric', 'text', 'fill'], true)) {
                 $answer = trim(strip_tags((string) ($q['answer'] ?? '')));

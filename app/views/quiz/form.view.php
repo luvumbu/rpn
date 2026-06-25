@@ -322,6 +322,7 @@ $qImgBase = url('uploads/quizzes/');
                 <option value="fill">✍️ Texte à trous</option>
                 <option value="order">🔀 Remettre dans l'ordre</option>
                 <option value="match">🔗 Associer par paires</option>
+                <option value="interactive">🧪 Exercice interactif (manipulable)</option>
             </select>
 
             <div class="qimg-row">
@@ -344,6 +345,17 @@ $qImgBase = url('uploads/quizzes/');
                     <label class="lbl">Tolérance acceptée (±)</label>
                     <input type="text" class="qtol" placeholder="0 (réponse exacte)">
                 </div>
+            </div>
+
+            <!-- Bloc « exercice interactif » : choix d'un manipulable intégré -->
+            <div class="blk-interactive" hidden>
+                <label class="lbl">Exercice interactif à intégrer</label>
+                <select class="qwidget">
+                    <?php foreach (Quiz::WIDGETS as $wkey => $wlabel): ?>
+                        <option value="<?= htmlspecialchars($wkey) ?>"><?= htmlspecialchars($wlabel) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="hint">🧪 Un manipulable animé que le membre explore directement dans le questionnaire. <b>Non noté</b> (exercice d'exploration) — il n'entre pas dans le score.</p>
             </div>
 
             <!-- Bloc « options » : single / multiple / order / match -->
@@ -409,11 +421,18 @@ $qImgBase = url('uploads/quizzes/');
             var type = qEl.querySelector('.qtype-sel').value;
             qEl.dataset.type = type;
             var isInput = INPUT_TYPES.indexOf(type) !== -1;
+            var isInteractive = (type === 'interactive');
 
             var blkInput = qEl.querySelector('.blk-input');
             var blkOpts  = qEl.querySelector('.blk-options');
+            var blkInter = qEl.querySelector('.blk-interactive');
             blkInput.hidden = !isInput;
-            blkOpts.hidden  = isInput;
+            blkOpts.hidden  = isInput || isInteractive;
+            blkInter.hidden = !isInteractive;
+
+            // Sélecteur d'exercice interactif (actif seulement pour ce type).
+            var qw = qEl.querySelector('.qwidget');
+            qw.disabled = !isInteractive;
 
             var qa = qEl.querySelector('.qanswer'), qt = qEl.querySelector('.qtol');
             qa.disabled = !isInput;
@@ -431,7 +450,7 @@ $qImgBase = url('uploads/quizzes/');
             else if (type === 'match') { optHint.innerHTML = "🔗 Pour chaque élément de gauche, indique l'élément de droite à associer."; }
             else { optHint.textContent = 'Coche la (ou les) bonne(s) réponse(s) à gauche de chaque proposition.'; }
 
-            if (isInput) {
+            if (isInput || isInteractive) {
                 // Bloc options inactif : on désactive ses champs pour qu'ils ne soient pas envoyés.
                 blkOpts.querySelectorAll('input').forEach(function (i) { i.disabled = true; });
             } else {
@@ -533,8 +552,14 @@ $qImgBase = url('uploads/quizzes/');
             var qa = node.querySelector('.qanswer'), qt = node.querySelector('.qtol');
             qa.name = 'q[' + index + '][answer]';
             qt.name = 'q[' + index + '][tolerance]';
-            if (data && data.answer) { qa.value = data.answer; }
+            if (data && data.answer && data.type !== 'interactive') { qa.value = data.answer; }
             if (data && data.tolerance) { qt.value = data.tolerance; }
+
+            // Exercice interactif : le <select> écrit aussi dans q[index][answer]
+            // (un seul des deux champs est actif à la fois selon le type).
+            var qw = node.querySelector('.qwidget');
+            qw.name = 'q[' + index + '][answer]';
+            if (data && data.type === 'interactive' && data.answer) { qw.value = data.answer; }
 
             // Image de la question : champ fichier + conservation/retrait de l'existante.
             var fileInp  = node.querySelector('.qimg');
@@ -595,6 +620,7 @@ $qImgBase = url('uploads/quizzes/');
             var type = q.dataset.type || 'single';
             var hasBody = q.querySelector('.qbody').value.trim() !== '';
             if (!hasBody) { return false; }
+            if (type === 'interactive') { return true; } // un exercice est toujours sélectionné
             if (type === 'numeric') { var v = q.querySelector('.qanswer').value.trim().replace(',', '.'); return v !== '' && !isNaN(parseFloat(v)); }
             if (type === 'text')    { return q.querySelector('.qanswer').value.trim() !== ''; }
             if (type === 'fill')    { return /\[[^\]]*\]/.test(q.querySelector('.qbody').value) && q.querySelector('.qanswer').value.trim() !== ''; }

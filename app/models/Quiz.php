@@ -277,7 +277,31 @@ class Quiz
     }
 
     /** Les types de questions reconnus. */
-    public const TYPES = ['single', 'multiple', 'numeric', 'text', 'fill', 'order', 'match'];
+    public const TYPES = ['single', 'multiple', 'numeric', 'text', 'fill', 'order', 'match', 'interactive'];
+
+    /**
+     * Catalogue des EXERCICES INTERACTIFS intégrés (manipulables Canvas).
+     * Clé (stockée dans quiz_questions.answer) → libellé affiché à l'auteur.
+     * Le code JS de chaque exercice est fourni par l'application (jamais saisi
+     * par l'utilisateur) : aucun risque d'injection.
+     */
+    public const WIDGETS = [
+        'integral_area'    => "Aire sous la courbe (glisser a et b)",
+        'integral_riemann' => "Rectangles de Riemann (faire varier n)",
+        'derivative_slope' => "Pente de la tangente (dérivée) qui glisse",
+    ];
+
+    /** Le type 'interactive' n'est pas noté (exercice d'exploration). */
+    public static function isGraded(string $type): bool
+    {
+        return self::normalizeType($type) !== 'interactive';
+    }
+
+    /** Clé d'exercice interactif valide ? */
+    public static function isWidget(string $key): bool
+    {
+        return isset(self::WIDGETS[$key]);
+    }
 
     /** Normalise une valeur de type (repli sur 'single' si inconnue). */
     public static function normalizeType(string $type): string
@@ -467,6 +491,8 @@ class Quiz
         $options = $q['options'] ?? self::options((int) $q['id']);
 
         switch ($type) {
+            case 'interactive':
+                return false; // exercice d'exploration : jamais compté dans le score
             case 'numeric': {
                 $expected = self::toNumber((string) ($q['answer'] ?? ''));
                 $got      = self::toNumber((string) $answerText);

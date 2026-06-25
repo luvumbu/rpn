@@ -12,7 +12,11 @@
 --    fill     : texte à trous (plusieurs blancs)         (nouveau)
 --    order    : remettre des éléments dans l'ordre       (nouveau)
 --    match    : associer par paires                      (nouveau)
+--    interactive : exercice manipulable intégré (non noté)(nouveau)
 -- =====================================================================
+
+-- 0. Élargir la colonne `type` pour accueillir 'interactive' (11 caractères).
+ALTER TABLE `quiz_questions` MODIFY `type` VARCHAR(16) NOT NULL DEFAULT 'single';
 
 -- 1. Réponse attendue + tolérance (numeric / text / fill).
 --    answer : pour 'numeric' = le nombre ; pour 'text' = variantes acceptées

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intégrales — animation interactive question / réponse</title>
+<style>
+  :root{ --bg:#0f1419; --panel:#1a212b; --panel2:#232c39; --border:#2e3a4a;
+    --text:#e6edf3; --muted:#9aa7b4; --accent:#7c5cff; --green:#38d39f; --warn:#ff6b6b; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:"Segoe UI",system-ui,sans-serif; background:
+      radial-gradient(circle at 12% 0%, #241b3e, transparent 42%), var(--bg);
+    color:var(--text); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card{ width:min(640px,100%); background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .head{ padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .head h1{ font-size:18px; } .head h1 span{ color:var(--accent); }
+  .score{ font-size:14px; color:var(--muted); } .score b{ color:var(--green); }
+  .prog{ height:6px; background:var(--panel2); }
+  .prog span{ display:block; height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--green)); transition:width .4s; }
+  .stage{ background:#151b24; display:flex; align-items:center; justify-content:center; padding:18px; }
+  canvas{ background:#fff; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.4); max-width:100%; }
+  .body{ padding:22px; }
+  .q{ font-size:19px; font-weight:700; margin-bottom:16px; min-height:52px; }
+  .q .frac{ color:var(--green); }
+  .opts{ display:grid; gap:10px; }
+  .opt{ display:flex; align-items:center; gap:12px; background:var(--panel2); border:2px solid var(--border);
+    border-radius:11px; padding:13px 16px; font-size:16px; color:var(--text); cursor:pointer; text-align:left;
+    font-family:inherit; transition:border-color .15s, background .15s; }
+  .opt:hover:not(:disabled){ border-color:var(--accent); }
+  .opt .k{ width:28px; height:28px; flex:0 0 28px; border-radius:50%; background:var(--bg); border:2px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+  .opt.good{ border-color:var(--green); background:rgba(56,211,159,.15); } .opt.good .k{ background:var(--green); color:#0f1419; border-color:var(--green); }
+  .opt.bad{ border-color:var(--warn); background:rgba(255,107,107,.13); } .opt.bad .k{ background:var(--warn); color:#fff; border-color:var(--warn); }
+  .opt:disabled{ cursor:default; }
+  .fb{ margin-top:16px; font-size:14.5px; line-height:1.5; padding:12px 14px; border-radius:9px; display:none;
+    border-left:4px solid var(--green); background:rgba(56,211,159,.08); }
+  .fb.show{ display:block; } .fb.ko{ border-left-color:var(--warn); background:rgba(255,107,107,.08); } .fb b{ color:#fff; }
+  .row{ display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; }
+  .btn{ font:inherit; font-size:15px; font-weight:800; cursor:pointer; border:none; border-radius:11px; padding:13px 24px;
+    background:var(--accent); color:#fff; } .btn:hover{ filter:brightness(1.1); }
+  .btn.ghost{ background:var(--panel2); color:var(--text); border:1px solid var(--border); }
+  .btn:disabled{ opacity:.4; cursor:default; }
+  .result{ text-align:center; padding:14px 0; display:none; } .result.show{ display:block; }
+  .result .big{ font-size:46px; font-weight:900; } .result .big .g{ color:var(--green); }
+  .result .msg{ color:var(--muted); margin:6px 0 16px; }
+  .shake{ animation:sh .5s; } @keyframes sh{ 10%,90%{transform:translateX(-1px);}20%,80%{transform:translateX(3px);}30%,50%,70%{transform:translateX(-7px);}40%,60%{transform:translateX(7px);} }
+  .confetti{ position:fixed; top:-12px; width:10px; height:14px; z-index:99; pointer-events:none; border-radius:2px; animation:fall linear forwards; }
+  @keyframes fall{ to{ transform:translateY(105vh) rotate(540deg); opacity:.9; } }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="head">
+    <h1>📐 <span>Intégrales</span> — question / réponse animée</h1>
+    <div class="score" id="score">Score : <b>0</b> / 5</div>
+  </div>
+  <div class="prog"><span id="bar"></span></div>
+  <div class="stage"><canvas id="cv" width="600" height="280"></canvas></div>
+  <div class="body">
+    <div id="quiz">
+      <div class="q" id="qtext"></div>
+      <div class="opts" id="opts"></div>
+      <div class="fb" id="fb"></div>
+      <div class="row" id="row">
+        <button class="btn" id="next" disabled>Suivant ›</button>
+        <button class="btn ghost" id="skip">Passer</button>
+      </div>
+    </div>
+    <div class="result" id="result">
+      <div class="big"><span class="g" id="rs">0</span> / 5</div>
+      <div class="msg" id="rmsg"></div>
+      <button class="btn" onclick="location.reload()">↻ Recommencer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ====== Banque de questions (chacune anime la figure différemment) ====== */
+const Q = [
+  {
+    scene: 'area', f: x => 0.45*x*x, a: 1, b: 4, // aire sous une parabole
+    text: "Que représente l'aire colorée sous la courbe, entre a et b ?",
+    opts: [ {t:"∫ₐᵇ f(x) dx", ok:true}, {t:"f '(a)", ok:false}, {t:"la pente en b", ok:false} ],
+    why: "L'aire entre la courbe, l'axe et les bornes a et b est exactement l'<b>intégrale définie</b> ∫ₐᵇ f(x) dx."
+  },
+  {
+    scene: 'curve', f: x => 0.4*x*x, // parabole simple
+    text: "Une primitive de 3x² (sa « fonction d'origine ») est…",
+    opts: [ {t:"x³", ok:true}, {t:"6x", ok:false}, {t:"x³ / 3", ok:false} ],
+    why: "La dérivée de <b>x³</b> est 3x². Donc x³ est une primitive de 3x²."
+  },
+  {
+    scene: 'eval', f: x => 0.6*x*x, a: 0, b: 2, target: 8, expr: "∫₀² 3x² dx",
+    text: "Calcule ∫₀² 3x² dx  =  [x³]₀²  =  ?",
+    opts: [ {t:"8", ok:true}, {t:"6", ok:false}, {t:"12", ok:false} ],
+    why: "[x³]₀² = 2³ − 0³ = 8 − 0 = <b>8</b>."
+  },
+  {
+    scene: 'cos',
+    text: "Une primitive de cos(x) est…",
+    opts: [ {t:"sin(x)", ok:true}, {t:"−sin(x)", ok:false}, {t:"tan(x)", ok:false} ],
+    why: "La dérivée de <b>sin(x)</b> est cos(x). Donc sin(x) est une primitive de cos(x)."
+  },
+  {
+    scene: 'eval', f: x => 0.5*x, a: 1, b: 3, target: 8, expr: "∫₁³ 2x dx",
+    text: "Calcule ∫₁³ 2x dx  =  [x²]₁³  =  ?",
+    opts: [ {t:"8", ok:true}, {t:"9", ok:false}, {t:"4", ok:false} ],
+    why: "[x²]₁³ = 3² − 1² = 9 − 1 = <b>8</b>."
+  }
+];
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+let idx = 0, score = 0, answered = false, t0 = 0, locked = false;
+
+/* ---------- moteur d'animation ---------- */
+function loop(ts){ if(!t0) t0 = ts; draw((ts - t0)/1000); requestAnimationFrame(loop); }
+function axes(ox, oy, w, h){
+  ctx.strokeStyle = '#5b6b7a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox+w, oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox, oy-h); ctx.stroke();
+}
+function draw(time){
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
+  const q = Q[idx]; const ox=70, oy=235, w=470, h=200, sc=46;
+
+  if (q.scene === 'area' || q.scene === 'eval'){
+    axes(ox, oy, w, h);
+    const fx = x => oy - q.f(x)*sc*0.45;
+    // aire animée de a -> b
+    const grow = q.scene==='eval' && answered ? 1 : Math.min(1, (time%3)/1.6);
+    const xa = ox + q.a*sc, xb = ox + q.b*sc;
+    const cur = xa + (xb-xa)*grow;
+    ctx.fillStyle = 'rgba(56,211,159,.30)';
+    ctx.beginPath(); ctx.moveTo(xa, oy);
+    for(let x=xa; x<=cur; x+=3){ const u=(x-ox)/sc; ctx.lineTo(x, oy - q.f(u)*sc*0.45); }
+    ctx.lineTo(cur, oy); ctx.closePath(); ctx.fill();
+    // courbe
+    ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 3; ctx.beginPath();
+    let first=true; for(let x=ox+6; x<=ox+w-6; x+=3){ const u=(x-ox)/sc; const y=oy - q.f(u)*sc*0.45; if(first){ctx.moveTo(x,y);first=false;} else ctx.lineTo(x,y);} ctx.stroke();
+    // bornes
+    ctx.strokeStyle = '#38d39f'; ctx.lineWidth = 2;
+    [[q.a,'a'],[q.b,'b']].forEach(([v,lab])=>{ const x=ox+v*sc; ctx.beginPath(); ctx.moveTo(x,oy); ctx.lineTo(x, oy-q.f(v)*sc*0.45); ctx.stroke();
+      ctx.fillStyle='#222'; ctx.font='bold 15px Segoe UI'; ctx.textAlign='center'; ctx.fillText(lab, x, oy+22); });
+    // valeur qui monte (eval, après réponse)
+    if (q.scene==='eval'){
+      ctx.fillStyle = '#222'; ctx.font='bold 22px Segoe UI'; ctx.textAlign='center';
+      const shown = answered ? q.target : '?';
+      ctx.fillText(q.expr + ' = ' + shown, W/2, 32);
+    } else {
+      ctx.fillStyle='#38d39f'; ctx.font='bold 18px Segoe UI'; ctx.textAlign='center';
+      ctx.fillText('aire = ∫ₐᵇ f(x) dx', (xa+xb)/2, oy-h+30);
+    }
+  }
+  else if (q.scene === 'curve'){
+    axes(ox, oy, w, h);
+    ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 3; ctx.beginPath();
+    let first=true; for(let x=ox+6;x<=ox+w-6;x+=3){ const u=(x-ox)/sc; const y=oy - q.f(u)*sc*0.45; if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);} ctx.stroke();
+    // une tangente qui glisse (illustration dérivée/primitive)
+    const u = 1 + (1+Math.sin(time))/2*4; const x = ox+u*sc, y = oy - q.f(u)*sc*0.45;
+    const m = 0.8*u; const dx=40;
+    ctx.strokeStyle='#e67e22'; ctx.lineWidth=2; ctx.beginPath();
+    ctx.moveTo(x-dx, y + m*dx*0.45); ctx.lineTo(x+dx, y - m*dx*0.45); ctx.stroke();
+    ctx.fillStyle='#7c5cff'; ctx.beginPath(); ctx.arc(x,y,6,0,7); ctx.fill();
+    ctx.fillStyle='#222'; ctx.font='bold 16px Segoe UI'; ctx.textAlign='center'; ctx.fillText('f(x) = 3x²  →  primitive ?', W/2, 30);
+  }
+  else if (q.scene === 'cos'){
+    axes(ox, oy-90, w, 150);
+    const mid = oy-90;
+    ctx.strokeStyle='#7c5cff'; ctx.lineWidth=3; ctx.beginPath();
+    for(let i=0;i<=w-12;i+=2){ const x=ox+i; const ph=i/40 + time; const y=mid - Math.cos(ph)*55; if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);} ctx.stroke();
+    ctx.fillStyle='#222'; ctx.font='bold 16px Segoe UI'; ctx.textAlign='center'; ctx.fillText('f(x) = cos(x)  →  primitive ?', W/2, 28);
+  }
+}
+
+/* ---------- logique question / réponse ---------- */
+const qtext=document.getElementById('qtext'), optsEl=document.getElementById('opts'),
+      fb=document.getElementById('fb'), nextBtn=document.getElementById('next'),
+      skipBtn=document.getElementById('skip'), bar=document.getElementById('bar'),
+      scoreEl=document.getElementById('score');
+
+function render(){
+  const q = Q[idx]; answered=false; locked=false;
+  qtext.innerHTML = q.text;
+  optsEl.innerHTML = '';
+  const K=['A','B','C','D'];
+  q.opts.forEach((o,i)=>{
+    const b=document.createElement('button'); b.className='opt';
+    b.innerHTML='<span class="k">'+K[i]+'</span><span>'+o.t+'</span>';
+    b.onclick=()=>answer(i,b); optsEl.appendChild(b);
+  });
+  fb.className='fb'; fb.innerHTML=''; nextBtn.disabled=true;
+  nextBtn.textContent = idx===Q.length-1 ? 'Voir mon score ›' : 'Suivant ›';
+  bar.style.width = (idx/Q.length*100)+'%';
+  t0=0;
+}
+function answer(i, btn){
+  if(locked) return; locked=true; answered=true;
+  const q=Q[idx]; const opts=[...optsEl.children];
+  opts.forEach(o=>o.disabled=true);
+  const correctIdx = q.opts.findIndex(o=>o.ok);
+  opts[correctIdx].classList.add('good'); opts[correctIdx].querySelector('.k').textContent='✓';
+  const good = q.opts[i].ok;
+  if(good){ score++; confetti(); }
+  else { btn.classList.add('bad'); btn.querySelector('.k').textContent='✕'; document.getElementById('card').classList.add('shake'); setTimeout(()=>document.getElementById('card').classList.remove('shake'),520); }
+  fb.className='fb show'+(good?'':' ko');
+  fb.innerHTML = (good?'<b>✓ Bravo !</b> ':'<b>✗ Pas tout à fait.</b> ') + q.why;
+  scoreEl.innerHTML='Score : <b>'+score+'</b> / '+Q.length;
+  nextBtn.disabled=false;
+}
+nextBtn.onclick=()=>{ if(idx<Q.length-1){ idx++; render(); } else finish(); };
+skipBtn.onclick=()=>{ if(idx<Q.length-1){ idx++; render(); } else finish(); };
+
+function finish(){
+  bar.style.width='100%';
+  document.getElementById('quiz').style.display='none';
+  const r=document.getElementById('result'); r.classList.add('show');
+  document.getElementById('rs').textContent=score;
+  let m; if(score===Q.length)m="Sans-faute ! Tu maîtrises les intégrales. 🏆";
+  else if(score>=3)m="Bien joué ! Revois les explications des questions ratées.";
+  else m="Reprends le cours, puis retente — tu vas y arriver 💪";
+  document.getElementById('rmsg').textContent=m;
+}
+function confetti(){ const c=['#f4c14b','#e63946','#2a9d4a','#38bdf8','#a855f7','#ff8a3d'];
+  for(let i=0;i<70;i++){ (k=>{ const p=document.createElement('div'); p.className='confetti';
+    p.style.left=(4+(k*1.3)%92)+'vw'; p.style.background=c[k%c.length];
+    const d=2+((k%10)/10)*1.6; p.style.animationDuration=d+'s'; p.style.transform='rotate('+(k*37%360)+'deg)';
+    document.body.appendChild(p); setTimeout(()=>p.remove(),(d+.4)*1000); })(i); } }
+
+render();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
